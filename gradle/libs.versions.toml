@@ -15,6 +15,7 @@ kotlin = "2.4.10"
 koin = "4.1.1"
 ksp = "2.3.12"
 ktor = "3.5.0"
+kotlinxCoroutines = "1.11.0"
 kotlinxSerialization = "1.9.0"
 material3 = "1.11.0-alpha07"
 room = "2.8.3"
@@ -49,6 +50,7 @@ ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
 ktor-client-websockets = { module = "io.ktor:ktor-client-websockets", version.ref = "ktor" }
 ktor-client-okhttp = { module = "io.ktor:ktor-client-okhttp", version.ref = "ktor" }
 ktor-client-darwin = { module = "io.ktor:ktor-client-darwin", version.ref = "ktor" }
+kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinxCoroutines" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
 
 [plugins]
