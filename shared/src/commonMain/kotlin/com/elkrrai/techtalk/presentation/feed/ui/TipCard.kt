@@ -14,13 +14,30 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Lightbulb
+import androidx.compose.material.icons.outlined.Lightbulb
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -31,6 +48,7 @@ import com.elkrrai.techtalk.presentation.theme.CodeBodyBackground
 import com.elkrrai.techtalk.presentation.theme.CodeHeaderBackground
 import com.elkrrai.techtalk.presentation.theme.CodeTextColor
 import com.elkrrai.techtalk.utils.parseHexColor
+import kotlinx.coroutines.delay
 
 @Composable
 fun TipCard(
@@ -84,20 +102,14 @@ fun TipCard(
                 CodeSnippet(tip, snippet)
             }
 
-            Spacer(Modifier.height(16.dp))
+            HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
 
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = if (isInterested) "❤️" else "🤍",
-                    style = MaterialTheme.typography.headlineSmall,
-                    modifier = Modifier.clickable(onClick = onToggleInterested).padding(8.dp)
-                )
-                Text(
-                    text = "${tip.interestCount}",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+            Icon(
+                imageVector = if (isInterested) Icons.Filled.Lightbulb else Icons.Outlined.Lightbulb,
+                modifier = Modifier.clickable(onClick = onToggleInterested),
+                tint = Color.Yellow,
+                contentDescription = "Interesting",
+            )
         }
     }
 }
@@ -106,17 +118,41 @@ fun TipCard(
 private fun CodeSnippet(tip: FeedTip, snippet: String) {
     Column(
         modifier = Modifier.fillMaxWidth()
-            .background(CodeHeaderBackground, RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(12.dp))
+            .background(CodeHeaderBackground)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 8.dp)
+                .padding(start = 12.dp, end = 4.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
                 text = tip.codeLang ?: "",
                 style = MaterialTheme.typography.labelSmall,
                 color = CodeTextColor
             )
+
+            val clipboardManager = LocalClipboardManager.current
+            var isCopied by remember { mutableStateOf(false) }
+            LaunchedEffect(isCopied) {
+                if (isCopied) {
+                    delay(1500)
+                    isCopied = false
+                }
+            }
+            IconButton(
+                onClick = {
+                    clipboardManager.setText(AnnotatedString(snippet))
+                    isCopied = true
+                }
+            ) {
+                Icon(
+                    imageVector = if (isCopied) Icons.Filled.Check else Icons.Filled.ContentCopy,
+                    contentDescription = "Copy code",
+                    tint = CodeTextColor
+                )
+            }
         }
         Column(
             modifier = Modifier.fillMaxWidth().background(CodeBodyBackground)
