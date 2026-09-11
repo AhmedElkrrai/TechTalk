@@ -3,6 +3,7 @@ package com.elkrrai.techtalk.presentation.userprofile.ui
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
@@ -37,6 +38,7 @@ import com.elkrrai.techtalk.domain.model.user.AvatarCatalog
 import com.elkrrai.techtalk.domain.model.user.AvatarOption
 import com.elkrrai.techtalk.presentation.component.AppProgressBar
 import com.elkrrai.techtalk.presentation.component.LoadingScreen
+import com.elkrrai.techtalk.presentation.theme.SuccessColor
 import com.elkrrai.techtalk.presentation.userprofile.UserProfileViewModel
 import com.elkrrai.techtalk.utils.formatRelativeTime
 import kotlinx.coroutines.delay
@@ -57,7 +59,7 @@ fun UserProfileScreen(
         }
     }
 
-    DisposableEffect(Unit){
+    DisposableEffect(Unit) {
         onDispose { viewModel.saveName() }
     }
 
@@ -102,7 +104,10 @@ fun UserProfileScreen(
                     Spacer(Modifier.height(16.dp))
 
                     Text("Level ${state.level}", style = MaterialTheme.typography.titleMedium)
-                    AppProgressBar(progress = state.xpProgressFraction, modifier = Modifier.padding(vertical = 8.dp))
+                    AppProgressBar(
+                        progress = state.xpProgressFraction,
+                        modifier = Modifier.padding(vertical = 8.dp)
+                    )
                     Text(
                         text = "${state.currentXp} / ${state.xpToNextLevel} XP",
                         style = MaterialTheme.typography.bodySmall,
@@ -137,7 +142,7 @@ fun UserProfileScreen(
             }
 
             items(state.recentBattles, key = { it.id }) { battle ->
-                BattleHistoryRow(battle)
+                BattleHistoryItem(battle)
             }
         }
     }
@@ -173,45 +178,60 @@ private fun BattleSummaryRow(battlesPlayed: Int, winRate: Int, bestStreak: Int) 
 private fun StatColumn(label: String, value: String) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(value, style = MaterialTheme.typography.titleLarge)
-        Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(
+            label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 
 @Composable
-private fun BattleHistoryRow(battle: BattleHistoryItem) {
+private fun BattleHistoryItem(battle: BattleHistoryItem) {
     Card(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Column {
                 Text(battle.technologyName, style = MaterialTheme.typography.titleSmall)
+                Text(
+                    text = "${battle.score}/${battle.totalQuestions}",
+                    style = MaterialTheme.typography.titleSmall
+                )
                 Text(
                     text = formatRelativeTime(battle.playedAt),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
+
             Column(horizontalAlignment = Alignment.End) {
                 Text(
-                    text = "${battle.score}/${battle.totalQuestions}",
-                    style = MaterialTheme.typography.titleSmall
+                    text = "+ ${battle.xpGained} XP",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary
                 )
                 Text(
-                    text = when (battle.status) {
-                        BattleStatus.WIN -> "Win"
-                        BattleStatus.LOSS -> "Loss"
-                        BattleStatus.RESIGNED -> "Resigned"
-                    },
+                    text = battle.title(),
                     style = MaterialTheme.typography.labelSmall,
-                    color = if (battle.status == BattleStatus.WIN) {
-                        com.elkrrai.techtalk.presentation.theme.SuccessColor
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    }
+                    color = battle.color()
                 )
             }
         }
     }
+}
+
+private fun BattleHistoryItem.title() = when (this.status) {
+    BattleStatus.WIN -> "Win"
+    BattleStatus.LOSS -> "Loss"
+    BattleStatus.RESIGNED -> "Resigned"
+}
+
+@Composable
+private fun BattleHistoryItem.color() = when (this.status) {
+    BattleStatus.WIN -> SuccessColor
+    BattleStatus.LOSS -> MaterialTheme.colorScheme.error
+    BattleStatus.RESIGNED -> MaterialTheme.colorScheme.onSurfaceVariant
 }
