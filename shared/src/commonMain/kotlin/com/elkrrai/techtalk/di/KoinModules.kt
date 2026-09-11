@@ -16,7 +16,28 @@ import com.elkrrai.techtalk.data.remote.KtorOnlineBattleRepository
 import com.elkrrai.techtalk.data.repository.TechTalkRepositoryImpl
 import com.elkrrai.techtalk.domain.repository.OnlineBattleRepository
 import com.elkrrai.techtalk.domain.repository.TechTalkRepository
+import com.elkrrai.techtalk.domain.usecase.online.ConnectOnlineBattleUseCase
+import com.elkrrai.techtalk.domain.usecase.online.CreateOnlineRoomUseCase
+import com.elkrrai.techtalk.domain.usecase.online.DisconnectOnlineBattleUseCase
+import com.elkrrai.techtalk.domain.usecase.online.JoinOnlineRoomUseCase
+import com.elkrrai.techtalk.domain.usecase.online.LeaveOnlineRoomUseCase
+import com.elkrrai.techtalk.domain.usecase.online.ObserveOnlineBattleEventsUseCase
+import com.elkrrai.techtalk.domain.usecase.online.ReconnectOnlineBattleUseCase
+import com.elkrrai.techtalk.domain.usecase.online.RequestOnlineRematchUseCase
+import com.elkrrai.techtalk.domain.usecase.online.SetOnlinePlayerReadyUseCase
+import com.elkrrai.techtalk.domain.usecase.online.SubmitOnlineAnswerUseCase
+import com.elkrrai.techtalk.presentation.battle.home.BattleHomeViewModel
+import com.elkrrai.techtalk.presentation.battle.offline.OfflineBattleViewModel
+import com.elkrrai.techtalk.presentation.battle.online.BattleLobbyViewModel
+import com.elkrrai.techtalk.presentation.battle.online.OnlineBattleViewModel
+import com.elkrrai.techtalk.presentation.battle.result.BattleResultViewModel
+import com.elkrrai.techtalk.presentation.battle.state.BattleSessionStore
+import com.elkrrai.techtalk.presentation.feed.FeedViewModel
+import com.elkrrai.techtalk.presentation.getmorecontent.GetMoreContentViewModel
+import com.elkrrai.techtalk.presentation.technologylist.TechnologyListViewModel
+import com.elkrrai.techtalk.presentation.userprofile.UserProfileViewModel
 import org.koin.core.module.Module
+import org.koin.core.module.dsl.viewModelOf
 import org.koin.dsl.module
 
 /** Each DAO exposed as its own `single`, delegating to the [AppDatabase] instance,
@@ -54,4 +75,50 @@ fun repositoryModule(): Module = module {
         )
     }
     single<OnlineBattleRepository> { KtorOnlineBattleRepository(httpClient = get()) }
+}
+
+/** All 10 online use cases are registered (harmless, matches the domain layer's own
+ * rebuild checklist) even though only 6 are ever injected into a ViewModel — see
+ * [viewModelModule]. `SetOnlinePlayerReadyUseCase`, `RequestOnlineRematchUseCase`,
+ * `LeaveOnlineRoomUseCase` and `ReconnectOnlineBattleUseCase` have no UI caller: the
+ * lobby calls `disconnect()` directly instead of `LeaveOnlineRoomUseCase`, and
+ * ready-up/rematch/reconnect have no screen at all. */
+fun useCaseModule(): Module = module {
+    single { ObserveOnlineBattleEventsUseCase(repository = get()) }
+    single { ConnectOnlineBattleUseCase(repository = get()) }
+    single { DisconnectOnlineBattleUseCase(repository = get()) }
+    single { CreateOnlineRoomUseCase(repository = get()) }
+    single { JoinOnlineRoomUseCase(repository = get()) }
+    single { SubmitOnlineAnswerUseCase(repository = get()) }
+    single { SetOnlinePlayerReadyUseCase(repository = get()) }
+    single { RequestOnlineRematchUseCase(repository = get()) }
+    single { LeaveOnlineRoomUseCase(repository = get()) }
+    single { ReconnectOnlineBattleUseCase(repository = get()) }
+}
+
+fun viewModelModule(): Module = module {
+    // Singleton — the only channel between battle home -> battle -> result. Must not
+    // be registered per-ViewModel or each screen would see its own empty state.
+    single { BattleSessionStore() }
+
+    viewModelOf(::FeedViewModel)
+    viewModelOf(::TechnologyListViewModel)
+    viewModelOf(::BattleHomeViewModel)
+    viewModelOf(::OfflineBattleViewModel)
+    viewModelOf(::BattleResultViewModel)
+    viewModelOf(::BattleLobbyViewModel)
+    viewModelOf(::OnlineBattleViewModel)
+    viewModelOf(::GetMoreContentViewModel)
+    viewModelOf(::UserProfileViewModel)
+}
+
+/** Single entry point, included from each platform's `startKoin { modules(...) }`. */
+fun commonAppModule(): Module = module {
+    includes(
+        platformModule(),
+        databaseModule(),
+        repositoryModule(),
+        useCaseModule(),
+        viewModelModule()
+    )
 }
