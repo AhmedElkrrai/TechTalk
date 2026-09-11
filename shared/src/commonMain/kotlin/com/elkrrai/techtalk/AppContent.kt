@@ -31,6 +31,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -106,7 +108,10 @@ private fun AppContentInner(
                             )
                         },
                         navigationIcon = {
-                            IconButton(onClick = { isDrawerOpen = true }) { Text("☰") }
+                            IconButton(
+                                onClick = { isDrawerOpen = true },
+                                modifier = Modifier.semantics { contentDescription = "Menu" }
+                            ) { Text("☰") }
                         },
                         actions = {
                             if (!isBattleSelected) {

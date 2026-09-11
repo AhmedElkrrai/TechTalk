@@ -24,6 +24,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.elkrrai.techtalk.presentation.component.AppButton
 import com.elkrrai.techtalk.presentation.feed.ui.JsonFilePicker
@@ -55,7 +57,12 @@ fun GetMoreContentScreen(
         topBar = {
             TopAppBar(
                 title = { Text("Get more content") },
-                navigationIcon = { IconButton(onClick = onClose) { Text("✕") } }
+                navigationIcon = {
+                    IconButton(
+                        onClick = onClose,
+                        modifier = Modifier.semantics { contentDescription = "Close" }
+                    ) { Text("✕") }
+                }
             )
         }
     ) { padding ->

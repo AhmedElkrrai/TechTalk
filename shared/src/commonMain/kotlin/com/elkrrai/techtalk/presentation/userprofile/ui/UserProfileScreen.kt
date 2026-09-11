@@ -33,6 +33,8 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.elkrrai.techtalk.domain.model.battle.BattleHistoryItem
@@ -72,7 +74,12 @@ fun UserProfileScreen(
         topBar = {
             TopAppBar(
                 title = { Text("Profile") },
-                navigationIcon = { IconButton(onClick = onClose) { Text("✕") } },
+                navigationIcon = {
+                    IconButton(
+                        onClick = onClose,
+                        modifier = Modifier.semantics { contentDescription = "Close" }
+                    ) { Text("✕") }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface
                 )
