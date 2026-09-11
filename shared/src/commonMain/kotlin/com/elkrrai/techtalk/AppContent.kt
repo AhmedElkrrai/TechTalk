@@ -11,6 +11,9 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -75,12 +78,28 @@ private fun AppContentInner(
         when (currentScreen) {
             AppScreen.Main -> {
                 val profileState by userProfileViewModel.state.collectAsState()
+                val feedState by feedViewModel.state.collectAsState()
                 Scaffold(
                     topBar = {
                         TopAppBar(
-                            title = { Text(if (selectedTab == AppTab.Feed) "Feed" else "Battle") },
+                            title = {
+                                Text(
+                                    if (selectedTab == AppTab.Feed && feedState.showTipsCounter) {
+                                        "TechTalk  ${feedState.currentPage + 1} / ${feedState.filteredTips.size}"
+                                    } else {
+                                        "TechTalk"
+                                    }
+                                )
+                            },
                             navigationIcon = {
                                 IconButton(onClick = { isDrawerOpen = true }) { Text("☰") }
+                            },
+                            actions = {
+                                if (selectedTab == AppTab.Feed) {
+                                    IconButton(onClick = feedViewModel::onOpenFilterSheet) {
+                                        Icon(Icons.Filled.FilterList, contentDescription = "Filter")
+                                    }
+                                }
                             }
                         )
                     },
@@ -101,7 +120,7 @@ private fun AppContentInner(
                         }
                     }
                 ) { padding ->
-                    Box(modifier = Modifier.fillMaxSize()) {
+                    Box(modifier = Modifier.fillMaxSize().padding(padding)) {
                         when (selectedTab) {
                             AppTab.Feed -> FeedScreen(
                                 viewModel = feedViewModel,

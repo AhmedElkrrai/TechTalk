@@ -19,7 +19,7 @@ fun Badge(
 ) {
     Surface(
         color = color.copy(alpha = 0.15f),
-        shape = RoundedCornerShape(8.dp)
+        shape = RoundedCornerShape(12.dp)
     ) {
         Text(
             text = title,

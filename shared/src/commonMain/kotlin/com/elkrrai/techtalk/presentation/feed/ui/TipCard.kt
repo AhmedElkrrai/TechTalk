@@ -2,6 +2,7 @@ package com.elkrrai.techtalk.presentation.feed.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -41,7 +42,8 @@ fun TipCard(
     Card(
         modifier = modifier.fillMaxSize().padding(16.dp),
         shape = RoundedCornerShape(20.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.background),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(
             modifier = Modifier
@@ -95,12 +97,14 @@ fun TipCard(
                     }
                     Column(
                         modifier = Modifier.fillMaxWidth().background(CodeBodyBackground)
+                            .horizontalScroll(rememberScrollState())
                             .padding(12.dp)
                     ) {
                         Text(
                             text = snippet,
                             style = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
-                            color = CodeTextColor
+                            color = CodeTextColor,
+                            softWrap = false
                         )
                     }
                 }
