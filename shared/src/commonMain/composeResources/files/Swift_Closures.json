@@ -1,0 +1,35 @@
+{
+    "version": 1,
+    "author": "TechTalk",
+    "description": "Swift — Closures",
+    "entries": [
+        {
+            "technologyName": "Swift",
+            "topicName": "Closures",
+            "topicDescription": "Self-contained blocks of functionality that can be passed around.",
+            "tips": [
+                {
+                    "title": "Trailing closure syntax keeps code clean",
+                    "content": "When the last parameter of a function is a closure, Swift lets\nyou write it outside the parentheses. This is called trailing\nclosure syntax and it dramatically improves readability.\n\nIf the closure is the only argument, you can even drop the\nparentheses entirely. This is why SwiftUI code looks so clean\n— views are built with trailing closures.\n\nFor functions with multiple trailing closures (Swift 5.3+),\nthe first uses trailing syntax and subsequent ones are labeled.\n\nTrailing closures are purely syntactic sugar. The behavior is\nidentical; it just reads more naturally, especially when the\nclosure body is multi-line.",
+                    "codeSnippet": "// Standard syntax\nlet sorted = names.sorted(by: { a, b in a < b })\n\n// Trailing closure — cleaner\nlet sorted2 = names.sorted { a, b in a < b }\n\n// Only argument — drop parentheses\nlet doubled = numbers.map { $0 * 2 }\n\n// Multi-line trailing closure\nlet results = items.filter {\n    $0.isActive && $0.score > 80\n}\n\n// Multiple trailing closures (Swift 5.3+)\nButton {\n    viewModel.submit()\n} label: {\n    Text(\"Submit\")\n}",
+                    "codeLang": "Swift",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "Capture lists prevent retain cycles",
+                    "content": "Closures capture references to variables from their surrounding\nscope. When a closure captures 'self' and is stored by self,\nyou create a retain cycle — neither can be deallocated.\n\nUse '[weak self]' in the capture list to break the cycle. This\nmakes self an optional inside the closure. You'll typically\nuse 'guard let self' at the top to unwrap it.\n\nUse '[unowned self]' when you're certain self will never be nil\nduring the closure's lifetime. It's like a force unwrap — faster\nbut crashes if self is deallocated.\n\nThe general rule: use [weak self] for escaping closures stored\nlong-term (network callbacks, timers), and you often don't need\ncapture lists for non-escaping closures.",
+                    "codeSnippet": "class DataLoader {\n    var data: [String] = []\n    \n    func load() {\n        // ❌ Retain cycle — closure captures self strongly\n        // networkService.fetch { result in\n        //     self.data = result\n        // }\n        \n        // ✅ Weak self breaks the cycle\n        networkService.fetch { [weak self] result in\n            guard let self else { return }\n            self.data = result\n        }\n    }\n    \n    // ✅ Non-escaping — no capture list needed\n    func process() {\n        data.forEach { item in\n            print(item)  // no retain cycle risk\n        }\n    }\n}",
+                    "codeLang": "Swift",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Escaping vs non-escaping closures",
+                    "content": "By default, closure parameters are non-escaping — they must be\ncalled before the function returns. The compiler enforces this,\nenabling optimizations like skipping reference counting.\n\nMark a closure '@escaping' when it will be stored or called\nafter the function returns. Common cases: completion handlers,\ncallbacks stored in properties, and async operations.\n\nNon-escaping closures can refer to 'self' implicitly in\nstructs. Escaping closures require you to write 'self.'\nexplicitly, reminding you about potential retain cycles.\n\nPrefer non-escaping closures when possible. They're safer,\nfaster, and the compiler can reason about them better. Use\n@escaping only when you truly need deferred execution.",
+                    "codeSnippet": "// Non-escaping (default) — called immediately\nfunc apply(_ transform: (Int) -> Int, to value: Int) -> Int {\n    return transform(value)\n}\nlet result = apply({ $0 * 2 }, to: 5) // 10\n\n// Escaping — stored for later\nclass EventBus {\n    var handlers: [() -> Void] = []\n    \n    func onEvent(_ handler: @escaping () -> Void) {\n        handlers.append(handler)  // stored beyond function\n    }\n    \n    func fire() {\n        handlers.forEach { $0() }\n    }\n}\n\n// Escaping requires explicit 'self'\nclass Timer {\n    var tick: (() -> Void)?\n    func start() {\n        tick = { [weak self] in\n            self?.update()  // explicit self required\n        }\n    }\n}",
+                    "codeLang": "Swift",
+                    "difficulty": "ADVANCED"
+                }
+            ]
+        }
+    ]
+}

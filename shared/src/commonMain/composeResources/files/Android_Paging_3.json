@@ -1,0 +1,21 @@
+{
+    "version": 1,
+    "author": "TechTalk",
+    "description": "Android — Paging 3",
+    "entries": [
+        {
+            "technologyName": "Android",
+            "topicName": "Paging 3",
+            "topicDescription": "Loading and displaying large or paginated datasets efficiently with the Paging 3 library.",
+            "tips": [
+                {
+                    "title": "PagingSource defines how to load one page at a time, keyed for the next request",
+                    "content": "Loading an entire large dataset into memory upfront (even just to\ndisplay a scrollable list) wastes memory and delays initial render for\ndata the user may never scroll to.\n\nA PagingSource's load() function receives a key describing which page to\nfetch next and returns that page's data along with the keys for the\nprevious and next pages — Paging 3 calls it automatically as the user\nscrolls, so only the visible (plus a small buffer of) data is ever held\nin memory.",
+                    "codeSnippet": "class UserPagingSource(private val api: UserApi) : PagingSource<Int, User>() {\n    override suspend fun load(params: LoadParams<Int>): LoadResult<Int, User> {\n        val page = params.key ?: 1\n        val response = api.getUsers(page = page, size = params.loadSize)\n        return LoadResult.Page(response.users, prevKey = if (page == 1) null else page - 1, nextKey = if (response.users.isEmpty()) null else page + 1)\n    }\n    override fun getRefreshKey(state: PagingState<Int, User>) = null\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                }
+            ]
+        }
+    ]
+}

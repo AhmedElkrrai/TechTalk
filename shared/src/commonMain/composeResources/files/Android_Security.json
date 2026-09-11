@@ -1,0 +1,364 @@
+{
+    "version": 1,
+    "author": "TechTalk",
+    "description": "Android — Security",
+    "entries": [
+        {
+            "technologyName": "Android",
+            "topicName": "Security",
+            "topicDescription": "Practical hardening techniques for authentication, storage, network, and runtime protection on Android.",
+            "tips": [
+                {
+                    "title": "Store secrets with Keystore-backed encryption, not plain SharedPreferences",
+                    "content": "Plain SharedPreferences are readable on any rooted device and are backed up\nby default unless explicitly excluded, so tokens stored there can leak.\n\nUse EncryptedSharedPreferences or DataStore with a key wrapped by the Android\nKeystore (AES/GCM). The Keystore key material never leaves secure hardware\n(StrongBox or TEE when available), so even a rooted attacker can't extract\nthe raw key — only misuse the app while it's running.\n\nFor multi-account apps, prefix keys per account rather than using one shared\nfile, so tokens don't leak across account switches.",
+                    "codeSnippet": "val masterKey = MasterKey.Builder(context)\n    .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)\n    .build()\n\nval encryptedPrefs = EncryptedSharedPreferences.create(\n    context,\n    \"secure_prefs\",\n    masterKey,\n    EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,\n    EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM\n)",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Pin certificates, but always ship a backup pin",
+                    "content": "Certificate pinning stops MITM attacks even when a trusted CA is compromised\nor a malicious profile is installed on the device.\n\nBut pinning only the leaf certificate is fragile — cert rotation on the\nserver will hard-break your app for every user until they update. Pin the\nintermediate or a backup public key alongside the primary one, and always\ninclude a pin-validation failure path that fails closed (block the request)\nrather than silently falling back to unpinned trust.",
+                    "codeSnippet": "val certificatePinner = CertificatePinner.Builder()\n    .add(\"api.example.com\", \"sha256/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\")\n    .add(\"api.example.com\", \"sha256/BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB=\") // backup pin\n    .build()\n\nval client = OkHttpClient.Builder()\n    .certificatePinner(certificatePinner)\n    .build()",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Use PKCE for OAuth2 on mobile — never embed client secrets",
+                    "content": "Mobile apps are public clients: any \"secret\" baked into the APK can be\nextracted via decompilation (JADX makes this trivial), so the classic\nauthorization-code-with-client-secret flow isn't safe on-device.\n\nPKCE (Proof Key for Code Exchange) replaces the static secret with a\ndynamically generated code_verifier/code_challenge pair per auth attempt,\nso even if the authorization code is intercepted, it can't be redeemed\nwithout the original verifier held only in the app's memory.",
+                    "codeSnippet": "val codeVerifier = generateRandomString(64)\nval codeChallenge = codeVerifier.sha256().base64UrlEncode()\n\n// Authorization request\nval authUrl = \"$authEndpoint?response_type=code\" +\n    \"&client_id=$clientId\" +\n    \"&code_challenge=$codeChallenge\" +\n    \"&code_challenge_method=S256\"\n\n// Token exchange includes the original verifier, never the challenge\nval tokenRequestBody = mapOf(\n    \"grant_type\" to \"authorization_code\",\n    \"code_verifier\" to codeVerifier\n)",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Combine multiple signals for root detection, not a single check",
+                    "content": "Checking for su binaries or test-keys alone is trivially bypassed by Magisk\nHide or similar tools. Treat root detection as a risk score, not a boolean.\n\nCombine filesystem signals (su paths, busybox, Magisk app package), runtime\nsignals (ptrace detection, unexpected native library presence), and the Play\nIntegrity API's device/app integrity verdicts. Weight Play Integrity highest\nsince it's backed by hardware attestation and much harder to spoof than\nlocal checks.",
+                    "codeSnippet": "fun computeRiskScore(): Int {\n    var score = 0\n    if (hasSuBinary()) score += 20\n    if (hasMagiskApp()) score += 20\n    if (isDebuggerAttached()) score += 15\n    if (playIntegrityVerdict != MEETS_DEVICE_INTEGRITY) score += 40\n    return score // threshold decides block/warn/allow\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Validate JWTs by signature and claims — never trust decoding alone",
+                    "content": "Base64-decoding a JWT to read its payload proves nothing about authenticity;\nanyone can craft a token with an arbitrary payload. The client must verify\nthe signature against the issuer's published JWKS, and check exp, nbf, iss,\nand aud claims before trusting any value in the token.\n\nOn Android, prefer validating tokens server-side wherever possible — if the\nclient must validate locally (e.g. for offline gating), cache the JWKS with\na short TTL and fail closed if the keys can't be refreshed.",
+                    "codeSnippet": "val jwtVerifier = JWT.require(Algorithm.RSA256(publicKey, null))\n    .withIssuer(expectedIssuer)\n    .withAudience(expectedAudience)\n    .build()\n\ntry {\n    val decoded = jwtVerifier.verify(token)\n} catch (e: JWTVerificationException) {\n    // treat as unauthenticated — do not fall back to unverified claims\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Single-flight token refresh to avoid a refresh-token race",
+                    "content": "When multiple requests hit a 401 simultaneously, each naively triggering its\nown refresh call causes a race: the first refresh invalidates the old refresh\ntoken while others are still using it, logging the user out unexpectedly.\n\nGuard the refresh call with a mutex or a shared in-flight Deferred so\nconcurrent 401s await one refresh instead of firing several, and queue the\noriginal requests to retry once the new token is available.",
+                    "codeSnippet": "private val refreshMutex = Mutex()\nprivate var refreshDeferred: Deferred<String>? = null\n\nsuspend fun getValidToken(): String = refreshMutex.withLock {\n    refreshDeferred?.await() ?: run {\n        val deferred = externalScope.async { authApi.refreshToken() }\n        refreshDeferred = deferred\n        val token = deferred.await()\n        refreshDeferred = null\n        token\n    }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Encrypt local databases holding sensitive data with SQLCipher",
+                    "content": "Room's default SQLite storage is unencrypted on disk — on a rooted or\nphysically compromised device, cached tokens, PII, or transaction history\nin the local DB are readable directly from the file system.\n\nUse SQLCipher's Room integration (net.zetetic:android-database-sqlcipher)\nto transparently encrypt the database file with a key derived from the\nKeystore, so the on-disk .db file is unreadable without the running app's\nkey material.",
+                    "codeSnippet": "val passphrase = SQLiteDatabase.getBytes(keystoreDerivedKey.toCharArray())\nval factory = SupportFactory(passphrase)\n\nval db = Room.databaseBuilder(context, AppDatabase::class.java, \"secure.db\")\n    .openHelperFactory(factory)\n    .build()",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Don't rely on obfuscation alone — pair it with runtime integrity checks",
+                    "content": "Obfuscation (DexGuard/R8) raises the cost of static analysis but does\nnothing to stop a repackaged or tampered APK from running once decompiled\nand reassembled.\n\nAdd runtime integrity checks: verify the app's signing certificate hash at\nstartup, check Play Integrity's appIntegrity verdict, and detect debugger/\nFrida attachment. Treat obfuscation as raising the bar for reverse engineers\nand runtime checks as catching the ones who get past it.",
+                    "codeSnippet": "fun verifySigningCertificate(context: Context): Boolean {\n    val packageInfo = context.packageManager.getPackageInfo(\n        context.packageName, PackageManager.GET_SIGNING_CERTIFICATES\n    )\n    val actualHash = sha256(packageInfo.signingInfo.apkContentsSigners[0].toByteArray())\n    return actualHash == EXPECTED_SIGNING_HASH\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Scope Android permissions to the moment they're needed",
+                    "content": "Requesting all permissions (camera, location, storage) at first launch\ninflates your attack/privacy surface and triggers user distrust — many\nusers deny blanket up-front prompts on principle.\n\nRequest permissions contextually, right before the feature that needs them\nruns, and check shouldShowRequestPermissionRationale to explain why before\nre-prompting. This also reduces the app's exposure if a permission is\nmisused by a compromised dependency, since it's not granted until needed.",
+                    "codeSnippet": "val requestPermissionLauncher = registerForActivityResult(\n    ActivityResultContracts.RequestPermission()\n) { granted ->\n    if (granted) startCameraCapture() else showRationaleDialog()\n}\n\n// Trigger only when the user taps \"Scan document\", not at app launch\nscanButton.setOnClickListener {\n    requestPermissionLauncher.launch(Manifest.permission.CAMERA)\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "Never log sensitive data, even at debug level",
+                    "content": "Debug logs are easy to forget about and often ship in release builds via\nmisconfigured build variants, or get captured by crash reporting tools that\nscrape logcat. Tokens, PII, or full request/response bodies in Log.d calls\ncan leak through bug reports, ADB access, or third-party SDKs that read logs.\n\nStrip logging in release builds via R8/DexGuard rules that remove Log calls\nentirely, and for anything that must log request details in debug builds,\nredact sensitive fields before logging rather than trusting build-variant\ngating alone.",
+                    "codeSnippet": "// build.gradle: strip Log.* calls in release via R8\n-assumenosideeffects class android.util.Log {\n    public static int d(...);\n    public static int v(...);\n}\n\n// Redact before logging even in debug\nfun Request.redactedLog(): String =\n    toString().replace(Regex(\"Bearer\\\\s+[A-Za-z0-9\\\\-._~+/]+=*\"), \"Bearer [REDACTED]\")",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "Pin the public key (SPKI hash), not the whole certificate, to survive renewal",
+                    "content": "Pinning the full certificate's hash means the pin breaks the moment the\ncertificate is renewed, even if it's renewed with the exact same key pair\n— a routine, non-security-relevant renewal forces an app update just to\nkeep working.\n\nPinning the Subject Public Key Info (SPKI) hash instead pins the\nunderlying public key, which stays the same across a routine certificate\nrenewal as long as the key pair itself isn't rotated — this is what\nOkHttp's CertificatePinner and Network Security Config's pin-set both\nactually pin against by default, not the full certificate.",
+                    "codeSnippet": "// The pin is a hash of the SPKI, not the certificate itself:\nCertificatePinner.Builder()\n    .add(\"api.example.com\", \"sha256/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\")\n    .build()\n// survives a cert renewal that reuses the same key pair, unlike full-cert hashing",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Declare pins declaratively via Network Security Config's <pin-set>",
+                    "content": "OkHttp's CertificatePinner requires pins to be compiled into your app's\nKotlin/Java code, which means every pin change requires a full code\nchange and app release cycle.\n\nNetwork Security Config's <pin-set> element declares pins in XML instead\n— functionally equivalent for enforcement purposes, and it has the added\nbenefit of applying at the OS level, so it protects any networking\nlibrary and even WebView traffic within your app, not just requests made\nthrough a specific HTTP client you've manually configured.",
+                    "codeSnippet": "<domain-config>\n    <domain includeSubdomains=\"true\">api.example.com</domain>\n    <pin-set expiration=\"2027-06-01\">\n        <pin digest=\"SHA-256\">AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</pin>\n        <pin digest=\"SHA-256\">BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB=</pin>\n    </pin-set>\n</domain-config>",
+                    "codeLang": "XML",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Set an expiration date on a pin-set as a built-in safety valve",
+                    "content": "A pin-set with no expiration keeps enforcing pinning indefinitely, even\nif your app is never updated again — if the pinned key is ever rotated\nwithout a corresponding app update reaching every user, those un-updated\ninstalls are permanently locked out of your API with no recovery path\nshort of a forced reinstall.\n\nThe expiration attribute makes Network Security Config automatically stop\nenforcing pinning after the given date, falling back to normal\ncertificate validation — this bounds the worst-case impact of a forgotten\nor delayed pin rotation instead of leaving it open-ended.",
+                    "codeSnippet": "<pin-set expiration=\"2027-01-01\"> <!-- pinning enforcement automatically lapses after this date -->\n    <pin digest=\"SHA-256\">AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</pin>\n</pin-set>",
+                    "codeLang": "XML",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Pinning an intermediate CA trades some security specificity for a much lower maintenance burden",
+                    "content": "Pinning the leaf server certificate's key gives the tightest possible\nsecurity guarantee, but ties every app release to that exact leaf key —\nany leaf rotation, planned or emergency, requires a coordinated app\nupdate.\n\nPinning your CA's intermediate certificate instead lets your backend team\nrotate leaf certificates freely (a routine, frequent operation) without\ntouching the app at all, while still meaningfully restricting which CA\ncan issue certificates trusted by your app — a reasonable middle ground\nbetween leaf pinning's precision and no pinning's lack of protection.",
+                    "codeSnippet": "<!-- Pinning the intermediate CA's key — leaf certs can rotate freely underneath it -->\n<pin-set>\n    <pin digest=\"SHA-256\">INTERMEDIATE_CA_SPKI_HASH=</pin>\n</pin-set>",
+                    "codeLang": "XML",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Extract a certificate's SPKI pin value with openssl before hardcoding it",
+                    "content": "Manually computing an SPKI hash by hand or trusting a third-party pin-\ngenerator tool of unknown provenance is both error-prone and a poor\nsecurity practice for something this sensitive.\n\nopenssl's own commands can extract a live server's certificate and\ncompute its SPKI SHA-256 hash directly, giving you a pin value you can\nverify yourself rather than trusting an intermediate tool — this should\nbe run against the actual production endpoint, not a staging environment\nwhich may use a different certificate entirely.",
+                    "codeSnippet": "openssl s_client -connect api.example.com:443 -servername api.example.com < /dev/null 2>/dev/null \\\n  | openssl x509 -pubkey -noout \\\n  | openssl pkey -pubin -outform der \\\n  | openssl dgst -sha256 -binary \\\n  | openssl enc -base64\n# output is the sha256/... pin value to hardcode or declare in XML",
+                    "codeLang": "Shell",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Pinning supplements chain validation — it doesn't replace it",
+                    "content": "Certificate pinning is an additional check layered on top of standard\nTLS certificate chain validation, not a substitute for it — the system\nstill verifies the certificate is validly signed, unexpired, and matches\nthe hostname; pinning adds the further requirement that the key also\nmatches a specific expected value.\n\nA misconception is that pinning alone is sufficient security, leading to\nweakened chain validation elsewhere (a permissive TrustManager, say)\nunder the assumption pinning covers it — both layers need to be correctly\nin place, since disabling standard validation still allows any pinned-\nmatching key to be presented via a different, otherwise-invalid chain in\nsome misconfigurations.",
+                    "codeSnippet": "// Pinning is layered ON TOP of default validation — don't also weaken the TrustManager:\nval client = OkHttpClient.Builder()\n    .certificatePinner(pinner) // additional check\n    .build() // default X509TrustManager still performs full chain validation underneath",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "includeSubdomains scopes a pin-set correctly across an entire domain family",
+                    "content": "Declaring a domain-config for just \"example.com\" without\nincludeSubdomains applies the pin-set only to that exact host, leaving\nrequests to api.example.com or cdn.example.com completely unpinned and\nvulnerable — a common oversight when an app talks to several subdomains\nunder the same parent domain.\n\nSetting includeSubdomains=\"true\" extends the same pin-set to every\nsubdomain automatically, which is usually the intended behavior when all\nsubdomains share the same certificate infrastructure — but it should be\nomitted deliberately if some subdomains genuinely use different,\nunrelated certificates that shouldn't be pinned the same way.",
+                    "codeSnippet": "<domain-config>\n    <domain includeSubdomains=\"true\">example.com</domain> <!-- covers api., cdn., etc. -->\n    <pin-set>\n        <pin digest=\"SHA-256\">AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</pin>\n    </pin-set>\n</domain-config>",
+                    "codeLang": "XML",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "report-uri gives you visibility into pin failures happening in the field",
+                    "content": "Without any reporting mechanism, a pin validation failure on a user's\ndevice is invisible to you — you have no way to distinguish a rare,\nlegitimate active MITM attack from a botched certificate rotation\naffecting your whole user base, both of which look identical from the\napp's perspective (requests just start failing).\n\nNetwork Security Config's report-uri attribute on a pin-set makes the\nplatform automatically POST a structured report to your specified\nendpoint whenever pin validation fails, giving you production visibility\ninto pinning failures without needing to build custom client-side\nreporting logic yourself.",
+                    "codeSnippet": "<pin-set expiration=\"2027-01-01\">\n    <pin digest=\"SHA-256\">AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</pin>\n</pin-set>\n<!-- report-uri is declared at the domain-config level in newer API levels -->\n<trustkit-config reportUri=\"https://reports.example.com/pin-failures\" />",
+                    "codeLang": "XML",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Verify pinning actually blocks interception by testing it against a MITM proxy tool",
+                    "content": "It's easy to configure pinning, see the app work normally, and assume\nit's correctly protecting against interception — but a normal test run\nonly proves requests succeed against your real server, not that pinning\nwould actually reject a different, attacker-controlled certificate.\n\nDeliberately pointing the app at a local interception proxy (Charles,\nmitmproxy, Burp Suite) with its own self-signed root CA installed on the\ntest device is the only way to confirm pinning genuinely rejects an\nunexpected certificate — if requests still succeed through the proxy,\npinning isn't actually working as configured.",
+                    "codeSnippet": "// Test procedure, not code:\n// 1. Install mitmproxy's root CA as a trusted CA on the test device\n// 2. Route the app's traffic through the proxy\n// 3. Requests MUST fail with a pin validation error — if they succeed, pinning is broken",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Multi-CDN or multi-origin backends need a distinct pin set per host, not one shared pin",
+                    "content": "An app that talks to several distinct backend hosts (an API domain, a\nseparate CDN domain, a third-party auth provider) can't use one single\npin value across all of them, since each host almost certainly has its\nown independent certificate and key.\n\nEach domain-config block (or each CertificatePinner.add() call) is scoped\nto its own specific hostname — declaring pins for one host doesn't\nprotect requests to a different host at all, so every distinct backend\norigin the app talks to needs its own pin set declared and maintained\nindependently.",
+                    "codeSnippet": "CertificatePinner.Builder()\n    .add(\"api.example.com\", \"sha256/API_HOST_PIN=\")\n    .add(\"cdn.example.com\", \"sha256/CDN_HOST_PIN=\") // separate pin for a separate host\n    .add(\"auth.thirdparty.com\", \"sha256/AUTH_PROVIDER_PIN=\")\n    .build()",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Not every networking library or protocol supports pinning out of the box — verify before assuming",
+                    "content": "OkHttp (and by extension Retrofit, which uses OkHttp underneath) has\nfirst-class CertificatePinner support, but other networking stacks —\nsome coroutine-native Ktor engines, raw HttpURLConnection, some\nWebSocket libraries — may need a custom TrustManager wired in manually to\nachieve the same protection, or may not support fine-grained pinning at\nall.\n\nRelying on Network Security Config for pinning sidesteps this\ninconsistency somewhat, since it applies at the platform TLS layer\nregardless of which HTTP client library issues the request — but it's\nstill worth explicitly verifying pinning is actually active for every\nnetworking path an app uses, including any third-party SDKs making their\nown independent network calls.",
+                    "codeSnippet": "// Retrofit built on OkHttp — pinning is straightforward:\nval retrofit = Retrofit.Builder()\n    .client(OkHttpClient.Builder().certificatePinner(pinner).build())\n    .build()\n// A raw HttpURLConnection or a third-party SDK's own client may need separate verification",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Coordinate pin updates with your backend team's certificate rotation calendar",
+                    "content": "Certificate pinning creates a hard dependency between your mobile app's\nrelease cadence and your backend infrastructure's certificate lifecycle\n— a backend team rotating certificates without informing mobile\nengineering (or on a shorter notice than your app's release/rollout\ntimeline allows) breaks every un-updated app install the moment the\nrotation goes live.\n\nEstablishing a shared calendar or notification process between backend\nand mobile teams, with pin updates shipped and given time to roll out to\nmost of the user base well before a planned rotation actually happens,\navoids an entirely preventable self-inflicted outage.",
+                    "codeSnippet": "// Process, not code:\n// 1. Backend announces planned cert rotation date N weeks ahead\n// 2. Mobile team ships an app update adding the NEW pin alongside the current one\n// 3. Wait for adoption to reach an acceptable threshold before backend rotates\n// 4. Only then does backend actually rotate the certificate",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Pinning alone doesn't stop a bypass via Frida or objection on a rooted or instrumented device",
+                    "content": "Certificate pinning defends against network-level interception — it says\nnothing about an attacker who can modify the app's own running process,\nwhich is exactly what tools like Frida (with scripts such as\nssl-pinning-bypass) or objection are built to do: hooking the pinning\ncheck itself at runtime and forcing it to always pass, regardless of the\nactual certificate presented.\n\nPinning should be paired with root detection, debugger/instrumentation\ndetection, and runtime application self-protection (RASP) measures for\nany app handling genuinely sensitive data — pinning defends the network\npath, while these additional measures defend against an attacker who has\nalready gained control of the device or process itself.",
+                    "codeSnippet": "// Pinning check alone is insufficient on a compromised/instrumented device:\nif (isDebuggerAttached() || isFridaDetected() || isRooted()) {\n    blockSensitiveOperations() // additional layer beyond pinning itself\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "A remote pinning kill switch must be signed and verified, never a bare feature flag",
+                    "content": "A remote config flag that can disable pinning entirely (useful for an\nemergency where a pin rotation goes wrong and locks out your whole user\nbase) is itself a serious attack surface if it's just a plain, unsigned\nvalue fetched over the network — an attacker performing an active MITM\nattack could simply serve a fake 'disable pinning' response and defeat\nthe protection entirely, which is the exact attack pinning exists to\nprevent.\n\nIf a kill switch is genuinely necessary, the config response enabling it\nmust itself be cryptographically signed with a key embedded in the app,\nand verified before being honored — an unsigned kill switch delivered\nover a connection an attacker controls is a backdoor around your own\nsecurity control.",
+                    "codeSnippet": "// Unsigned kill switch — an attacker with MITM access can forge this:\n// if (remoteConfig.getBoolean(\"disable_pinning\")) skipPinning() // DANGEROUS\n\n// Signed kill switch — attacker can't forge a valid signature without the private key:\nif (verifySignature(killSwitchPayload, embeddedPublicKey)) applyKillSwitch(killSwitchPayload)",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Unit test pin validation against a local server presenting a known certificate",
+                    "content": "Manually testing pinning against production or a live MITM proxy is\nvaluable but slow and not something you'd want in a CI pipeline running\non every commit — pinning logic can still be exercised automatically\nwith a local test server.\n\nMockWebServer (or a similar embedded test server) configured with\nHandshakeCertificates to present a known, self-generated test\ncertificate lets you write an automated test asserting that a request\nwith the correct pin succeeds and one with a mismatched pin fails —\ncatching a pinning regression in CI rather than in production.",
+                    "codeSnippet": "val serverCert = HeldCertificate.Builder().build()\nval serverCertificates = HandshakeCertificates.Builder().heldCertificate(serverCert).build()\nval mockWebServer = MockWebServer().apply { useHttps(serverCertificates.sslSocketFactory(), false) }\n\nval clientPinner = CertificatePinner.Builder()\n    .add(mockWebServer.hostName, CertificatePinner.pin(serverCert.certificate))\n    .build()\n// assert requests succeed with the matching pin, fail with a wrong one",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Hardcoded pins in an APK can be located and patched out — pinning isn't tamper-proof by itself",
+                    "content": "A pin value embedded as a plain string literal in your app's code is\ntrivially findable via static analysis (JADX, grep across decompiled\nsmali) and, on a device where the app can be repackaged and re-signed for\nsideloading, the actual pinning check or the pin value itself can be\npatched out entirely — pinning defends the honest network path, not\nagainst a determined attacker willing to modify and reinstall your app.\n\nObfuscating pin-checking logic (via DexGuard/R8), combined with app\nsignature verification at runtime (rejecting execution if the app's own\nsigning certificate doesn't match the expected one), raises the bar\nagainst this class of tampering, though no client-side protection can\nfully eliminate it against a sufficiently motivated attacker.",
+                    "codeSnippet": "// Verify the app's own signing certificate hasn't been altered by a repackaging attack:\nfun verifyAppSignature(context: Context): Boolean {\n    val actual = getSigningCertHash(context)\n    return actual == EXPECTED_SIGNING_CERT_HASH // catches a patched, re-signed APK\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Always use SHA-256 for pin hashes — never MD5 or SHA-1",
+                    "content": "MD5 and SHA-1 are both cryptographically broken for collision resistance\n— a sufficiently motivated attacker could theoretically construct a\ndifferent key that produces the same hash value, defeating the whole\npoint of pinning against a specific known-good key.\n\nSHA-256 is the standard, currently-secure choice used by both OkHttp's\nCertificatePinner (the sha256/ prefix is mandatory, not optional) and\nNetwork Security Config's digest=\"SHA-256\" attribute — there's no valid\nreason to use a weaker hash for a security-critical pin value.",
+                    "codeSnippet": "// Correct — SHA-256, the only supported/secure option in modern tooling:\n\"sha256/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\"\n\n<pin digest=\"SHA-256\">AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</pin>",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "Give users a grace period after a required pin update, rather than hard-failing immediately",
+                    "content": "Enforcing a new pin set the instant it's added to a release forces every\nsingle user onto the exact same rollout timeline as your app store\nrelease — but app store rollouts are gradual and app updates aren't\ninstant for every user, so a hard cutover risks breaking the app for\nusers who haven't updated yet if the old pin is dropped too aggressively.\n\nA staged approach — shipping the new pin alongside the old one for\nseveral releases, then only removing the old pin once adoption metrics\nshow the vast majority of active users have updated — avoids an abrupt\nbreakage for the tail of users still on an older version during the\ntransition window.",
+                    "codeSnippet": "CertificatePinner.Builder()\n    .add(\"api.example.com\", \"sha256/OLD_PIN_STILL_VALID=\") // kept during the transition window\n    .add(\"api.example.com\", \"sha256/NEW_PIN=\")\n    .build()\n// remove OLD_PIN only in a later release, once adoption of this release is high enough",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Network Security Config pinning also covers WebView traffic; OkHttp's CertificatePinner does not",
+                    "content": "An app using an embedded WebView (for an in-app browser, a hybrid\nfeature, an OAuth login page) makes its own independent network\nconnections that never pass through your app's configured OkHttpClient\nat all — OkHttp-level pinning simply has no effect on that traffic,\nleaving it fully exposed to interception even in an app that otherwise\npins correctly.\n\nNetwork Security Config's pinning enforcement operates at the platform's\nTLS layer, which WebView traffic does go through — making it the correct\nchoice (or a necessary addition alongside OkHttp pinning) for any app\nthat embeds WebView-based content touching sensitive endpoints.",
+                    "codeSnippet": "<!-- Network Security Config protects WebView requests too, unlike OkHttp-only pinning -->\n<domain-config>\n    <domain includeSubdomains=\"true\">login.example.com</domain> <!-- e.g. an OAuth page loaded in a WebView -->\n    <pin-set expiration=\"2027-01-01\">\n        <pin digest=\"SHA-256\">AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</pin>\n    </pin-set>\n</domain-config>",
+                    "codeLang": "XML",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Pin validation failures need different user-facing messaging than ordinary network errors",
+                    "content": "Surfacing a pin failure to the user as a generic 'Network error, please\ntry again' message invites them to retry repeatedly against what might\nbe an active attack, and gives your support team no way to distinguish\nreal connectivity issues from a security event when users report the\nproblem.\n\nA distinct, clear message for pin failures specifically (something like\n'Unable to verify a secure connection' rather than a generic timeout\nmessage) sets correct user expectations that this isn't a transient\nissue solvable by retrying on a different network, and internal logging\nshould tag pin failures separately from ordinary timeouts or DNS errors\nfor proper triage.",
+                    "codeSnippet": "when (exception) {\n    is SSLPeerUnverifiedException -> showError(\"Unable to verify a secure connection. Please contact support.\")\n    is SocketTimeoutException -> showError(\"Connection timed out. Check your network and try again.\")\n    else -> showError(\"Something went wrong. Please try again.\")\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Network Security Config blocks cleartext traffic declaratively, without touching code",
+                    "content": "Even with HTTPS used everywhere intentionally, a single accidental HTTP\nrequest (a misconfigured SDK, a stray debug endpoint) sends data in plain\ntext, trivially interceptable by anyone on the same network — a classic\nand very common MITM entry point that has nothing to do with TLS\nweaknesses at all.\n\nA network_security_config.xml with\ncleartextTrafficPermitted=\"false\" makes the OS itself refuse any HTTP\nconnection app-wide, turning an accidental cleartext request into an\nimmediate, loud failure during development instead of a silent security\nhole in production.",
+                    "codeSnippet": "<!-- res/xml/network_security_config.xml -->\n<network-security-config>\n    <base-config cleartextTrafficPermitted=\"false\" />\n</network-security-config>\n\n<!-- AndroidManifest.xml -->\n<application android:networkSecurityConfig=\"@xml/network_security_config\" />",
+                    "codeLang": "XML",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Distrust user and admin-added CA certificates to block the most common MITM proxy attacks",
+                    "content": "By default on Android 6 and below, apps trust CA certificates a user\ninstalls manually — this is exactly the mechanism MITM interception\ntools (Charles, mitmproxy, Burp Suite, and malicious device profiles)\nrely on: install their own root CA, then issue fake certificates for any\ndomain your app connects to that your app trusts implicitly.\n\nRestricting trust to system-preinstalled CAs only (excluding user-\ninstalled ones) closes this attack vector entirely for a normal user\ndevice, since an attacker would need to compromise the actual system CA\nstore, a far higher bar than getting a user to install one profile.",
+                    "codeSnippet": "<network-security-config>\n    <base-config>\n        <trust-anchors>\n            <certificates src=\"system\" /> <!-- only system CAs, no user-added ones -->\n        </trust-anchors>\n    </base-config>\n</network-security-config>",
+                    "codeLang": "XML",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "debug-overrides trusting user CAs must never leak into a release build",
+                    "content": "Trusting user-installed CAs is genuinely useful during development,\nsince tools like Charles or mitmproxy need to intercept your own app's\ntraffic for debugging — Network Security Config's <debug-overrides>\nblock is designed exactly for this, applying only when\nandroid:debuggable=\"true\".\n\nThe risk is a misconfiguration that puts the same trust settings in\n<base-config> instead of <debug-overrides>, or a release build that's\naccidentally left debuggable — either mistake ships a build to real\nusers that trusts arbitrary user-installed certificates, silently\nreopening the exact MITM vector the production config was meant to\nclose.",
+                    "codeSnippet": "<network-security-config>\n    <base-config cleartextTrafficPermitted=\"false\">\n        <trust-anchors><certificates src=\"system\" /></trust-anchors>\n    </base-config>\n    <debug-overrides> <!-- only active when android:debuggable=\"true\" -->\n        <trust-anchors><certificates src=\"user\" /></trust-anchors>\n    </debug-overrides>\n</network-security-config>",
+                    "codeLang": "XML",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "A custom TrustManager that trusts every certificate defeats TLS entirely",
+                    "content": "It's a surprisingly common pattern — usually copy-pasted from a\nStackOverflow answer meant to 'fix' an SSL error during development —\nto implement an X509TrustManager whose checkServerTrusted() method does\nnothing, silently accepting any certificate presented, including one\nfrom an active MITM attacker.\n\nThis single mistake makes the app's TLS connections cryptographically\nmeaningless: an attacker on the network path can present literally any\nself-signed certificate and the app will accept it as valid, defeating\nboth encryption and authentication guarantees TLS is supposed to\nprovide.",
+                    "codeSnippet": "// NEVER do this in production code — accepts any certificate, including an attacker's:\nval trustAllCerts = object : X509TrustManager {\n    override fun checkServerTrusted(chain: Array<X509Certificate>?, authType: String?) { /* no-op */ }\n    override fun checkClientTrusted(chain: Array<X509Certificate>?, authType: String?) { /* no-op */ }\n    override fun getAcceptedIssuers(): Array<X509Certificate> = arrayOf()\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "A permissive HostnameVerifier is just as dangerous as a permissive TrustManager",
+                    "content": "Even with a correctly validated certificate chain, TLS still requires\nverifying the certificate's hostname actually matches the server you\nintended to connect to — a valid certificate for evil.com presented\nduring a connection to api.yourapp.com should still fail, since it\nproves the attacker controls a different domain, not yours.\n\nOverriding HostnameVerifier.verify() to always return true (another\ncommon 'quick fix' for SSL errors) removes this check entirely, allowing\nan attacker with any valid certificate for any domain to successfully\nimpersonate your server, even if certificate chain validation itself is\nstill correctly configured.",
+                    "codeSnippet": "// NEVER do this — accepts a valid cert for ANY hostname, not just your server:\nval unsafeVerifier = HostnameVerifier { _, _ -> true }\n\n// Correct: let the platform's default verifier actually check the hostname\nval client = OkHttpClient.Builder().build() // default hostname verification is correct and sufficient",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "Certificate Transparency checks catch mis-issued certificates that pinning alone can miss",
+                    "content": "Certificate pinning protects against a specific known-good certificate\nbeing swapped for an attacker's — but it assumes you've already pinned\nthe correct certificate; it does nothing to detect if a Certificate\nAuthority is tricked or compromised into issuing a *legitimate-looking*\ncertificate for your domain to someone else before you've pinned\nagainst it.\n\nCertificate Transparency requires CAs to publish every issued\ncertificate to public, auditable logs — verifying a server's certificate\nincludes valid Signed Certificate Timestamps from those logs adds a\nlayer of detection for fraudulently issued certificates that a pure\npinning strategy, focused only on the certificates you already know\nabout, wouldn't catch on its own.",
+                    "codeSnippet": "// OkHttp doesn't verify CT natively — use a library or a CertificateTransparencyInterceptor\nval client = OkHttpClient.Builder()\n    .addNetworkInterceptor(certificateTransparencyInterceptor { +\"*.example.com\" })\n    .build()",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Enforce a minimum TLS version and disable legacy protocols explicitly",
+                    "content": "Older TLS versions (TLS 1.0, 1.1) and SSL entirely have known\ncryptographic weaknesses (BEAST, POODLE, and others) that can allow an\nactive network attacker to downgrade or partially decrypt a connection\nthat should otherwise be secure — a server or client that still\nnegotiates these older protocols is vulnerable even if certificate\nvalidation itself is correct.\n\nExplicitly restricting ConnectionSpec to modern TLS versions only (1.2+,\nideally 1.3) prevents a downgrade attack from succeeding, since the\nclient itself refuses to fall back to a weaker protocol even if a MITM\nattacker tries to force renegotiation to one.",
+                    "codeSnippet": "val spec = ConnectionSpec.Builder(ConnectionSpec.MODERN_TLS)\n    .tlsVersions(TlsVersion.TLS_1_3, TlsVersion.TLS_1_2)\n    .build()\n\nval client = OkHttpClient.Builder()\n    .connectionSpecs(listOf(spec)) // refuses to negotiate down to older, weaker TLS\n    .build()",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Use overlapping pin sets to survive certificate rotation without a forced app update",
+                    "content": "A single active pin plus one backup pin still creates a hard dependency\non your app update cadence — if the server's certificate is rotated\nbefore users have updated to a build with the new pin, every un-updated\ninstall starts failing every request, which looks identical to (and\ncould mask) an actual MITM attack in your monitoring.\n\nMaintaining pins for the current certificate, the next planned\nrotation's certificate, and a longer-lived backup root/intermediate all\nsimultaneously gives a rotation window where old and new app versions\nboth keep working, without ever needing to temporarily disable pinning\nto avoid breaking users.",
+                    "codeSnippet": "val pinner = CertificatePinner.Builder()\n    .add(\"api.example.com\", \"sha256/CURRENT_CERT_PIN=\")\n    .add(\"api.example.com\", \"sha256/NEXT_ROTATION_CERT_PIN=\") // added ahead of the actual rotation\n    .add(\"api.example.com\", \"sha256/LONG_LIVED_ROOT_PIN=\")\n    .build()",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "An unexpectedly short or altered certificate chain can signal an active interception proxy",
+                    "content": "A legitimate TLS connection to your server presents a predictable\ncertificate chain (leaf, intermediate(s), and implicitly the trusted\nroot) — an interception proxy sitting in the middle re-signs traffic\nwith its own certificates, which often produces a chain with a different\nlength, issuer, or validity period than what a genuine connection\nnormally shows.\n\nInspecting the negotiated certificate chain at runtime (via\nHandshakeCertificates or an OkHttp interceptor) and comparing it against\nan expected shape — issuer CN, chain depth, validity window — gives an\nadditional runtime signal for detecting an active proxy, layered on top\nof (not replacing) certificate pinning itself.",
+                    "codeSnippet": "val interceptor = Interceptor { chain ->\n    val response = chain.proceed(chain.request())\n    val certs = response.handshake?.peerCertificates\n    if (certs?.size != EXPECTED_CHAIN_LENGTH) {\n        reportSuspiciousChain(certs) // anomalous chain shape — possible interception\n    }\n    response\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Pin failures should fail closed and be reported, never silently retried without pinning",
+                    "content": "A common but dangerous mistake is catching a CertificatePinner\nvalidation failure and quietly retrying the request without pinning\nenabled, 'just to keep the app working' — this converts a hard security\nboundary into a soft one an attacker can trigger on demand, since\ntriggering a pin failure is exactly what an active MITM attack does.\n\nA pin validation failure should abort the request entirely, surface a\nclear error to the user (not a generic network error that invites\nretrying), and ideally report the failure to a monitoring backend — a\ngenuine pin failure in production is a strong signal of either an active\nattack or an unplanned certificate rotation, both of which need visibility,\nnot silent bypass.",
+                    "codeSnippet": "try {\n    val response = client.newCall(request).execute()\n} catch (e: SSLPeerUnverifiedException) {\n    reportSecurityEvent(\"pin_validation_failed\", e) // report, don't silently retry unpinned\n    throw e // fail closed — do not fall back to an unpinned request\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Keystore-backed keys never exist in extractable form, even to your own app",
+                    "content": "A key generated inside the Android Keystore is created and used entirely\ninside secure hardware (a Trusted Execution Environment or, on supported\ndevices, a dedicated StrongBox security chip) — your app only ever holds\na reference (an alias) to the key, never the raw key material itself.\n\nThis means even a full compromise of your app's process — a debugger\nattached, memory dumped, the APK reverse engineered — cannot extract the\nactual key bytes, since they were never present in application memory to\nbegin with; the app can only ask the secure hardware to perform\nencrypt/decrypt/sign operations on its behalf.",
+                    "codeSnippet": "val keyStore = KeyStore.getInstance(\"AndroidKeyStore\").apply { load(null) }\nval key = keyStore.getKey(\"my_key_alias\", null) as SecretKey\n// 'key' is a handle/reference — the raw key bytes never leave the secure hardware",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "KeyGenParameterSpec explicitly declares every property a Keystore key is allowed to use",
+                    "content": "Unlike a plain in-memory key, a Keystore key's algorithm, block mode,\npadding, and permitted purposes (ENCRYPT, DECRYPT, SIGN, VERIFY) are all\nlocked in at generation time via KeyGenParameterSpec — the key simply\nrefuses to be used in any way not explicitly declared upfront, at the\nsecure hardware level.\n\nThis is a deliberate security property, not a limitation to work around:\nif a key is only generated with PURPOSE_ENCRYPT, no code path in your app\n(or an attacker's, if compromised) can misuse it for signing, since the\nhardware itself enforces the restriction.",
+                    "codeSnippet": "val keyGenSpec = KeyGenParameterSpec.Builder(\n    \"payment_token_key\",\n    KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT\n)\n    .setBlockModes(KeyProperties.BLOCK_MODE_GCM)\n    .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)\n    .setKeySize(256)\n    .build()",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Never reuse an IV with the same AES/GCM Keystore key — store it alongside the ciphertext",
+                    "content": "AES/GCM's security guarantee breaks catastrophically if the same\n(key, IV) pair is ever used to encrypt two different plaintexts — an\nattacker who observes two ciphertexts sharing an IV can potentially\nrecover both plaintexts, defeating the encryption entirely.\n\nThe Keystore Cipher generates a fresh random IV automatically each time\nyou call init() for encryption, but it's your responsibility to store\nthat IV (it's not secret, just needs to be unique per encryption)\nalongside the ciphertext so decryption can retrieve it — losing track of\nwhich IV was used for which ciphertext makes that data unrecoverable.",
+                    "codeSnippet": "val cipher = Cipher.getInstance(\"AES/GCM/NoPadding\")\ncipher.init(Cipher.ENCRYPT_MODE, secretKey) // fresh random IV generated internally\nval iv = cipher.iv // must be persisted alongside the ciphertext, per encryption\nval ciphertext = cipher.doFinal(plaintext)\n\nval stored = iv + ciphertext // IV prepended — needed again for decryption",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "setUserAuthenticationRequired ties key usage to biometric or device-credential verification",
+                    "content": "By default, a Keystore key is usable by your app any time the app itself\nis running, with no additional user gate beyond normal app access.\n\nsetUserAuthenticationRequired(true) makes the secure hardware itself\nrefuse to perform any operation with that key until the user has\nrecently authenticated with biometrics or a device PIN/pattern/password —\nthis enforcement happens at the hardware level, so it can't be bypassed\nby an attacker who's compromised your app's code but hasn't defeated the\ndevice's own biometric/lock-screen security.",
+                    "codeSnippet": "val spec = KeyGenParameterSpec.Builder(\"secure_key\", KeyProperties.PURPOSE_DECRYPT)\n    .setBlockModes(KeyProperties.BLOCK_MODE_GCM)\n    .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)\n    .setUserAuthenticationRequired(true) // hardware refuses use without recent auth\n    .build()",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "setInvalidatedByBiometricEnrollment auto-revokes a key when biometrics change",
+                    "content": "If a device's enrolled fingerprints or face data change (a new fingerprint\nadded, all biometrics cleared) after a biometric-gated key was created,\nthat could mean a different physical person now has biometric access to\na key originally gated to the legitimate owner — a real security\nconcern for high-sensitivity keys.\n\nsetInvalidatedByBiometricEnrollment(true) (the default for user-\nauthentication-required keys) makes the key permanently unusable the\nmoment biometric enrollment changes, forcing the app to detect this\n(via a KeyPermanentlyInvalidatedException) and have the user re-\nauthenticate through a proper account-level flow to regenerate the key.",
+                    "codeSnippet": "try {\n    cipher.init(Cipher.DECRYPT_MODE, secretKey, GCMParameterSpec(128, iv))\n} catch (e: KeyPermanentlyInvalidatedException) {\n    // biometric enrollment changed — key is gone, must re-authenticate and regenerate\n    regenerateKeyAfterReauth()\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Key attestation cryptographically proves a key is genuinely hardware-backed",
+                    "content": "An app can't simply trust its own claim that a key is Keystore-protected\n— on some older or lower-end devices, the 'Android Keystore' provider\nfalls back to a software-only implementation instead of genuine secure\nhardware, and a compromised OS could theoretically lie about which\nimplementation is in use.\n\nKey attestation generates a certificate chain, signed by a hardware root\nof trust, that a backend server can independently verify — proving the\nkey genuinely lives in secure hardware (and details like whether it's\nTEE or StrongBox-backed) without trusting the app's own self-report,\nwhich matters for high-assurance scenarios like mobile payment\nprovisioning.",
+                    "codeSnippet": "val spec = KeyGenParameterSpec.Builder(\"attested_key\", KeyProperties.PURPOSE_SIGN)\n    .setDigests(KeyProperties.DIGEST_SHA256)\n    .setAttestationChallenge(challengeFromServer) // server-provided nonce, prevents replay\n    .build()\n// resulting certificate chain is sent to the backend for independent verification",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "StrongBox offers stronger isolation than a TEE, but isn't available on every device",
+                    "content": "A Trusted Execution Environment (TEE) runs in an isolated mode on the\nmain processor, offering strong isolation from a compromised OS but\nstill sharing the same physical chip — StrongBox is a separate, dedicated\nsecurity chip entirely, offering protection even against certain physical\nhardware attacks a TEE alone can't fully resist.\n\nStrongBox is only present on a subset of higher-end devices, so\nsetIsStrongBoxBacked(true) can throw StrongBoxUnavailableException on\ndevices without it — code requesting StrongBox for its highest-\nsensitivity keys needs an explicit fallback path to a regular\nTEE-backed key rather than assuming availability.",
+                    "codeSnippet": "val spec = KeyGenParameterSpec.Builder(\"high_value_key\", KeyProperties.PURPOSE_SIGN)\n    .setDigests(KeyProperties.DIGEST_SHA256)\n    .setIsStrongBoxBacked(true)\n    .build()\n\ntry {\n    keyPairGenerator.initialize(spec)\n} catch (e: StrongBoxUnavailableException) {\n    keyPairGenerator.initialize(spec.toBuilder().setIsStrongBoxBacked(false).build()) // fallback to TEE\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Keystore keys do not survive app reinstall, uninstall, or most backup/restore flows",
+                    "content": "Keystore keys are tied to the specific app installation and the specific\ndevice's secure hardware state — uninstalling and reinstalling the app\ngenerates a fresh Keystore entry namespace, meaning any data encrypted\nwith the old key (like a locally cached auth token) becomes permanently\nunrecoverable, not just temporarily inaccessible.\n\nAndroid's auto-backup and Google's Backup/Restore services explicitly\nexclude Keystore-backed key material by design (it can't be safely\nexported), so an app relying on Keystore encryption for locally-cached\ndata must treat that data as ephemeral and re-derivable, not as a\npermanent store — critical data belongs on a server, with the Keystore\nkey only protecting a local cache or session token.",
+                    "codeSnippet": "// After reinstall: the alias exists again, but points to a DIFFERENT key\nval keyStore = KeyStore.getInstance(\"AndroidKeyStore\").apply { load(null) }\nval key = keyStore.getKey(\"cached_session_key\", null) // old ciphertext is now permanently undecryptable",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Prefer per-operation BiometricPrompt.CryptoObject auth over long validity windows",
+                    "content": "setUserAuthenticationValidityDurationSeconds(n) allows a key to be used\nrepeatedly for n seconds after a single successful authentication —\nconvenient, but it widens the window during which a device left unlocked\nor briefly accessible by someone else could misuse the key without\nre-prompting.\n\nBinding the key to a BiometricPrompt.CryptoObject instead (with no\nvalidity duration set, or duration -1) requires a fresh biometric/device-\ncredential prompt for every single use of the key, which is the stronger\ndefault for genuinely sensitive operations like authorizing a payment or\ndecrypting a private key.",
+                    "codeSnippet": "val cryptoObject = BiometricPrompt.CryptoObject(cipher)\n\nbiometricPrompt.authenticate(promptInfo, cryptoObject) // fresh prompt required for this specific operation\n// no setUserAuthenticationValidityDurationSeconds — each use requires its own authentication",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Use separate key aliases per purpose instead of one shared Keystore key",
+                    "content": "Reusing a single Keystore key across unrelated purposes (encrypting\ntokens, signing requests, protecting a local database) couples their\nsecurity lifecycles together — invalidating or rotating the key for one\npurpose (say, after biometric enrollment changes) forces you to also\nlose access to everything else protected by that same key.\n\nGenerating a distinct key alias per logical purpose\n(\"token_encryption_key\", \"request_signing_key\") lets each be rotated,\ninvalidated, or configured (different auth requirements, different\nStrongBox usage) independently, and limits the blast radius if one key's\nusage needs to be revoked.",
+                    "codeSnippet": "generateKey(alias = \"token_encryption_key\", purpose = KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT)\ngenerateKey(alias = \"request_signing_key\", purpose = KeyProperties.PURPOSE_SIGN or KeyProperties.PURPOSE_VERIFY)\n// each key can be independently rotated or invalidated without affecting the other",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                }
+            ]
+        }
+    ]
+}

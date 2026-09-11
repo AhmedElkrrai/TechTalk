@@ -1,0 +1,182 @@
+{
+    "version": 1,
+    "author": "TechTalk",
+    "description": "Kotlin — Design Patterns",
+    "entries": [
+        {
+            "technologyName": "Kotlin",
+            "topicName": "Design Patterns",
+            "topicDescription": "Classic and idiomatic design patterns applied through Kotlin's language features.",
+            "tips": [
+                {
+                    "title": "Prototype pattern via copy() for cheap, safe object cloning",
+                    "content": "Manually reconstructing a complex object field-by-field to create a\nslightly modified variant is verbose and breaks the moment a new property\nis added to the class, since every clone site needs updating too.\n\nKotlin's data class copy() function implements the Prototype pattern for\nfree — it creates a new instance with all the same properties, letting\nyou override only the ones that differ, and stays correct automatically as\nthe class evolves.",
+                    "codeSnippet": "data class RequestConfig(val url: String, val timeoutMs: Long, val retries: Int)\n\nval base = RequestConfig(\"https://api.example.com\", 30_000, 3)\nval fastVariant = base.copy(timeoutMs = 5_000) // prototype-style clone with one change",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Template Method via an abstract class with default step implementations",
+                    "content": "Template Method defines the overall skeleton of an algorithm in a base\nclass while letting subclasses override specific steps, so common\nsequencing logic isn't duplicated across every variant.\n\nAn abstract class with a final (non-open) orchestrating function, plus\nopen or abstract step functions, gives subclasses control over individual\nsteps without letting them change the overall order of operations.",
+                    "codeSnippet": "abstract class DataImporter {\n    fun import() { // fixed sequence, can't be overridden\n        val raw = readSource()\n        val parsed = parse(raw)\n        save(parsed)\n    }\n    abstract fun readSource(): String\n    abstract fun parse(raw: String): List<Record>\n    open fun save(records: List<Record>) { database.insertAll(records) }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "Adapter pattern makes an incompatible interface usable",
+                    "content": "When integrating a third-party SDK or legacy class whose interface doesn't\nmatch what your code expects, changing the third-party code usually isn't\npossible or safe.\n\nAn Adapter wraps the incompatible type and implements the interface your\ncode expects, translating calls internally — this is the same idea as a\nrepository implementation adapting a network SDK's API to your domain's\nrepository interface.",
+                    "codeSnippet": "interface PaymentProcessor { fun pay(amountCents: Long) }\n\nclass LegacySdkAdapter(private val legacySdk: OldPaymentSdk) : PaymentProcessor {\n    override fun pay(amountCents: Long) {\n        legacySdk.chargeInDollars(amountCents / 100.0) // adapts the mismatched signature\n    }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "Composite pattern treats individual items and groups uniformly",
+                    "content": "Modeling a tree structure (like nested UI components or a file system)\nbecomes awkward if code has to constantly check 'is this a single item or\na group?' before deciding how to process it.\n\nComposite gives both leaves and groups the same interface, so calling code\ncan treat a single item and an entire subtree identically — a common\nexample is a UI component tree where a Container is itself just another\nComponent.",
+                    "codeSnippet": "interface FileSystemItem { fun totalSize(): Long }\n\nclass File(val size: Long) : FileSystemItem { override fun totalSize() = size }\n\nclass Folder(val items: List<FileSystemItem>) : FileSystemItem {\n    override fun totalSize() = items.sumOf { it.totalSize() } // treats files and folders alike\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "Sealed classes are Kotlin's idiomatic State pattern",
+                    "content": "The classic State pattern uses subclassing plus a context that delegates to\nthe current state object. Kotlin's sealed class hierarchies give you this for\nfree, with the added benefit of exhaustive `when` checks at compile time.\n\nModel each state as a sealed subclass, and let the compiler catch you if a\nnew state is added but a `when` block forgets to handle it — this is exactly\nwhat an ApiResult sealed class does for network states like Loading,\nSuccess, and Error.",
+                    "codeSnippet": "sealed interface ApiResult<out T> {\n    data class Success<T>(val data: T) : ApiResult<T>\n    data class Error(val exception: Throwable) : ApiResult<Nothing>\n    data object Loading : ApiResult<Nothing>\n}\n\nfun render(result: ApiResult<User>) = when (result) {\n    is ApiResult.Success -> showUser(result.data)\n    is ApiResult.Error -> showError(result.exception)\n    ApiResult.Loading -> showSpinner()\n    // compiler error if a new subtype is added and not handled here\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Chain of Responsibility with suspend function composition",
+                    "content": "The classic CoR pattern links handler objects, each deciding whether to\nprocess a request or pass it along. In Kotlin, a chain of suspend\ninterceptors — each wrapping a `next` call — achieves the same thing without\nneeding a base Handler class hierarchy.\n\nThis is exactly how OkHttp/Ktor interceptor chains work internally: auth,\nretry, and logging interceptors each decide to short-circuit or delegate to\nthe next link, composing cleanly without any of the links knowing about\neach other.",
+                    "codeSnippet": "typealias Interceptor = suspend (Request, next: suspend (Request) -> Response) -> Response\n\nval authInterceptor: Interceptor = { req, next -> next(req.withAuthHeader()) }\nval retryInterceptor: Interceptor = { req, next -> retryOnFailure { next(req) } }\n\nfun buildChain(interceptors: List<Interceptor>, terminal: suspend (Request) -> Response) =\n    interceptors.foldRight(terminal) { interceptor, next ->\n        { req: Request -> interceptor(req, next) }\n    }",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Repository interfaces as an Anti-Corruption Layer",
+                    "content": "In DDD terms, an Anti-Corruption Layer translates a foreign model (a REST\nDTO, a third-party SDK type) into your domain's own vocabulary so upstream\nchanges don't ripple through your business logic.\n\nA repository interface in the domain module, implemented in the data module\nwith a DTO-to-domain mapper, is a natural ACL: the domain never sees a DTO,\nand a backend field rename only touches the mapper, not every call site.",
+                    "codeSnippet": "// domain module — knows nothing about DTOs\ninterface UserRepository {\n    suspend fun getUser(id: String): User\n}\n\n// data module — the ACL boundary\nclass UserRepositoryImpl(private val api: UserApi) : UserRepository {\n    override suspend fun getUser(id: String): User =\n        api.fetchUserDto(id).toDomain() // mapper isolates the DTO shape\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Facade pattern to simplify a multi-module subsystem",
+                    "content": "When a feature needs to coordinate several lower-level services — auth,\ncaching, analytics — exposing all of them to the caller leaks implementation\ndetails and couples the caller to internals that may change independently.\n\nA Facade class exposes one simple entry point that internally orchestrates\nthe subsystems, so callers depend on a stable, minimal surface instead of\nwiring multiple collaborators themselves.",
+                    "codeSnippet": "class CheckoutFacade(\n    private val cart: CartService,\n    private val payment: PaymentService,\n    private val analytics: AnalyticsService\n) {\n    suspend fun completeCheckout(order: Order): CheckoutResult {\n        val total = cart.calculateTotal(order)\n        val result = payment.charge(total)\n        analytics.trackPurchase(order, result)\n        return result\n    }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "Saga pattern for multi-step operations with compensation",
+                    "content": "A single distributed or multi-step operation (e.g. reserve inventory, charge\ncard, create shipment) can fail partway through, leaving the system in an\ninconsistent state if there's no rollback strategy.\n\nThe Saga pattern defines each step alongside a compensating action, and runs\ncompensations in reverse order if a later step fails — this keeps the system\nconsistent without needing a distributed transaction coordinator.",
+                    "codeSnippet": "class Saga {\n    private val compensations = mutableListOf<suspend () -> Unit>()\n\n    suspend fun <T> step(action: suspend () -> T, compensate: suspend () -> Unit): T {\n        val result = action()\n        compensations.add(0, compensate)\n        return result\n    }\n\n    suspend fun rollback() = compensations.forEach { it() }\n}\n\n// usage: on exception, call saga.rollback() to undo completed steps",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Proxy pattern to guard access to sensitive operations",
+                    "content": "A Proxy exposes the same interface as a real subject but adds a layer of\ncontrol — access checks, lazy initialization, or logging — without the\ncaller knowing the difference.\n\nThis is the same idea behind wrapping a DexGuard RASP ThreatEngine behind a\nminimal interface: the proxy controls what's exposed and when the real,\nsensitive implementation is invoked, keeping the real object's structure out\nof the public API surface.",
+                    "codeSnippet": "interface SecureStorage {\n    suspend fun read(key: String): String?\n}\n\nclass SecureStorageProxy(\n    private val real: SecureStorage,\n    private val integrityCheck: () -> Boolean\n) : SecureStorage {\n    override suspend fun read(key: String): String? {\n        if (!integrityCheck()) return null // block access if device is compromised\n        return real.read(key)\n    }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Builder pattern replaced by named arguments and defaults",
+                    "content": "The classic Builder pattern exists to work around constructors with many\noptional parameters in languages without named arguments. Kotlin has named\narguments and default parameter values built in, so a fluent Builder class\nis usually unnecessary overhead.\n\nReach for a real Builder only when construction requires validation steps,\nincremental accumulation (like StringBuilder), or a fluent DSL — not just to\nhandle optional fields.",
+                    "codeSnippet": "// No builder needed:\ndata class HttpRequestConfig(\n    val url: String,\n    val method: String = \"GET\",\n    val timeoutMs: Long = 30_000,\n    val retries: Int = 3\n)\n\nval config = HttpRequestConfig(url = \"https://api.example.com\", retries = 5)",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "Strategy pattern via function types instead of interfaces",
+                    "content": "The Strategy pattern swaps an algorithm at runtime by depending on an\nabstraction rather than a concrete implementation. In Kotlin, a function\ntype parameter often replaces a whole Strategy interface hierarchy.\n\nThis keeps call sites terse for simple cases, while you can still fall back\nto an interface when a strategy needs multiple related methods or internal\nstate, which a single lambda can't express cleanly.",
+                    "codeSnippet": "class PriceCalculator(private val discountStrategy: (Order) -> Double) {\n    fun finalPrice(order: Order): Double = order.subtotal - discountStrategy(order)\n}\n\nval blackFriday: (Order) -> Double = { it.subtotal * 0.3 }\nval calculator = PriceCalculator(discountStrategy = blackFriday)",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "Observer pattern via StateFlow/SharedFlow, not manual listeners",
+                    "content": "Manual Observer implementations (listener lists, callback interfaces) need\nhand-written thread-safety and cleanup to avoid leaking references to\ndestroyed Activities or Fragments.\n\nStateFlow and SharedFlow give you the Observer pattern with built-in\nlifecycle-safe collection (via collectAsStateWithLifecycle or\nrepeatOnLifecycle), automatic replay of the latest value for new\nsubscribers, and no manual unsubscribe bookkeeping.",
+                    "codeSnippet": "class OrderViewModel : ViewModel() {\n    private val _orderState = MutableStateFlow<OrderState>(OrderState.Idle)\n    val orderState: StateFlow<OrderState> = _orderState.asStateFlow()\n\n    fun placeOrder() {\n        _orderState.value = OrderState.Processing\n        // ... update value as order progresses\n    }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Decorator pattern via Kotlin extension functions on interfaces",
+                    "content": "Decorator wraps an object to add behavior without modifying its class or\naffecting other instances. Instead of a full wrapper-class hierarchy,\nKotlin often achieves the same effect by composing small interface\nimplementations that delegate to a wrapped instance via `by`.\n\nClass delegation (`by`) lets a decorator implement an interface by\nforwarding to a wrapped instance automatically, so you only override the\nmethods you actually want to change behavior for.",
+                    "codeSnippet": "interface Logger { fun log(message: String) }\n\nclass ConsoleLogger : Logger {\n    override fun log(message: String) = println(message)\n}\n\nclass TimestampLoggerDecorator(private val wrapped: Logger) : Logger by wrapped {\n    override fun log(message: String) = wrapped.log(\"[${System.currentTimeMillis()}] $message\")\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Factory pattern with sealed classes for exhaustive object creation",
+                    "content": "A Factory centralizes object creation logic so callers don't need to know\nconcrete types. Pairing a factory function with a sealed input type lets the\ncompiler guarantee every case produces a result — no fallthrough `else`\nbranch masking a missing case.\n\nThis is especially useful for mapping DTO discriminator fields (e.g. a\n\"type\" field from an API) to the correct domain subtype without scattering\nif/else chains across the codebase.",
+                    "codeSnippet": "sealed interface PaymentMethodDto {\n    data class CardDto(val last4: String) : PaymentMethodDto\n    data class WalletDto(val provider: String) : PaymentMethodDto\n}\n\nobject PaymentMethodFactory {\n    fun create(dto: PaymentMethodDto): PaymentMethod = when (dto) {\n        is PaymentMethodDto.CardDto -> PaymentMethod.Card(dto.last4)\n        is PaymentMethodDto.WalletDto -> PaymentMethod.Wallet(dto.provider)\n    }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Visitor pattern via sealed hierarchies and exhaustive when",
+                    "content": "The classic Visitor pattern uses double-dispatch (accept/visit method\npairs) to add new operations over a fixed set of types without modifying\nthose types. In Kotlin, a sealed hierarchy plus an exhaustive `when`\nachieves the same goal more simply, since the compiler already guarantees\nevery type is handled.\n\nReach for a true Visitor with accept/visit methods only when the type\nhierarchy is open (not sealed) and defined outside your control — for a\nsealed hierarchy you own, `when` is simpler and equally exhaustive.",
+                    "codeSnippet": "sealed interface Shape\ndata class Circle(val radius: Double) : Shape\ndata class Square(val side: Double) : Shape\n\nfun area(shape: Shape): Double = when (shape) { // acts as the 'visit' operation\n    is Circle -> Math.PI * shape.radius * shape.radius\n    is Square -> shape.side * shape.side\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Command pattern encapsulates an action as an object for queuing or undo",
+                    "content": "Directly calling a method when a user taps a button loses the ability to\nqueue, log, delay, or undo that action later — the intent to act and the\nact itself are fused together.\n\nWrapping an action as a Command object (or a data class with an execute\nand an undo function) lets you store, replay, or reverse operations,\nwhich is how undo/redo stacks and offline action queues are typically\nimplemented.",
+                    "codeSnippet": "interface Command { fun execute(); fun undo() }\n\nclass AddItemCommand(private val cart: Cart, private val item: Item) : Command {\n    override fun execute() = cart.add(item)\n    override fun undo() = cart.remove(item)\n}\n\nval history = ArrayDeque<Command>()\nfun run(cmd: Command) { cmd.execute(); history.addLast(cmd) }",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Mediator pattern centralizes communication between components",
+                    "content": "When several UI components or subsystems need to react to each other's\nchanges directly, they end up holding references to one another, creating\na tangled web of dependencies that's hard to test or modify.\n\nA Mediator sits between them: components notify the mediator of events,\nand the mediator decides how to route those events to other components —\nno component needs to know about any other directly, only about the\nmediator.",
+                    "codeSnippet": "class FormMediator {\n    fun onFieldChanged(field: String, value: String) {\n        if (field == \"country\") updateAvailableStates(value)\n        if (field == \"email\") validateEmailField(value)\n    }\n}\n// fields report to the mediator; they never reference each other directly",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Memento pattern captures and restores an object's internal state",
+                    "content": "Implementing undo for a complex, mutable object by manually tracking\nwhich fields changed is error-prone and tightly couples the undo logic to\nthe object's internals.\n\nMemento has the object itself produce an opaque snapshot (often just a\ndata class copy of its state) that can be handed back later to restore\nthat exact state — Kotlin's data class copy() function makes this pattern\nnearly free to implement for immutable state.",
+                    "codeSnippet": "data class EditorState(val text: String, val cursorPosition: Int)\n\nclass Editor(private var state: EditorState) {\n    fun snapshot(): EditorState = state.copy() // Memento\n    fun restore(memento: EditorState) { state = memento }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Flyweight pattern shares immutable instances to cut memory overhead",
+                    "content": "Creating a new object for every occurrence of a value that's expensive to\nconstruct but has a small set of distinct variants (icons, formatted\nstrings, style objects) wastes memory when many occurrences share the\nsame underlying value.\n\nFlyweight caches and reuses immutable instances keyed by their\ndistinguishing parameters, so repeated requests for the same 'flyweight'\nreturn the identical shared object instead of allocating a new one —\nKotlin's object declarations and simple map-based caches make this\nstraightforward to implement.",
+                    "codeSnippet": "object IconFlyweightFactory {\n    private val cache = mutableMapOf<String, Icon>()\n    fun get(name: String): Icon = cache.getOrPut(name) { loadIconFromDisk(name) }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Bridge pattern decouples an abstraction from its implementation",
+                    "content": "Subclassing an abstraction for every combination of feature and platform\n(WindowsButton, MacButton, WindowsCheckbox, MacCheckbox) causes a\ncombinatorial explosion of classes as new dimensions are added.\n\nBridge splits the abstraction (Button, Checkbox) from its implementation\n(RenderingEngine) by holding a reference to the implementation rather than\ninheriting from it — both hierarchies can then vary independently without\nmultiplying subclasses.",
+                    "codeSnippet": "interface RenderEngine { fun renderShape(type: String) }\n\nabstract class Shape(protected val engine: RenderEngine) {\n    abstract fun draw()\n}\n\nclass Square(engine: RenderEngine) : Shape(engine) {\n    override fun draw() = engine.renderShape(\"square\") // delegates rendering, not inherits it\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Null Object pattern replaces null checks with a no-op implementation",
+                    "content": "Returning null to represent 'no value' forces every caller to null-check\nbefore using the result, and a forgotten check crashes at runtime.\n\nA Null Object is a real instance of the expected type that implements\nevery method as a safe no-op or default value, so callers can use it\nunconditionally without any null check at all — useful for optional\ncollaborators like an analytics tracker in tests or a disabled feature\nflag's handler.",
+                    "codeSnippet": "interface AnalyticsTracker { fun track(event: String) }\n\nobject NoOpTracker : AnalyticsTracker { override fun track(event: String) { /* does nothing */ } }\n\nval tracker: AnalyticsTracker = if (isAnalyticsEnabled) RealTracker() else NoOpTracker\ntracker.track(\"screen_view\") // never needs a null check",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Specification pattern composes business rules as combinable objects",
+                    "content": "Embedding complex filtering logic (eligibility rules, search filters)\ndirectly inside a single large boolean function makes each individual\nrule hard to test, reuse, or combine differently in another context.\n\nA Specification wraps a single predicate as an object implementing an\n'isSatisfiedBy' check, and specifications can be combined with and/or/not\noperators — this lets you build complex rules by composing small, tested,\nreusable pieces instead of duplicating logic.",
+                    "codeSnippet": "fun interface Specification<T> { fun isSatisfiedBy(candidate: T): Boolean }\n\nfun <T> Specification<T>.and(other: Specification<T>) = Specification<T> { isSatisfiedBy(it) && other.isSatisfiedBy(it) }\n\nval isAdult = Specification<User> { it.age >= 18 }\nval isVerified = Specification<User> { it.isVerified }\nval eligible = isAdult.and(isVerified)",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Custom Iterator implementation via operator fun iterator()",
+                    "content": "The for-in loop syntax isn't limited to built-in collections — any type\ncan be made iterable by implementing operator fun iterator() that returns\nan Iterator, letting your own domain types participate in for-loops and\ndestructuring the same way a List does.\n\nThis is the Iterator pattern applied through Kotlin's operator conventions\ninstead of a Java-style Iterable<T> interface implementation, and works\neven on types you don't control via an extension function.",
+                    "codeSnippet": "class DateRange(private val start: LocalDate, private val end: LocalDate) {\n    operator fun iterator(): Iterator<LocalDate> = object : Iterator<LocalDate> {\n        var current = start\n        override fun hasNext() = !current.isAfter(end)\n        override fun next() = current.also { current = current.plusDays(1) }\n    }\n}\n\nfor (date in DateRange(start, end)) { println(date) }",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                }
+            ]
+        }
+    ]
+}

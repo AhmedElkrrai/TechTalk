@@ -1,0 +1,35 @@
+{
+    "version": 1,
+    "author": "TechTalk",
+    "description": "iOS — SwiftUI",
+    "entries": [
+        {
+            "technologyName": "iOS",
+            "topicName": "SwiftUI",
+            "topicDescription": "Apple's declarative UI framework for building interfaces across all platforms.",
+            "tips": [
+                {
+                    "title": "Views are structs — cheap and disposable",
+                    "content": "In SwiftUI, every view is a lightweight struct that conforms\nto the View protocol. The framework creates and destroys\nthem freely during every render pass.\n\nBecause structs are value types, SwiftUI can efficiently diff\nthe old and new view trees to determine what actually changed\non screen. This is why views must be cheap to create.\n\nDon't store heavy objects directly in your views. Instead, use\n@StateObject or @EnvironmentObject for reference-type models\nthat need to survive view recreation.\n\nThink of a SwiftUI view as a description of what should be on\nscreen, not the actual pixels. The framework handles rendering.",
+                    "codeSnippet": "struct ProfileView: View {\n    let user: User\n    \n    var body: some View {\n        VStack(alignment: .leading, spacing: 8) {\n            Text(user.name)\n                .font(.title)\n            Text(user.email)\n                .foregroundColor(.secondary)\n            \n            if user.isVerified {\n                Label(\"Verified\", systemImage: \"checkmark.seal.fill\")\n                    .foregroundColor(.green)\n            }\n        }\n        .padding()\n    }\n}\n\n// Views are cheap — create them freely\nstruct UserListView: View {\n    let users: [User]\n    var body: some View {\n        List(users) { user in\n            ProfileView(user: user)\n        }\n    }\n}",
+                    "codeLang": "Swift",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "@State, @Binding, and @ObservedObject explained",
+                    "content": "SwiftUI provides property wrappers to manage state and trigger\nre-renders. Choosing the right one is critical.\n\n@State is for simple, view-local value types (Int, String, Bool).\nSwiftUI owns the storage and persists it across re-renders.\nMark it private — it belongs to that view only.\n\n@Binding creates a two-way connection to state owned elsewhere.\nThe child view can read and write the parent's state without\nowning it. Pass it with the $ prefix.\n\n@ObservedObject watches an ObservableObject (reference type)\npassed in from outside. When its @Published properties change,\nthe view re-renders. Don't create the object inside the view —\nuse @StateObject for that.",
+                    "codeSnippet": "class SettingsModel: ObservableObject {\n    @Published var volume: Double = 0.5\n    @Published var isDarkMode: Bool = false\n}\n\nstruct SettingsScreen: View {\n    @StateObject private var model = SettingsModel()\n    \n    var body: some View {\n        VStack {\n            VolumeSlider(volume: $model.volume)\n            Toggle(\"Dark Mode\", isOn: $model.isDarkMode)\n        }\n    }\n}\n\nstruct VolumeSlider: View {\n    @Binding var volume: Double  // two-way binding\n    \n    var body: some View {\n        Slider(value: $volume, in: 0...1)\n    }\n}",
+                    "codeLang": "Swift",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Custom ViewModifiers for reusable styling",
+                    "content": "When you find yourself applying the same chain of modifiers\nrepeatedly, extract them into a custom ViewModifier. This\nkeeps your code DRY and consistent.\n\nA ViewModifier is a struct with a body(content:) method that\nwraps the original view with your modifications. You apply it\nwith .modifier() or a convenience extension on View.\n\nViewModifiers can have their own state, parameters, and even\nanimations. They compose naturally — you can stack multiple\ncustom modifiers just like built-in ones.\n\nThis pattern is especially powerful for design systems where\nyou want consistent card styles, button styles, or themed\ntext appearances across your entire app.",
+                    "codeSnippet": "struct CardModifier: ViewModifier {\n    var cornerRadius: CGFloat = 12\n    \n    func body(content: Content) -> some View {\n        content\n            .padding()\n            .background(Color(.systemBackground))\n            .cornerRadius(cornerRadius)\n            .shadow(color: .black.opacity(0.1),\n                    radius: 8, x: 0, y: 4)\n    }\n}\n\n// Convenience extension\nextension View {\n    func cardStyle(cornerRadius: CGFloat = 12) -> some View {\n        modifier(CardModifier(cornerRadius: cornerRadius))\n    }\n}\n\n// Usage — clean and reusable\nstruct ContentView: View {\n    var body: some View {\n        VStack {\n            Text(\"Hello\").cardStyle()\n            Text(\"World\").cardStyle(cornerRadius: 20)\n        }\n    }\n}",
+                    "codeLang": "Swift",
+                    "difficulty": "ADVANCED"
+                }
+            ]
+        }
+    ]
+}

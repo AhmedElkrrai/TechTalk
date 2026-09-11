@@ -1,0 +1,35 @@
+{
+    "version": 1,
+    "author": "TechTalk",
+    "description": "Android — ViewModel",
+    "entries": [
+        {
+            "technologyName": "Android",
+            "topicName": "ViewModel",
+            "topicDescription": "Architecture component for managing UI-related data across configuration changes.",
+            "tips": [
+                {
+                    "title": "StateFlow vs LiveData",
+                    "content": "Both StateFlow and LiveData hold observable state, but StateFlow\nis Kotlin-first and works well with coroutines.\n\nStateFlow always has a value (no null initial state).\nIt's lifecycle-unaware — use collectAsStateWithLifecycle() in Compose\nor repeatOnLifecycle() in Views to collect safely.\n\nLiveData is lifecycle-aware out of the box but is Java-based\nand doesn't integrate as naturally with coroutines and Flow.",
+                    "codeSnippet": "// StateFlow — recommended for new projects\nprivate val _state = MutableStateFlow(UiState())\nval state: StateFlow<UiState> = _state.asStateFlow()\n\n// Collecting safely in Compose\n@Composable\nfun MyScreen(viewModel: MyViewModel) {\n    val state by viewModel.state\n        .collectAsStateWithLifecycle()\n    Text(state.title)\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "SavedStateHandle for process death",
+                    "content": "ViewModel survives rotation but NOT process death.\nAndroid can kill your app's process in the background.\n\nSavedStateHandle persists data across process death.\nIt acts like a map — get/set values that are saved to\nthe saved-state bundle automatically.\n\nUse it for: search queries, selected tab index,\nscroll position — anything the user would expect to survive.",
+                    "codeSnippet": "class SearchViewModel(\n    private val savedState: SavedStateHandle\n) : ViewModel() {\n    // Automatically saved & restored on process death\n    val query = savedState.getStateFlow(\"query\", \"\")\n    \n    fun onQueryChange(newQuery: String) {\n        savedState[\"query\"] = newQuery\n        performSearch(newQuery)\n    }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "ViewModel basics — survive rotation",
+                    "content": "ViewModel stores and manages UI-related data. It survives\nconfiguration changes like screen rotation.\n\nA ViewModel is scoped to an Activity or Fragment. It's created\nthe first time the scope requests it and lives until the scope\nis permanently destroyed (e.g., Activity finishes).\n\nPut UI state and business logic calls in the ViewModel.\nKeep the Activity/Fragment thin — just observing and rendering state.",
+                    "codeSnippet": "class ProfileViewModel : ViewModel() {\n    private val _uiState = MutableStateFlow(ProfileState())\n    val uiState: StateFlow<ProfileState> = _uiState.asStateFlow()\n    \n    fun loadProfile(userId: String) {\n        viewModelScope.launch {\n            val profile = repository.getProfile(userId)\n            _uiState.update { it.copy(profile = profile) }\n        }\n    }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                }
+            ]
+        }
+    ]
+}

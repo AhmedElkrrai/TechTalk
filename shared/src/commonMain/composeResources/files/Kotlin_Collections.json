@@ -1,0 +1,168 @@
+{
+    "version": 1,
+    "author": "TechTalk",
+    "description": "Kotlin — Collections",
+    "entries": [
+        {
+            "technologyName": "Kotlin",
+            "topicName": "Collections",
+            "topicDescription": "Powerful operations on lists, sets, and maps.",
+            "tips": [
+                {
+                    "title": "windowed() and chunked() give you sliding vs non-overlapping batches",
+                    "content": "windowed(size, step) produces overlapping sliding windows over a\ncollection — useful for moving averages or comparing consecutive pairs.\nchunked(size) instead splits the collection into non-overlapping batches\nof the given size, useful for pagination-style processing.\n\nBoth accept an optional transform lambda applied to each window/chunk\ndirectly, avoiding a separate map() call afterward.",
+                    "codeSnippet": "val prices = listOf(10, 12, 9, 15, 20)\nval movingAverages = prices.windowed(3) { it.average() } // overlapping windows of 3\nval batches = prices.chunked(2) // [[10,12],[9,15],[20]] — non-overlapping",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "zip() pairs two collections element-by-element for combined processing",
+                    "content": "Manually indexing into two parallel lists (names[i] with ages[i]) is\nerror-prone if the lists ever get out of sync in length, and reads less\nclearly than expressing the intent directly.\n\nzip() combines two collections into a list of Pairs (or a custom-typed\nresult via a transform lambda), truncating to the shorter collection's\nlength automatically rather than throwing on a length mismatch.",
+                    "codeSnippet": "val names = listOf(\"Ahmed\", \"Ali\")\nval ages = listOf(30, 25, 40) // longer — extra element silently ignored\n\nval users = names.zip(ages) { name, age -> User(name, age) }\n// [User(\"Ahmed\", 30), User(\"Ali\", 25)]",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "flatMap avoids nested collections that map alone would produce",
+                    "content": "Calling map { it.subItems } on a list of parents produces a\nList<List<SubItem>> — a nested structure that then requires a separate\nflatten() call, or manual double-iteration, to work with as a single flat\nlist.\n\nflatMap does both steps in one pass: it maps each element to a collection\nand flattens the results into a single list directly, which is both more\nefficient (single traversal) and clearer at the call site.",
+                    "codeSnippet": "data class Order(val items: List<OrderItem>)\n\nval allItems: List<OrderItem> = orders.flatMap { it.items }\n// vs: orders.map { it.items }.flatten() — extra intermediate nested list",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "scan() emits every intermediate accumulator value, unlike fold",
+                    "content": "fold() only returns the final accumulated result, discarding every\nintermediate value along the way — but sometimes you need the running\ntotal at each step, not just the end result (a running balance, a\nprogress percentage over time).\n\nscan() works like fold but returns a list of every intermediate\naccumulator state, including the initial value as the first element,\ngiving you the full accumulation history in one call.",
+                    "codeSnippet": "val transactions = listOf(100, -30, 50, -20)\nval runningBalance = transactions.scan(0) { acc, tx -> acc + tx }\n// [0, 100, 70, 120, 100] — includes every intermediate step",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Chain compareBy/thenBy to build multi-field comparators declaratively",
+                    "content": "Writing a manual Comparator with nested if/else branches to sort by one\nfield and break ties with another is verbose and easy to get the tie-\nbreaking order wrong in.\n\ncompareBy { } builds a Comparator from a selector, and thenBy { } chains\nan additional tie-breaking selector — compareByDescending and\nthenByDescending cover the reverse-order cases, all composable in one\nreadable expression.",
+                    "codeSnippet": "val sorted = users.sortedWith(\n    compareByDescending<User> { it.priority }.thenBy { it.name }\n) // highest priority first, alphabetical among ties",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "buildList/buildMap/buildSet enable imperative construction with an immutable result",
+                    "content": "Building a collection with conditional logic (looping, branching on\nconditions to decide what to add) often means creating a mutable\ncollection, populating it imperatively, then exposing it as read-only\nafterward — two separate steps with a manual conversion between them.\n\nbuildList {} (and its map/set equivalents) gives you a MutableList\nreceiver inside the lambda for imperative construction, but returns an\nimmutable List from the call itself — combining imperative-friendly\nconstruction with an immutable public result in one expression.",
+                    "codeSnippet": "val items = buildList {\n    add(\"always included\")\n    if (includeExtra) add(\"conditional item\")\n    addAll(otherSource)\n} // returns List<String>, immutable outside this block",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Primitive arrays (IntArray, LongArray) avoid boxing overhead",
+                    "content": "A List<Int> stores boxed Integer objects on the JVM — each element is a\nseparate heap-allocated object, adding both memory overhead and\nindirection cost compared to a raw primitive array.\n\nIntArray, LongArray, DoubleArray, and similar specialized types store\nunboxed primitives contiguously in memory, which matters for\nperformance-sensitive code processing large numeric datasets — Kotlin's\nstandard library provides IntArray-specific versions of common operations\nlike map, filter, and sum.",
+                    "codeSnippet": "val boxed: List<Int> = List(1_000_000) { it } // 1M boxed Integer objects\nval unboxed: IntArray = IntArray(1_000_000) { it } // contiguous primitives, no boxing",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "generateSequence produces lazy, potentially infinite sequences",
+                    "content": "Building a sequence of values determined by a recurrence relation (each\nvalue derived from the previous one) doesn't fit neatly into eager\ncollection-building, especially when the sequence has no natural upper\nbound known in advance.\n\ngenerateSequence(seed) { next } lazily produces values one at a time based\non a next-value function, stopping only when that function returns null —\ncombined with takeWhile or take(), this safely handles infinite or\nunbounded sequences without ever materializing the whole thing.",
+                    "codeSnippet": "val powersOfTwo = generateSequence(1) { it * 2 }\n    .takeWhile { it < 1000 }\n    .toList() // [1, 2, 4, 8, ..., 512] — computed lazily, never infinite in memory",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "groupBy with a valueTransform reshapes grouped data in one pass",
+                    "content": "groupBy { keySelector } alone groups full elements under each key — but\noften you only need a derived value per group (just the names, not the\nfull objects), which would otherwise require a second map() pass over\neach group afterward.\n\ngroupBy(keySelector, valueTransform) applies the transform during the\nsame single pass that builds the groups, avoiding the extra iteration over\nevery group's contents.",
+                    "codeSnippet": "val namesByDept: Map<String, List<String>> =\n    employees.groupBy(keySelector = { it.department }, valueTransform = { it.name })\n// one pass, not groupBy{...}.mapValues{...}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "binarySearch requires a pre-sorted collection or it silently misbehaves",
+                    "content": "Collection.binarySearch() runs in O(log n) but relies on the collection\nalready being sorted according to the same comparator (or natural order)\nyou search with — calling it on unsorted data doesn't throw, it just\nreturns an incorrect, meaningless result.\n\nOnly reach for binarySearch on data you've explicitly sorted (or received\npre-sorted, like from a paginated, ordered API) — for unsorted data,\nindexOfFirst is the correct O(n) alternative, not a silently-wrong O(log n)\none.",
+                    "codeSnippet": "val sorted = listOf(1, 3, 5, 7, 9, 11)\nval index = sorted.binarySearch(7) // 3 — correct, because the list is sorted\n\nval unsorted = listOf(5, 1, 9, 3)\nunsorted.binarySearch(3) // undefined/incorrect result — never sorted first",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "listOf() vs mutableListOf() — choose based on whether you need to modify it",
+                    "content": "listOf() returns a read-only List with no add/remove methods available at\nall, while mutableListOf() returns a MutableList that supports adding,\nremoving, and updating elements.\n\nDefault to listOf() unless you specifically need to mutate the collection\nafter creation — exposing read-only types by default communicates intent\nand prevents accidental mutation from code that shouldn't be changing the\ndata.",
+                    "codeSnippet": "val fixedItems = listOf(\"a\", \"b\", \"c\") // fixedItems.add(...) won't compile\nval editableItems = mutableListOf(\"a\", \"b\", \"c\")\neditableItems.add(\"d\") // works",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "Use firstOrNull()/lastOrNull() to avoid crashing on empty collections",
+                    "content": "first() and last() throw a NoSuchElementException if the collection is\nempty, which is easy to overlook when working with data that might\nlegitimately be empty (search results, filtered lists).\n\nfirstOrNull()/lastOrNull() return null instead of throwing, letting you\nhandle the empty case explicitly with the Elvis operator or a null check,\nrather than needing a try/catch around a simple lookup.",
+                    "codeSnippet": "val results = emptyList<Order>()\n\n// results.first() // throws NoSuchElementException\nval firstOrder = results.firstOrNull() ?: return // safe, explicit empty handling",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "forEach is for simple iteration without needing an index or early exit",
+                    "content": "forEach reads more concisely than a for-loop when you just need to perform\nan action per element and don't need the index or the ability to break\nearly — note that a `return` inside a forEach lambda returns from the\nlambda's enclosing function, not just that iteration, which can surprise\nnewcomers.\n\nFor cases needing the index, use forEachIndexed; for cases needing to\nbreak or continue mid-iteration, a regular for-loop is more appropriate\nsince forEach can't be interrupted early with break/continue.",
+                    "codeSnippet": "items.forEach { println(it) } // simple per-element action\n\nitems.forEachIndexed { index, item -> println(\"$index: $item\") }\n\n// Needs break/continue? Use a for-loop instead of forEach\nfor (item in items) { if (item.isInvalid) break }",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "Switch to Sequence for long chains over large collections",
+                    "content": "Collection operators like map/filter on a List are eager — each call\nallocates a fully new intermediate list, so a chain of five operators over\n100k items allocates five 100k-element lists.\n\nasSequence() makes the same chain lazy: each element flows through all\noperators one at a time, with no intermediate collections. For short chains\nor small collections, eager operations are actually faster due to sequence\noverhead — reserve asSequence() for long operator chains over large data.",
+                    "codeSnippet": "val result = largeList.asSequence()\n    .filter { it.isActive }\n    .map { it.toDto() }\n    .take(10)\n    .toList() // only materializes once, at the end",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "associateBy builds a lookup map in one pass",
+                    "content": "A common mistake is calling filter { it.id == targetId }.firstOrNull()\nrepeatedly inside a loop, which is O(n) per lookup and O(n*m) overall.\n\nassociateBy converts a list into a Map keyed by a selector in a single pass,\nturning repeated lookups into O(1) map access — build the map once outside\nthe loop, not inside it.",
+                    "codeSnippet": "val usersById: Map<String, User> = users.associateBy { it.id }\n\n// O(1) per lookup instead of O(n)\nval user = usersById[targetId]",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "groupBy plus eachCount replaces manual tally loops",
+                    "content": "Counting occurrences by category with a mutable HashMap and manual\nincrement logic is verbose and easy to get wrong (forgetting to initialize\na missing key, for example).\n\ngroupingBy { }.eachCount() does this in one line, handling the missing-key\ncase automatically and returning a Map<K, Int> directly.",
+                    "codeSnippet": "val ordersByStatus: Map<OrderStatus, Int> =\n    orders.groupingBy { it.status }.eachCount()\n\n// vs. manual: val map = mutableMapOf<OrderStatus, Int>(); for (o in orders) { map[o.status] = (map[o.status] ?: 0) + 1 }",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "Distinguish List (read-only view) from MutableList (mutable)",
+                    "content": "Kotlin's List interface has no add/remove methods, but that doesn't\nguarantee immutability — it's a read-only view that can still be backed by\na mutable list elsewhere, and mutations through that other reference are\nvisible through your List reference too.\n\nFor true immutability guarantees (e.g. thread-safety, defensive copies at\nan API boundary), use toList() to snapshot a copy, or a genuinely immutable\ncollection library like kotlinx.collections.immutable.",
+                    "codeSnippet": "val mutable = mutableListOf(1, 2, 3)\nval readOnlyView: List<Int> = mutable // just a view, not a copy\nmutable.add(4)\nprintln(readOnlyView) // [1, 2, 3, 4] — changed! same backing list\n\nval snapshot = mutable.toList() // true independent copy",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "partition splits a collection into two lists in one pass",
+                    "content": "Filtering the same list twice with opposite predicates (filter { pred } and\nfilter { !pred }) iterates the collection twice for what is logically one\nclassification pass.\n\npartition returns a Pair of lists — matching and non-matching — computed in\na single traversal, which is both more efficient and reads more clearly at\nthe call site.",
+                    "codeSnippet": "val (completed, pending) = tasks.partition { it.isDone }\n\n// vs: val completed = tasks.filter { it.isDone }; val pending = tasks.filter { !it.isDone }",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "fold accumulates state that reduce can't express",
+                    "content": "reduce uses the collection's first element as the initial accumulator and\nfails on an empty collection. fold takes an explicit initial value, so it\nhandles empty collections gracefully and lets the accumulator be a\ndifferent type than the elements.\n\nUse fold whenever you're building up a different-typed result (a map, a\nstring, a custom object) from a list, rather than reducing to the same\nelement type.",
+                    "codeSnippet": "val summary: Map<String, Int> = orders.fold(mutableMapOf()) { acc, order ->\n    acc.merge(order.category, order.quantity, Int::plus)\n    acc\n}\n\nval total = emptyList<Int>().fold(0) { acc, n -> acc + n } // 0, no crash",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "map and filter — the essentials",
+                    "content": "'map' transforms each element in a collection, producing a new list.\n'filter' keeps only elements matching a predicate.\n\nThese are the two most common collection operations. \nThey don't modify the original list — they create new ones (immutable by default).\n\nChain them together for powerful data transformations in just a few lines.",
+                    "codeSnippet": "val numbers = listOf(1, 2, 3, 4, 5, 6)\n\nval evenDoubled = numbers\n    .filter { it % 2 == 0 }   // [2, 4, 6]\n    .map { it * 2 }            // [4, 8, 12]\n\n// Transform objects\nval names = users\n    .filter { it.isActive }\n    .map { it.displayName }",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "groupBy — organize data instantly",
+                    "content": "'groupBy' splits a collection into a Map<Key, List<Value>> \nbased on a key selector function.\n\nIncredibly useful for categorizing data: \ngroup users by role, orders by status, logs by date, etc.\n\nCombine with mapValues to transform the grouped lists further.",
+                    "codeSnippet": "data class Student(val name: String, val grade: String)\n\nval students = listOf(\n    Student(\"Alice\", \"A\"),\n    Student(\"Bob\", \"B\"),\n    Student(\"Carol\", \"A\"),\n)\n\nval byGrade = students.groupBy { it.grade }\n// { \"A\" -> [Alice, Carol], \"B\" -> [Bob] }\n\n// Count per grade\nval counts = students.groupingBy { it.grade }.eachCount()\n// { \"A\" -> 2, \"B\" -> 1 }",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Sequence for large collections",
+                    "content": "Regular collection operations (map, filter) create intermediate lists at each step.\nFor large collections, this wastes memory.\n\nSequences process elements lazily — one at a time, through all operations, \nwithout creating intermediate collections.\n\nUse .asSequence() when chaining multiple operations on large lists. \nFor small collections (< 100 elements), regular lists are faster due to less overhead.",
+                    "codeSnippet": "// Eager — creates 2 intermediate lists\nval result = hugeList\n    .map { it.name }        // new list\n    .filter { it.length > 3 } // another new list\n    .first()\n\n// Lazy — processes one element at a time, stops early\nval result = hugeList.asSequence()\n    .map { it.name }\n    .filter { it.length > 3 }\n    .first()  // stops as soon as one match is found",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                }
+            ]
+        }
+    ]
+}

@@ -1,0 +1,126 @@
+{
+    "version": 1,
+    "author": "TechTalk",
+    "description": "Kotlin — Coroutines",
+    "entries": [
+        {
+            "technologyName": "Kotlin",
+            "topicName": "Coroutines",
+            "topicDescription": "Asynchronous programming with structured concurrency.",
+            "tips": [
+                {
+                    "title": "CoroutineContext elements combine via the + operator",
+                    "content": "A CoroutineContext is a set of elements (Job, Dispatcher, exception\nhandler, name) combined with +. Adding two contexts merges their elements,\nwith the right-hand side overriding any element of the same key already\npresent on the left.\n\nThis is how launch(Dispatchers.IO + CoroutineName(\"sync\")) composes a\ncustom dispatcher and a debug name into a single context passed to the new\ncoroutine, without needing a builder object.",
+                    "codeSnippet": "val baseContext = Dispatchers.IO + CoroutineName(\"network\")\nval withHandler = baseContext + CoroutineExceptionHandler { _, e -> log(e) }\n\nscope.launch(withHandler) { /* uses IO dispatcher, name, and handler */ }",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Choosing Dispatchers.IO, Default, or Unconfined has real performance implications",
+                    "content": "Dispatchers.IO is backed by a large, elastic thread pool tuned for blocking\ncalls (network, disk); Dispatchers.Default is a fixed pool sized to CPU\ncores, meant for CPU-bound work like sorting or parsing large data.\n\nUsing Default for blocking I/O starves the small CPU pool and can stall\nunrelated CPU work app-wide; using IO for CPU-bound work wastes its\nelastic-thread design. Dispatchers.Unconfined resumes on whatever thread\ntriggered the suspension — it exists mainly for testing, not production\ncode paths.",
+                    "codeSnippet": "suspend fun readFile() = withContext(Dispatchers.IO) { file.readText() }\nsuspend fun parseJson(raw: String) = withContext(Dispatchers.Default) { Json.decode(raw) }",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Rethrow CancellationException instead of swallowing it in catch blocks",
+                    "content": "A broad `catch (e: Exception)` also catches CancellationException, since\nit's a subtype of Exception — swallowing it silently breaks structured\nconcurrency, because the coroutine appears to keep running instead of\nhonoring its cancellation.\n\nAlways check for CancellationException first and rethrow it, or catch a\nmore specific exception type instead of the broad Exception supertype.",
+                    "codeSnippet": "try {\n    fetchData()\n} catch (e: CancellationException) {\n    throw e // must propagate — never swallow\n} catch (e: IOException) {\n    handleError(e)\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "NonCancellable context lets cleanup code survive a cancelled coroutine",
+                    "content": "Once a coroutine is cancelled, any suspend call inside it (including in a\nfinally block) throws CancellationException immediately — so an await on\na cleanup network call inside finally would just fail instead of running.\n\nwithContext(NonCancellable) { ... } creates a scope that ignores the\nsurrounding cancellation, letting genuinely necessary cleanup (releasing a\nlock, closing a resource over the network) complete even after the parent\ncoroutine has been cancelled.",
+                    "codeSnippet": "try {\n    doWork()\n} finally {\n    withContext(NonCancellable) {\n        releaseRemoteLock() // completes even though the coroutine is cancelled\n    }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "CoroutineExceptionHandler only fires on uncaught exceptions in root coroutines",
+                    "content": "A CoroutineExceptionHandler installed on a child coroutine's context is\nignored — exceptions propagate up to the nearest root coroutine (one\nlaunched directly on a scope, not a child of another coroutine) before the\nhandler is consulted.\n\nIt also doesn't work with async — exceptions from async are stored in the\nresulting Deferred and only surface when you call .await(), bypassing the\nhandler entirely. Install the handler on the top-level scope, not on\nindividual launch calls.",
+                    "codeSnippet": "val handler = CoroutineExceptionHandler { _, e -> log(\"Uncaught: $e\") }\nval scope = CoroutineScope(SupervisorJob() + handler)\n\nscope.launch { throw RuntimeException(\"boom\") } // handler fires — root coroutine\n// scope.launch { launch { throw ... } } // also fires — handler applies down the tree",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "yield() cooperatively checks for cancellation inside tight CPU-bound loops",
+                    "content": "A pure computation loop with no suspend calls inside it never checks\nwhether its coroutine has been cancelled, so cancel() has no effect until\nthe loop finishes on its own.\n\nCalling yield() periodically inside the loop gives the coroutine a chance\nto check for cancellation and throw if it's been cancelled, while also\nletting other coroutines run on the same dispatcher in the meantime.",
+                    "codeSnippet": "suspend fun processLargeDataset(items: List<Item>) {\n    for ((index, item) in items.withIndex()) {\n        processItem(item)\n        if (index % 1000 == 0) yield() // cooperative cancellation checkpoint\n    }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Mutex is the coroutine-safe replacement for synchronized blocks",
+                    "content": "Java's synchronized keyword blocks the underlying thread, which is\ndangerous inside a suspend function — it can hold a thread hostage across\na suspension point, or deadlock a limited dispatcher thread pool entirely.\n\nkotlinx.coroutines.sync.Mutex provides withLock {} as a suspend-aware\nequivalent — it suspends the coroutine instead of blocking the thread\nwhile waiting for the lock, making it safe to use around suspend calls.",
+                    "codeSnippet": "val mutex = Mutex()\nvar counter = 0\n\nsuspend fun increment() = mutex.withLock {\n    counter++ // safe even with suspend calls elsewhere in the critical section\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Cancelling a parent Job cancels every child, but not the other way around",
+                    "content": "Structured concurrency's parent-child Job hierarchy means calling\ncancel() on a parent scope propagates down to every coroutine launched\nwithin it — but a child coroutine failing (for non-CancellationException\nreasons) propagates its exception up and cancels its siblings too, unless\nthe parent uses a SupervisorJob.\n\nUnderstanding this hierarchy is essential for reasoning about lifecycle-\nbound scopes like viewModelScope — cancelling the ViewModel's scope\nreliably cancels every coroutine it launched, directly or nested.",
+                    "codeSnippet": "val parentJob = Job()\nval scope = CoroutineScope(parentJob)\n\nscope.launch { launch { delay(5000) } } // nested child\nparentJob.cancel() // cancels the outer launch AND its nested child",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "withContext switches dispatchers without spawning a new coroutine",
+                    "content": "It's tempting to think withContext(Dispatchers.IO) { ... } launches a new\nconcurrent coroutine, but it doesn't — it suspends the current coroutine,\nswitches its execution to the new dispatcher, runs the block, and resumes\nthe original coroutine on the original dispatcher afterward.\n\nThis makes withContext sequential, not concurrent — for actual\nconcurrency, you still need async/launch inside it. withContext is purely\nfor moving where a piece of sequential logic executes.",
+                    "codeSnippet": "suspend fun loadAndFormat(): String {\n    val raw = withContext(Dispatchers.IO) { file.readText() } // sequential switch\n    return withContext(Dispatchers.Default) { formatText(raw) } // switches again, sequentially\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "ensureActive() is a lighter-weight cancellation check than yield()",
+                    "content": "yield() both checks for cancellation and gives up the thread so other\ncoroutines can run — but that thread-yielding has overhead you don't\nalways need, especially in a loop where you just want to fail fast on\ncancellation without ceding execution.\n\nensureActive() only throws if the coroutine has been cancelled; it doesn't\nsuspend or yield the thread, making it cheaper for hot loops that only\nneed cancellation responsiveness, not cooperative multitasking.",
+                    "codeSnippet": "suspend fun computeSum(items: List<Int>): Int {\n    var sum = 0\n    for (item in items) {\n        currentCoroutineContext().ensureActive() // cheap check, no thread yield\n        sum += item\n    }\n    return sum\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "launch starts fire-and-forget work; async returns an awaitable result",
+                    "content": "launch returns a Job and is for coroutines you don't need a result from —\nsending an analytics event, for example. If it throws, the exception\npropagates immediately to the parent scope.\n\nasync returns a Deferred<T>, meant for computing a value concurrently. Its\nexception stays hidden until you call .await() on it, so a forgotten\nawait() can silently swallow an error until something else surfaces it.",
+                    "codeSnippet": "scope.launch { sendAnalyticsEvent() } // no result needed\n\nval deferred = scope.async { fetchUserProfile() }\nval profile = deferred.await() // result + exception surface here",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "delay() suspends without blocking the underlying thread",
+                    "content": "Thread.sleep() blocks the entire thread, preventing it from doing any\nother work — on Android's main thread, this freezes the UI.\n\ndelay() is a suspend function that pauses only the coroutine, freeing the\nthread to run other coroutines in the meantime. It's the coroutine-world\nequivalent of sleep(), but non-blocking by design.",
+                    "codeSnippet": "suspend fun retryWithDelay() {\n    repeat(3) { attempt ->\n        try {\n            return fetchData()\n        } catch (e: IOException) {\n            delay(1000L * (attempt + 1)) // thread stays free during the wait\n        }\n    }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "SupervisorJob isolates failures in sibling coroutines",
+                    "content": "A regular Job cancels all siblings when one child fails. SupervisorJob\nchanges that — a failure in one child does not cancel the others.\n\nThis is commonly used at the root of a ViewModel's CoroutineScope so\none failed background task doesn't tear down unrelated ongoing work.\n\nNote that supervisorScope only isolates failures one level down — if you\nnest a regular coroutineScope inside, normal cancellation propagation resumes\nwithin that nested scope.",
+                    "codeSnippet": "class MyViewModel : ViewModel() {\n    private val supervisor = SupervisorJob()\n    private val scope = CoroutineScope(Dispatchers.Main.immediate + supervisor)\n\n    fun loadEverything() {\n        scope.launch { loadProfile() }   // failure here...\n        scope.launch { loadStats() }     // ...won't cancel this\n    }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Use structured concurrency",
+                    "content": "Every coroutine should be launched in a specific CoroutineScope. \nThis ensures that when the scope is cancelled (e.g., a ViewModel is cleared), \nall child coroutines are cancelled too — no leaks.\n\nNever use GlobalScope in production. It lives for the entire app lifetime \nand makes it impossible to cancel work when it's no longer needed.\n\nUse viewModelScope, lifecycleScope, or create your own with SupervisorJob().",
+                    "codeSnippet": "// ✅ Good — scoped to ViewModel lifecycle\nclass MyViewModel : ViewModel() {\n    fun loadData() {\n        viewModelScope.launch {\n            val data = repository.fetchData()\n            _state.value = data\n        }\n    }\n}\n\n// ❌ Bad — never cancelled, potential leak\nGlobalScope.launch {\n    repository.fetchData()\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "async/await for parallel work",
+                    "content": "Use async to run multiple tasks in parallel and await their results.\nWithout async, suspending calls run sequentially — one after another.\n\nasync returns a Deferred<T> which is like a Promise. \nCall .await() to get the result when you need it.\n\nThis can dramatically speed up operations that are independent of each other, \nlike fetching data from two different API endpoints simultaneously.",
+                    "codeSnippet": "// Sequential — takes ~2 seconds\nval user = fetchUser()       // 1 sec\nval posts = fetchPosts()     // 1 sec\n\n// Parallel — takes ~1 second\ncoroutineScope {\n    val user = async { fetchUser() }\n    val posts = async { fetchPosts() }\n    showProfile(user.await(), posts.await())\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "SupervisorJob prevents cascading failure",
+                    "content": "With a regular Job, if one child coroutine fails, all siblings are cancelled too.\nSupervisorJob changes this: each child fails independently.\n\nThis is critical for UI work. If one network request fails, \nyou don't want it to cancel other unrelated requests in the same scope.\n\nviewModelScope already uses SupervisorJob internally, \nbut if you create custom scopes, remember to use it.",
+                    "codeSnippet": "// Regular Job — one failure cancels everything\nval scope = CoroutineScope(Job())\n\n// SupervisorJob — failures are isolated\nval scope = CoroutineScope(SupervisorJob())\n\nscope.launch { fetchUser() }    // if this fails...\nscope.launch { fetchPosts() }   // ...this keeps running ✅",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                }
+            ]
+        }
+    ]
+}

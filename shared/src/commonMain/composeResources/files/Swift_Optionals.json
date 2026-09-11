@@ -1,0 +1,35 @@
+{
+    "version": 1,
+    "author": "TechTalk",
+    "description": "Swift — Optionals",
+    "entries": [
+        {
+            "technologyName": "Swift",
+            "topicName": "Optionals",
+            "topicDescription": "Safely handling the absence of a value in Swift.",
+            "tips": [
+                {
+                    "title": "Prefer if-let and guard-let over force unwrapping",
+                    "content": "Optionals in Swift represent a value that may or may not exist.\nForce unwrapping with '!' crashes your app if the value is nil.\n\nUse 'if let' to safely unwrap an optional into a local constant\nthat is only available inside the if-block. This guarantees you\nnever access a nil value.\n\nUse 'guard let' when you want to exit early. It unwraps the\noptional and makes the value available for the rest of the scope.\nThis keeps your code flat and readable — no deep nesting.\n\nAs a rule of thumb, use guard-let in functions where a nil value\nmeans you cannot proceed, and if-let when you want to do\nsomething optional with the value.",
+                    "codeSnippet": "// ✅ Safe unwrapping with if-let\nfunc greet(name: String?) {\n    if let name = name {\n        print(\"Hello, \\(name)!\")\n    } else {\n        print(\"Hello, stranger!\")\n    }\n}\n\n// ✅ Early exit with guard-let\nfunc process(data: Data?) {\n    guard let data = data else {\n        print(\"No data to process\")\n        return\n    }\n    // 'data' is non-optional from here on\n    parse(data)\n}\n\n// ❌ Force unwrapping — crashes if nil\nlet value: String? = nil\nprint(value!)  // 💥 Fatal error",
+                    "codeLang": "Swift",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "Use nil-coalescing and optional chaining together",
+                    "content": "The nil-coalescing operator '??' provides a default value when\nan optional is nil. It reads naturally: \"use this value, or\nfall back to that.\"\n\nOptional chaining with '?.' lets you call methods or access\nproperties on an optional without unwrapping it first. If any\nlink in the chain is nil, the entire expression returns nil.\n\nCombining both is extremely powerful. You can chain through\ndeeply nested optional properties and provide a sensible\ndefault at the end, all in one readable expression.\n\nThis avoids nested if-let pyramids and makes your intent\ncrystal clear to other developers reading your code.",
+                    "codeSnippet": "struct Company {\n    var ceo: Person?\n}\nstruct Person {\n    var address: Address?\n}\nstruct Address {\n    var city: String?\n}\n\nlet company: Company? = fetchCompany()\n\n// Optional chaining + nil-coalescing\nlet city = company?.ceo?.address?.city ?? \"Unknown\"\n\n// Equivalent without chaining (much more verbose):\nlet city2: String\nif let c = company, let ceo = c.ceo,\n   let addr = ceo.address, let ct = addr.city {\n    city2 = ct\n} else {\n    city2 = \"Unknown\"\n}",
+                    "codeLang": "Swift",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Map and flatMap on optionals",
+                    "content": "Optionals in Swift conform to a pattern similar to functional\ncontainers. You can call 'map' on an optional to transform its\nwrapped value without unwrapping it manually.\n\nIf the optional is nil, map returns nil. If it has a value,\nmap applies your closure and wraps the result back in an optional.\n\nUse 'flatMap' when your transformation itself returns an optional.\n'map' would give you a double-optional (String??), while flatMap\nflattens it into a single optional (String?).\n\nThis functional style removes boilerplate if-let blocks and\nmakes chains of transformations concise and expressive.",
+                    "codeSnippet": "let input: String? = \"42\"\n\n// map — transform the wrapped value\nlet number: Int? = input.map { Int($0) ?? 0 }\n// number is Optional(42)\n\n// flatMap — when the transform also returns optional\nlet parsed: Int? = input.flatMap { Int($0) }\n// parsed is Optional(42)\n\nlet bad: String? = \"hello\"\nlet parsedBad: Int? = bad.flatMap { Int($0) }\n// parsedBad is nil — Int(\"hello\") returns nil\n\n// Chaining transforms\nlet result = input\n    .flatMap { Int($0) }\n    .map { $0 * 2 }\n// result is Optional(84)",
+                    "codeLang": "Swift",
+                    "difficulty": "ADVANCED"
+                }
+            ]
+        }
+    ]
+}

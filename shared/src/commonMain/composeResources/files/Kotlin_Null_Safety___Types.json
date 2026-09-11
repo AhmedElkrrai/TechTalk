@@ -1,0 +1,168 @@
+{
+    "version": 1,
+    "author": "TechTalk",
+    "description": "Kotlin — Null Safety & Types",
+    "entries": [
+        {
+            "technologyName": "Kotlin",
+            "topicName": "Null Safety & Types",
+            "topicDescription": "Working effectively with Kotlin's type system, nullability, and smart casts.",
+            "tips": [
+                {
+                    "title": "The safe call operator ?. short-circuits instead of throwing",
+                    "content": "Calling a method or property on a null reference in most languages throws\nan exception immediately. Kotlin's ?. operator checks for null first —\nif the receiver is null, the whole expression evaluates to null instead of\ncrashing, and the call is simply skipped.\n\nSafe calls chain naturally: `user?.address?.city` returns null at the\nfirst null link in the chain, without needing a nested if-null check at\nevery step.",
+                    "codeSnippet": "val name: String? = user?.profile?.displayName\n// if user or profile is null, name is null — no crash, no nested if-checks",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "isNullOrEmpty and isNullOrBlank combine a null check with a content check",
+                    "content": "Checking `if (str != null && str.isEmpty())` for a nullable string is\nverbose, and it's easy to forget one half of the check.\n\nisNullOrEmpty() (empty string or null) and isNullOrBlank() (also treats\nwhitespace-only strings as empty) combine both checks into a single call —\nand because they're written with a contract, the compiler still smart-casts\nthe string to non-null afterward when used in a negated check.",
+                    "codeSnippet": "fun greet(name: String?) {\n    if (name.isNullOrBlank()) return\n    println(\"Hello, ${name.trim()}\") // smart-cast to non-null after the check\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "Nullability is part of the type itself: String vs String?",
+                    "content": "In many languages, whether a value can be null is a runtime concern you\ndiscover through documentation or a crash. In Kotlin, String and String?\nare genuinely different types — the compiler refuses to compile code that\ntreats a String? as if it were guaranteed non-null without a check.\n\nThis pushes null-handling decisions to compile time: a function signature\nlike `fun greet(name: String)` documents, and enforces, that null is never\na valid argument — callers get a compile error, not a runtime surprise.",
+                    "codeSnippet": "fun greet(name: String) = println(\"Hello, $name\") // name can never be null here\n\nfun greetOptional(name: String?) = println(\"Hello, ${name ?: \"stranger\"}\") // must handle null explicitly",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "Smart casts don't work on mutable properties from another class",
+                    "content": "The compiler can only guarantee a null-checked var stays non-null if it\ncan prove nothing else could reassign it between the check and the use —\nthat guarantee breaks for a mutable property accessed through another\nobject, since another thread or a getter with custom logic could change it.\n\nCopy the property to a local val first — the local val is guaranteed\nunchanged, so the smart cast works normally on it.",
+                    "codeSnippet": "class Repo { var cachedUser: User? = null }\n\nfun greet(repo: Repo) {\n    // if (repo.cachedUser != null) print(repo.cachedUser.name) // compile error\n    val user = repo.cachedUser\n    if (user != null) print(user.name) // smart-casts fine on local val\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Elvis operator with return/throw for early-exit null handling",
+                    "content": "Chaining multiple ?.let blocks to handle a nullable value gets hard to read\nfast, especially when you need to bail out of the function on null.\n\nCombine ?: with return or throw directly at the point of null-checking —\nthis reads top-to-bottom like a guard clause and keeps the rest of the\nfunction body working with a guaranteed non-null value.",
+                    "codeSnippet": "fun processOrder(order: Order?) {\n    val validOrder = order ?: return\n    val total = validOrder.items.sumOf { it.price }\n        ?: throw IllegalStateException(\"Missing price data\")\n    // rest of function works with non-null values\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "The platform type gap when calling Java from Kotlin",
+                    "content": "Java has no concept of nullability annotations Kotlin can always trust, so\nvalues returned from Java code show up as platform types (String! rather\nthan String or String?) — Kotlin lets you treat them as either, which\ndefeats the compiler's null-safety guarantees at that boundary.\n\nWrap Java API calls in an explicit null check or a Kotlin-native adapter\nlayer as soon as they cross into your Kotlin code, so a NullPointerException\nfrom unannotated Java code doesn't surface deep inside otherwise-safe\nKotlin logic.",
+                    "codeSnippet": "// javaLibrary.getValue() returns a platform type String!\nval raw: String? = javaLibrary.getValue() // explicitly nullable at the boundary\nval safe: String = raw ?: \"default\"",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "!! is a debugging tool, not a production null-handling strategy",
+                    "content": "The not-null assertion operator converts a null into an immediate\nNullPointerException with a generic message and no context about which\nvalue was null or why.\n\nEvery !! in code that ships is a place where a null will crash the app\nwith no recovery path and a poor stack trace. Prefer requireNotNull(x) {\n\"message\" } for preconditions (clearer failure message) or checkNotNull for\ninvariants, and reserve !! for cases you've proven structurally impossible.",
+                    "codeSnippet": "// Avoid:\nval name = user!!.name\n\n// Prefer:\nval name = requireNotNull(user) { \"User must be loaded before rendering profile\" }.name",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "Contracts let custom null-check functions enable smart casts",
+                    "content": "By default, only the compiler's built-in null checks (if (x != null)) and\na handful of stdlib functions trigger smart casts — a custom function like\nfun isValid(x: String?): Boolean won't let the compiler smart-cast after\ncalling it, even if the logic is equivalent.\n\nThe contract {} DSL lets you declare that a function implies a certain\nnullability outcome, teaching the compiler to smart-cast after calling your\nown validation functions, not just built-in ones.",
+                    "codeSnippet": "fun requireValid(value: String?): Boolean {\n    contract { returns(true) implies (value != null) }\n    return !value.isNullOrBlank()\n}\n\nfun use(value: String?) {\n    if (requireValid(value)) {\n        println(value.length) // smart-cast to non-null works here\n    }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Nothing type marks functions that never return normally",
+                    "content": "A function that always throws or always loops forever has return type\nNothing, which the compiler treats as a subtype of every other type — this\nlets it slot into any expression position without breaking type inference.\n\nDeclaring TODO() or a custom fatalError() as returning Nothing lets you\nwrite `val x = condition ?: fatalError(\"...\")` and have x inferred as\nnon-nullable, because the compiler knows the Nothing branch can never\nactually produce a value.",
+                    "codeSnippet": "fun fatalError(message: String): Nothing {\n    throw IllegalStateException(message)\n}\n\nval config: Config = loadConfig() ?: fatalError(\"Config missing\")\n// config is inferred as non-null Config, not Config?",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Safe call operator (?.)",
+                    "content": "The safe call operator ?. lets you access properties or call methods \non a nullable reference. If the object is null, the entire expression \nreturns null instead of throwing a NullPointerException.\n\nYou can chain multiple safe calls together. \nIf any part in the chain is null, the whole chain short-circuits to null.\n\nThis replaces verbose if-null checks from Java.",
+                    "codeSnippet": "val city: String? = user?.address?.city\n\n// Equivalent Java code:\n// String city = null;\n// if (user != null) {\n//     Address addr = user.getAddress();\n//     if (addr != null) {\n//         city = addr.getCity();\n//     }\n// }",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "Elvis operator (?:)",
+                    "content": "The Elvis operator ?: provides a default value when an expression is null.\nThe name comes from the emoticon — tilt your head left and ?: looks like Elvis' hair.\n\nIt's perfect for fallback values and early returns.\nYou can even use 'return' or 'throw' on the right side \nto exit a function when something is null.",
+                    "codeSnippet": "// Default value\nval name = user?.name ?: \"Anonymous\"\n\n// Early return\nfun process(data: Data?) {\n    val validated = data ?: return\n    // 'validated' is smart-cast to non-null Data here\n    save(validated)\n}\n\n// Throw on null\nval config = loadConfig() ?: throw IllegalStateException(\"No config\")",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "Smart casts after null checks",
+                    "content": "Kotlin's compiler tracks null checks and automatically casts \nthe variable to its non-null type within the checked scope. \nThis is called \"smart casting\".\n\nAfter an if-check, return, or throw, the compiler knows the variable \ncan't be null and lets you use it without ?. operators.\n\nSmart casts only work on val (immutable) variables — \na var could be changed by another thread between the check and usage.",
+                    "codeSnippet": "fun greet(name: String?) {\n    if (name == null) return\n    \n    // Smart cast: name is now String (not String?)\n    println(\"Hello, ${name.uppercase()}\")\n}\n\n// Also works with 'is' checks\nfun getLength(obj: Any): Int? {\n    if (obj is String) {\n        return obj.length  // smart cast to String\n    }\n    return null\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Definitely non-nullable types (T & Any) tighten generic Java interop",
+                    "content": "A generic type parameter with no explicit bound is treated as nullable\n(T?) by default in certain override scenarios involving platform types\nfrom Java generics, which can force a nullable parameter type even when\nyour Kotlin code logically never passes null.\n\n`T & Any` (definitely non-nullable) explicitly intersects a type\nparameter with Any, guaranteeing non-nullability regardless of how T is\ninstantiated — mainly useful when overriding a generic Java method whose\nnullability annotations are ambiguous or absent.",
+                    "codeSnippet": "fun <T> elvisNonNull(value: T, fallback: T & Any): T & Any =\n    value ?: fallback // return type is guaranteed non-null regardless of T's nullability",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Combine as? with the Elvis operator for a safe-cast-with-default idiom",
+                    "content": "Using `as` for an unchecked cast throws a ClassCastException immediately\nif the value isn't actually the target type — risky when a value's exact\ntype isn't guaranteed, such as after JSON deserialization into a\nheterogeneous structure.\n\n`as?` returns null instead of throwing on a failed cast, and chaining it\nwith `?:` gives you a one-line safe-cast-with-fallback idiom, avoiding a\nseparate `is` check followed by a smart cast.",
+                    "codeSnippet": "val config: Map<String, Any> = loadConfig()\nval timeout = (config[\"timeout\"] as? Int) ?: 30_000 // safe cast, default on mismatch or absence",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "::isInitialized checks a lateinit property without triggering the exception",
+                    "content": "Accessing an uninitialized lateinit property throws\nUninitializedPropertyAccessException — but sometimes you genuinely need\nto check whether it's been set yet without risking that exception, such\nas in a cleanup path that may run before setup completes.\n\nThe reflective `this::property.isInitialized` check (available since\nKotlin 1.2 for properties in the same scope) returns a Boolean safely,\nletting you branch on initialization state without a try/catch.",
+                    "codeSnippet": "class MyFragment : Fragment() {\n    private lateinit var binding: FragmentBinding\n\n    override fun onDestroyView() {\n        if (::binding.isInitialized) binding.recyclerView.adapter = null\n    }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Extension functions can be defined on nullable receivers",
+                    "content": "A regular extension function like `fun String.isValid()` can only be\ncalled on a non-null String — calling it on a String? forces a safe call\nor a null check first, spreading null-handling logic across every call\nsite.\n\nDefining the extension on the nullable type directly (`fun String?.isValid()\n`) lets the function itself decide how to handle a null receiver\ninternally, centralizing that null-handling logic in one place instead of\nrepeating it at every call site.",
+                    "codeSnippet": "fun String?.isValidToken(): Boolean = this != null && this.length >= 20\n\nval token: String? = getToken()\nif (token.isValidToken()) { /* no separate null check needed at the call site */ }",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Unsafe as throws ClassCastException; as? swallows the failure into null",
+                    "content": "It's tempting to treat `as` and `as?` as interchangeable style choices,\nbut they have fundamentally different failure modes: `as` fails loudly\n(an immediate exception with a stack trace pointing at the exact line),\nwhile `as?` fails silently into null, which can propagate a missing value\nfar from where the actual type mismatch occurred.\n\nUse `as` when a type mismatch represents a genuine programming bug you\nwant to surface immediately; use `as?` only when an unexpected type is a\nnormal, expected possibility your code already handles gracefully\ndownstream.",
+                    "codeSnippet": "val value: Any = fetchDynamicValue()\n\nval strict = value as String // crashes loudly if wrong — bug should be visible\nval lenient = value as? String ?: \"default\" // wrong type treated as a normal case",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "requireNotNull documents a precondition; checkNotNull documents an invariant",
+                    "content": "Both functions throw if given null and otherwise return the non-null\nvalue, so they're functionally similar — but they throw different\nexception types and communicate different intent to a reader.\n\nrequireNotNull throws IllegalArgumentException and is meant for validating\ninputs the caller provided (a precondition on arguments); checkNotNull\nthrows IllegalStateException and is meant for asserting your own code's\ninternal state is as expected (an invariant) — picking the right one\ncommunicates whose bug it would be if the check fails.",
+                    "codeSnippet": "fun processOrder(order: Order?) {\n    val validOrder = requireNotNull(order) { \"order argument must not be null\" } // caller's fault\n}\n\nfun finalizeSetup() {\n    checkNotNull(config) { \"setup() must be called before finalizeSetup()\" } // our own bug if this fires\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "@Nullable/@NonNull Java annotations determine platform type strictness",
+                    "content": "When Kotlin calls Java code without JSR-305 or JetBrains nullability\nannotations, every return type is an unchecked platform type — but if the\nJava code IS annotated (@Nullable, @NonNull, or JSR-305 equivalents),\nKotlin respects those annotations and treats the type as genuinely\nnullable or non-nullable at compile time, not as an ambiguous platform\ntype.\n\nWhen writing Java code that Kotlin consumers will call — including\nannotation-processor-generated Java, which is common in Android — adding\nnullability annotations meaningfully improves the calling Kotlin code's\ntype safety instead of forcing every caller into platform-type ambiguity.",
+                    "codeSnippet": "// Java\npublic class UserApi {\n    @Nullable public String getNickname() { ... } // Kotlin sees this as String?\n    @NonNull public String getId() { ... }          // Kotlin sees this as String\n}",
+                    "codeLang": "Java",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "A smart cast can be invalidated across a suspension point",
+                    "content": "A local val smart-cast to non-null normally stays valid for the rest of\nits scope — but if that val is actually a property backed by a mutable\nfield accessed through a class captured in a suspend lambda, a\nsuspension point in between can theoretically allow another coroutine to\nmutate the underlying value, so the compiler is conservative about\nsmart-casting across suspend calls in shared mutable state scenarios.\n\nCopying a nullable property into an immutable local val before any\nsuspend call, and using only that local val afterward, avoids this class\nof invalidation entirely, since a true local val can't be reassigned by\nanother coroutine.",
+                    "codeSnippet": "class Repo { var cachedUser: User? = null }\n\nsuspend fun example(repo: Repo) {\n    val user = repo.cachedUser ?: return // capture as an immutable local first\n    delay(100) // suspension point — repo.cachedUser could theoretically change elsewhere\n    println(user.name) // still safe — 'user' is a local val, unaffected by later mutation\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Nullable function types need extra parentheses to express correctly",
+                    "content": "`(() -> Unit)?` and `() -> Unit?` look similar but mean different things:\nthe first is a nullable reference to a function that returns Unit; the\nsecond is a non-nullable function that itself returns a nullable Unit\nvalue (which is a nonsensical but legal type).\n\nGetting the parentheses placement wrong is a common source of confusing\ncompiler errors when defining callback parameters that are genuinely\noptional (may not be provided at all, as opposed to always being called\nbut sometimes returning null).",
+                    "codeSnippet": "var onComplete: (() -> Unit)? = null // the callback itself may be absent\nonComplete?.invoke() // safe call needed since the reference itself might be null\n\nfun risky(): () -> Unit? = { null } // rarely what you actually want",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Exhaustive when on a nullable sealed type must handle the null branch separately",
+                    "content": "A `when` expression over a sealed type's non-null variant is exhaustive\nonce every subtype is covered — but if the variable's type is the\nnullable version of that sealed type (MySealedType?), the compiler also\nrequires an explicit `null ->` branch, since null isn't one of the sealed\nsubtypes and wouldn't otherwise be covered.\n\nThis is a common source of a 'when expression must be exhaustive' compile\nerror when a previously non-nullable sealed-typed property becomes\nnullable during a refactor — the fix is adding the null branch, not\nchanging the sealed hierarchy.",
+                    "codeSnippet": "sealed interface Status { data object Active : Status; data object Inactive : Status }\n\nfun describe(status: Status?): String = when (status) {\n    Status.Active -> \"active\"\n    Status.Inactive -> \"inactive\"\n    null -> \"unknown\" // required — status is nullable, not just Status\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                }
+            ]
+        }
+    ]
+}

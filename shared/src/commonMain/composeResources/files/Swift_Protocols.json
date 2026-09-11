@@ -1,0 +1,35 @@
+{
+    "version": 1,
+    "author": "TechTalk",
+    "description": "Swift — Protocols",
+    "entries": [
+        {
+            "technologyName": "Swift",
+            "topicName": "Protocols",
+            "topicDescription": "Defining blueprints of methods, properties, and requirements.",
+            "tips": [
+                {
+                    "title": "Protocols define contracts, not implementations",
+                    "content": "A protocol declares a set of methods, properties, or other\nrequirements that a conforming type must implement. Think of\nit as a contract or a blueprint.\n\nUnlike classes, protocols don't provide implementation by\ndefault (though extensions can). Any struct, class, or enum\ncan conform to a protocol.\n\nThis is the cornerstone of protocol-oriented programming in\nSwift. By coding to protocols rather than concrete types, you\nmake your code more flexible, testable, and composable.\n\nA type can conform to multiple protocols, giving you the\nbenefits of multiple inheritance without the diamond problem.",
+                    "codeSnippet": "protocol Drawable {\n    var color: String { get }\n    func draw()\n}\n\nstruct Circle: Drawable {\n    var color: String\n    var radius: Double\n    \n    func draw() {\n        print(\"Drawing \\(color) circle with radius \\(radius)\")\n    }\n}\n\nstruct Square: Drawable {\n    var color: String\n    var side: Double\n    \n    func draw() {\n        print(\"Drawing \\(color) square with side \\(side)\")\n    }\n}\n\n// Code to the protocol, not the concrete type\nfunc render(_ shape: Drawable) {\n    shape.draw()\n}",
+                    "codeLang": "Swift",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "Protocol extensions provide default implementations",
+                    "content": "Swift lets you extend protocols to provide default method\nimplementations. Conforming types get the behavior for free\nbut can override it if they need something different.\n\nThis is incredibly powerful for sharing code across unrelated\ntypes without inheritance. You define the contract in the\nprotocol and the shared logic in an extension.\n\nBe careful with protocol extension dispatch: if a method is\ndeclared in the protocol itself, dynamic dispatch kicks in.\nIf it's only in the extension (not required), it uses static\ndispatch based on the compile-time type.\n\nProtocol extensions are the foundation of many Swift standard\nlibrary APIs like Collection, Sequence, and Equatable.",
+                    "codeSnippet": "protocol Greetable {\n    var name: String { get }\n    func greet() -> String\n}\n\n// Default implementation via extension\nextension Greetable {\n    func greet() -> String {\n        \"Hello, I'm \\(name)!\"\n    }\n}\n\nstruct User: Greetable {\n    var name: String\n    // Gets greet() for free!\n}\n\nstruct Bot: Greetable {\n    var name: String\n    // Override the default\n    func greet() -> String {\n        \"Beep boop, I'm \\(name).\"\n    }\n}\n\nprint(User(name: \"Alice\").greet()) // Hello, I'm Alice!\nprint(Bot(name: \"R2\").greet())      // Beep boop, I'm R2.",
+                    "codeLang": "Swift",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Use associated types for generic protocols",
+                    "content": "When a protocol needs to work with a generic type that\nconforming types decide, use an associated type. This is\ndeclared with 'associatedtype' inside the protocol.\n\nEach conforming type provides a concrete type for the\nassociated type, either explicitly via a typealias or\nimplicitly through its method signatures.\n\nProtocols with associated types cannot be used as regular\ntypes (existentials) directly. You use them as generic\nconstraints with 'some' or angle-bracket syntax instead.\n\nThis pattern is used extensively in Swift: Collection has\nElement, Iterator has Element, and Comparable has implicit\nSelf requirements.",
+                    "codeSnippet": "protocol Repository {\n    associatedtype Item\n    func getAll() -> [Item]\n    func save(_ item: Item)\n}\n\nstruct UserRepository: Repository {\n    // Swift infers Item == User from the signatures\n    func getAll() -> [User] {\n        return database.fetchUsers()\n    }\n    func save(_ item: User) {\n        database.insert(item)\n    }\n}\n\n// Use with 'some' (opaque type)\nfunc printItems(from repo: some Repository) {\n    for item in repo.getAll() {\n        print(item)\n    }\n}\n\n// Or with generic constraint\nfunc sync<R: Repository>(repo: R) where R.Item: Codable {\n    let items = repo.getAll()\n    upload(items)\n}",
+                    "codeLang": "Swift",
+                    "difficulty": "ADVANCED"
+                }
+            ]
+        }
+    ]
+}

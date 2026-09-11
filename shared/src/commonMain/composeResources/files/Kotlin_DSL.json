@@ -1,0 +1,35 @@
+{
+    "version": 1,
+    "author": "TechTalk",
+    "description": "Kotlin — DSL",
+    "entries": [
+        {
+            "technologyName": "Kotlin",
+            "topicName": "DSL",
+            "topicDescription": "Creating domain-specific languages using Kotlin's builder pattern.",
+            "tips": [
+                {
+                    "title": "Building a type-safe HTML DSL",
+                    "content": "Kotlin DSLs combine lambdas with receivers, extension functions,\nand operator overloading to create readable, type-safe mini-languages.\n\nThe compiler ensures you can only nest valid elements.\nYou can't put a <td> directly inside a <html> — the types prevent it.\n\nPopular Kotlin DSLs: Ktor routing, Gradle Kotlin DSL, Compose UI,\nkotlinx.html, and Exposed (SQL).",
+                    "codeSnippet": "class HTML { val children = mutableListOf<Element>() }\nclass Body { val children = mutableListOf<Element>() }\nopen class Element(val text: String)\nclass H1(text: String) : Element(text)\nclass P(text: String) : Element(text)\n\nfun html(block: HTML.() -> Unit) = HTML().apply(block)\nfun HTML.body(block: Body.() -> Unit) {\n    children += Body().apply(block)\n}\nfun Body.h1(text: String) { children += H1(text) }\nfun Body.p(text: String) { children += P(text) }\n\n// Usage — reads like HTML\nval page = html {\n    body {\n        h1(\"Welcome\")\n        p(\"This is type-safe!\")\n    }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "@DslMarker — scoping DSL receivers",
+                    "content": "Without @DslMarker, nested lambdas can access outer receivers implicitly.\nThis leads to confusing bugs where you call a method on the wrong scope.\n\n@DslMarker creates an annotation that restricts implicit receiver access.\nMembers of the outer receiver are hidden inside inner lambdas —\nyou must use explicit 'this@outer' to access them.\n\nAlways use @DslMarker in production DSLs to prevent scope leaking.",
+                    "codeSnippet": "@DslMarker\nannotation class HtmlDsl\n\n@HtmlDsl\nclass Table { fun tr(block: Row.() -> Unit) { /*...*/ } }\n\n@HtmlDsl\nclass Row { fun td(text: String) { /*...*/ } }\n\nfun table(block: Table.() -> Unit) = Table().apply(block)\n\ntable {\n    tr {\n        td(\"Cell 1\")\n        // tr { }  // ❌ Compile error! Can't access Table here\n        // Without @DslMarker this would compile and be a bug\n        this@table.tr { td(\"Explicit access\") }  // ✅ OK\n    }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Lambda with receiver — the DSL foundation",
+                    "content": "A lambda with receiver lets you call methods on an object inside a lambda\nas if you were inside that class. The receiver becomes 'this'.\n\nThis is the core mechanism behind Kotlin DSLs and builder patterns.\nFunctions like apply, with, and buildString all use this concept.\n\nSignature: ClassName.() -> Unit means \"a lambda where 'this' is ClassName.\"",
+                    "codeSnippet": "// Lambda with receiver type\nfun buildGreeting(block: StringBuilder.() -> Unit): String {\n    val sb = StringBuilder()\n    sb.block()  // 'this' inside block is the StringBuilder\n    return sb.toString()\n}\n\nval result = buildGreeting {\n    append(\"Hello, \")  // 'this' is StringBuilder\n    append(\"World!\")\n    appendLine()\n    append(\"Welcome to Kotlin DSLs\")\n}\n// \"Hello, World!\\nWelcome to Kotlin DSLs\"",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                }
+            ]
+        }
+    ]
+}

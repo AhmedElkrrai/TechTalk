@@ -1,0 +1,189 @@
+{
+    "version": 1,
+    "author": "TechTalk",
+    "description": "Android — Jetpack Compose",
+    "entries": [
+        {
+            "technologyName": "Android",
+            "topicName": "Jetpack Compose",
+            "topicDescription": "Android's modern declarative UI toolkit.",
+            "tips": [
+                {
+                    "title": "State hoisting keeps composables stateless, reusable, and testable",
+                    "content": "A composable that owns its own mutable state internally (via remember)\ncan only be controlled from inside itself — the caller can't observe,\noverride, or drive that state from outside, which limits reuse and makes\nunit testing the composable's behavior harder.\n\nHoisting state means the composable accepts the current value and an\nonValueChange callback as parameters instead of holding state internally\n— the caller owns the state, and the composable becomes a pure function\nof its inputs, which is both more reusable and trivially testable.",
+                    "codeSnippet": "@Composable\nfun SearchField(query: String, onQueryChange: (String) -> Unit) {\n    TextField(value = query, onValueChange = onQueryChange) // stateless, hoisted\n}\n\n// caller owns and controls the state:\nvar query by rememberSaveable { mutableStateOf(\"\") }\nSearchField(query, onQueryChange = { query = it })",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "@Stable and @Immutable let Compose skip recomposition for unchanged data",
+                    "content": "Compose's recomposition skipping relies on being able to prove a\ncomposable's inputs haven't meaningfully changed — a class Compose can't\nprove is stable (like one with a public var, or a plain interface with no\nannotation) forces recomposition on every pass even if nothing actually\nchanged, since Compose can't safely assume otherwise.\n\n@Immutable promises all properties are truly immutable after\nconstruction; @Stable promises equals() reflects logical equality and\nnotifies Compose on any change — annotating your own data classes\ncorrectly (or letting the compiler infer stability for simple data\nclasses with val properties) unlocks proper skipping.",
+                    "codeSnippet": "@Immutable\ndata class UiState(val items: List<String>, val isLoading: Boolean)\n// Compose can now trust that an unchanged UiState instance means no recomposition needed",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "LaunchedEffect restarts whenever any of its keys change",
+                    "content": "LaunchedEffect(key1, key2) { ... } launches a coroutine tied to the\ncomposition, but critically, it cancels and relaunches that coroutine\nany time any of the given keys change value between recompositions —\npassing the wrong key (or Unit when a real dependency exists) is a common\nsource of stale-data or missed-update bugs.\n\nPass Unit only when the effect genuinely should run exactly once for the\ncomposable's lifetime; pass the actual data the effect depends on\notherwise, so the effect correctly restarts when that data changes.",
+                    "codeSnippet": "@Composable\nfun UserProfile(userId: String) {\n    var user by remember { mutableStateOf<User?>(null) }\n    LaunchedEffect(userId) { // restarts and refetches whenever userId changes\n        user = repository.getUser(userId)\n    }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "DisposableEffect runs cleanup when leaving composition or when keys change",
+                    "content": "Some side effects need explicit teardown — registering a listener,\nsubscribing to a system callback — where simply launching a coroutine\nisn't the right tool, since there's no suspend-based API to clean up.\n\nDisposableEffect requires an onDispose {} block at the end, which runs\nwhen the composable leaves the composition or when its keys change\nbefore the effect re-runs — forgetting the onDispose block is a compile\nerror, which prevents accidentally leaking a registered listener.",
+                    "codeSnippet": "@Composable\nfun LocationAware(onLocationUpdate: (Location) -> Unit) {\n    DisposableEffect(Unit) {\n        val listener = LocationListener { onLocationUpdate(it) }\n        locationManager.addListener(listener)\n        onDispose { locationManager.removeListener(listener) } // required cleanup\n    }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "SideEffect publishes Compose state to non-Compose code on every successful recomposition",
+                    "content": "Sometimes you need to push the current Compose state out to a non-\nCompose system (analytics, a legacy View, a third-party SDK) that isn't\naware of Compose's snapshot system — a plain function call during\ncomposition isn't safe, since composition can be re-run or discarded.\n\nSideEffect {} schedules its block to run after every successful (not\ndiscarded) recomposition, guaranteeing it only runs when the composition\nactually commits, safely bridging Compose state out to imperative code.",
+                    "codeSnippet": "@Composable\nfun ScreenTracker(screenName: String) {\n    SideEffect {\n        analytics.setCurrentScreen(screenName) // runs after each successful recomposition\n    }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "CompositionLocal passes implicit values down the tree without threading them through every parameter",
+                    "content": "Passing a theme, a locale, or a shared configuration object through every\ncomposable's parameter list, layer after layer, adds boilerplate to\nevery composable in the tree even when most of them never use the value\ndirectly.\n\nCompositionLocalProvider makes a value implicitly available to every\ndescendant composable without explicit parameter threading — MaterialTheme\nitself is built this way, providing colors/typography/shapes implicitly\nto every composable under it via LocalContentColor and similar locals.",
+                    "codeSnippet": "val LocalUserSession = compositionLocalOf<UserSession?> { null }\n\nCompositionLocalProvider(LocalUserSession provides currentSession) {\n    DeeplyNestedComposable() // can read LocalUserSession.current without it being passed explicitly\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Modifier order changes the resulting layout and behavior, not just its appearance",
+                    "content": "Modifiers are applied in the exact order they're chained, and each one\nwraps the result of the previous one — padding().clickable() gives the\nclickable ripple a larger tappable area including the padding, while\nclickable().padding() confines the ripple to the original smaller\nbounds before padding is applied.\n\nThis isn't a stylistic detail — reordering modifiers like size, padding,\nclip, and clickable genuinely changes touch target size, ripple bounds,\nand clipping behavior, so modifier order should be treated as meaningful\nlogic, not just a list of properties.",
+                    "codeSnippet": "// Ripple covers the padded area — larger tap target\nModifier.padding(16.dp).clickable { onClick() }\n\n// Ripple confined to the original bounds — padding applied outside the clickable area\nModifier.clickable { onClick() }.padding(16.dp)",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "key() gives LazyColumn items stable identity across reordering and insertion",
+                    "content": "Without an explicit key, LazyColumn/LazyRow identify items by their\nposition in the list — inserting or removing an item near the top shifts\nevery subsequent item's position, causing Compose to treat items that\ndidn't actually change as if they did, losing per-item state (scroll\nposition within an item, animation state) and hurting recomposition\nefficiency.\n\nPassing a stable, unique key (typically the item's ID) lets Compose track\neach item by identity rather than position, correctly preserving\nper-item state and minimizing unnecessary recomposition when the list is\nreordered, filtered, or has items inserted.",
+                    "codeSnippet": "LazyColumn {\n    items(items = users, key = { user -> user.id }) { user -> // stable identity, not position\n        UserRow(user)\n    }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "rememberCoroutineScope gives a scope tied to the composition, for launching from callbacks",
+                    "content": "LaunchedEffect only launches from within composition itself and can't be\ncalled from an event callback like onClick, since callbacks run outside\nthe composition phase entirely.\n\nrememberCoroutineScope returns a CoroutineScope tied to the composable's\nlifecycle (cancelled when it leaves composition) that you can hold onto\nand call .launch {} from inside a callback — this is the correct tool\nfor starting a coroutine in response to a user action, rather than a\ncomposition-driven side effect.",
+                    "codeSnippet": "@Composable\nfun RefreshButton(onRefresh: suspend () -> Unit) {\n    val scope = rememberCoroutineScope()\n    Button(onClick = { scope.launch { onRefresh() } }) { Text(\"Refresh\") } // launched from a callback\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Slot APIs let a composable accept flexible content instead of fixed parameters",
+                    "content": "A composable with a fixed set of parameters (icon: ImageVector, title:\nString) can't accommodate every visual variation a caller might need —\nadding a badge, a custom icon composable, or a subtitle each requires\nmodifying the composable's own parameter list.\n\nA slot API accepts one or more @Composable lambda parameters ('slots')\nthat the caller fills with arbitrary content, giving full layout and\ncomposable freedom without the base composable needing to anticipate\nevery variation — this is how Scaffold's topBar/bottomBar/content\nparameters work.",
+                    "codeSnippet": "@Composable\nfun ListItemCard(leadingContent: @Composable () -> Unit, title: @Composable () -> Unit) {\n    Row { leadingContent(); title() } // caller supplies arbitrary composable content per slot\n}\n\nListItemCard(leadingContent = { Icon(Icons.Default.Person, null) }, title = { Text(\"Ahmed\") })",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Multiple @Preview annotations render several configurations from one function",
+                    "content": "Checking how a composable looks in dark mode, at a larger font scale, or\non a tablet-sized screen by manually switching the emulator/device\nconfiguration for each check is slow feedback compared to seeing them all\nat once in the IDE.\n\nStacking multiple @Preview annotations on the same composable (each with\ndifferent uiMode, fontScale, or device parameters) renders every variant\nside-by-side in Android Studio's preview pane simultaneously, without\nneeding to run the app at all.",
+                    "codeSnippet": "@Preview(name = \"Light\", uiMode = Configuration.UI_MODE_NIGHT_NO)\n@Preview(name = \"Dark\", uiMode = Configuration.UI_MODE_NIGHT_YES)\n@Preview(name = \"Large Font\", fontScale = 1.5f)\n@Composable\nfun ProfileCardPreview() { ProfileCard(sampleUser) }",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "produceState bridges a non-Compose async source into Compose State",
+                    "content": "Adapting a callback-based API (a legacy listener interface, a third-party\nSDK) into something a composable can observe directly usually requires\nmanually wiring a remember { mutableStateOf() } and updating it inside an\neffect — produceState packages exactly that pattern into a single,\npurpose-built API.\n\nproduceState launches a coroutine scoped to the composition and gives you\na State to update as new values arrive, automatically triggering\nrecomposition on each update — it's the standard bridge for turning any\nasync data source into something a composable can collect as State.",
+                    "codeSnippet": "@Composable\nfun rememberNetworkStatus(): State<Boolean> = produceState(initialValue = true) {\n    val callback = NetworkCallback { isConnected -> value = isConnected }\n    connectivityManager.registerCallback(callback)\n    awaitDispose { connectivityManager.unregisterCallback(callback) }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "snapshotFlow converts Compose State reads into a cold Flow of changes",
+                    "content": "Compose's State objects aren't Flows themselves, so reacting to a State\nvalue changing using standard Flow operators (debounce, distinctUntilChanged,\nmap) isn't directly possible without a bridge.\n\nsnapshotFlow { someState.value } creates a Flow that emits a new value\nany time the read State object's snapshot changes, letting you apply\nnormal Flow operators to Compose state — commonly used to debounce a\nsearch query TextField's value before triggering a network call.",
+                    "codeSnippet": "LaunchedEffect(Unit) {\n    snapshotFlow { searchQuery } // wraps Compose State reads as a Flow\n        .debounce(300)\n        .distinctUntilChanged()\n        .collect { query -> performSearch(query) }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Unstable lambda captures can defeat recomposition skipping even for otherwise-stable composables",
+                    "content": "A lambda parameter like onClick: () -> Unit is generally considered\nstable by Compose only if it doesn't capture unstable values — a lambda\ncreated inline inside a parent composable that captures a changing local\nvariable is recreated on every parent recomposition, which can cascade\nunnecessary recomposition into the child even if the child's other\nparameters didn't change.\n\nWrapping such a lambda in remember(key) { { ... } }, or restructuring so\nthe lambda only captures stable values, keeps the same lambda instance\nacross recompositions where the underlying logic hasn't actually changed.",
+                    "codeSnippet": "// Recreated every recomposition — defeats skipping in the child:\nChildComposable(onClick = { viewModel.onItemClicked(item.id) })\n\n// Stable across recompositions when 'item.id' hasn't changed:\nval onClick = remember(item.id) { { viewModel.onItemClicked(item.id) } }\nChildComposable(onClick = onClick)",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "A custom Layout composable gives full control over the measure and placement phases",
+                    "content": "Standard layouts (Row, Column, Box) cover most needs, but a genuinely\ncustom arrangement — a circular layout, a staggered grid with specific\nsizing rules — sometimes needs direct control over how children are\nmeasured and where they're placed, which no combination of existing\nlayouts can express.\n\nThe Layout composable gives you a measure lambda where you explicitly\nmeasure each child (with constraints you choose) and then place each one\nat specific coordinates — this is the same low-level primitive Row,\nColumn, and Box are themselves built on top of.",
+                    "codeSnippet": "@Composable\nfun CircularLayout(content: @Composable () -> Unit) {\n    Layout(content = content) { measurables, constraints ->\n        val placeables = measurables.map { it.measure(constraints) }\n        layout(constraints.maxWidth, constraints.maxHeight) {\n            placeables.forEachIndexed { i, p -> p.placeRelative(x = computeX(i), y = computeY(i)) }\n        }\n    }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Semantics modifiers make composables accessible and testable",
+                    "content": "Compose doesn't automatically know what a custom-drawn composable\nrepresents semantically the way a native Android View's accessibility\nnode graph might infer from its type — a Canvas-drawn icon or a custom\nComposable button has no inherent accessibility description or test\nidentity unless one is added explicitly.\n\nModifier.semantics { contentDescription = \"...\" } provides screen-reader\ndescriptions, and Modifier.testTag(\"...\") gives a stable identifier for\nUI tests (via onNodeWithTag) — both are essential for composables that\ndon't use a built-in component like Icon or Text that already handles\nthis.",
+                    "codeSnippet": "Canvas(modifier = Modifier\n    .size(48.dp)\n    .semantics { contentDescription = \"Battery level: 80%\" }\n    .testTag(\"battery_indicator\")\n) { drawBatteryIcon(level = 0.8f) }",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "animate*AsState turns a target value change into an automatic, cancellable animation",
+                    "content": "Manually animating a value change (a color shift, a size change) with a\nraw Animatable requires explicitly launching a coroutine and calling\nanimateTo — more setup than most simple, state-driven animations\nactually need.\n\nanimateColorAsState, animateDpAsState, animateFloatAsState, and similar\nfunctions take a target value and return a State that automatically\nanimates toward it whenever the target changes, cancelling and\nredirecting any in-flight animation if the target changes again mid-\nanimation — no manual coroutine management required.",
+                    "codeSnippet": "val backgroundColor by animateColorAsState(\n    targetValue = if (isSelected) Color.Blue else Color.Gray,\n    label = \"backgroundColor\"\n)\nBox(Modifier.background(backgroundColor)) // animates automatically on state change",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "BoxWithConstraints exposes incoming constraints for responsive, constraint-aware layouts",
+                    "content": "A composable normally can't see the size constraints it's being measured\nwithin during composition itself — it only receives them during the\nseparate measure phase, which is invisible to composable logic like `if`\nbranches choosing between layout variants.\n\nBoxWithConstraints exposes minWidth/maxWidth/minHeight/maxHeight as\nvalues readable inside its content lambda, letting you branch between\nentirely different layouts (a compact vs expanded variant) based on the\nactual available space, which is the foundation of adaptive/responsive\nCompose layouts.",
+                    "codeSnippet": "BoxWithConstraints {\n    if (maxWidth < 600.dp) {\n        CompactLayout()\n    } else {\n        ExpandedLayout() // different layout entirely, chosen based on available width\n    }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "AnnotatedString applies multiple styles within a single Text composable",
+                    "content": "A single Text composable only accepts one uniform style for its entire\ncontent — highlighting part of a sentence in bold, a different color, or\na different size requires either splitting into multiple Text composables\n(breaking natural text flow and wrapping) or a different approach\nentirely.\n\nAnnotatedString lets you attach SpanStyle ranges to specific character\nranges within one continuous string, so a single Text composable can\nrender mixed styling — bold, colored, or clickable spans — while text\nwrapping and layout still flow naturally as one paragraph.",
+                    "codeSnippet": "val annotated = buildAnnotatedString {\n    append(\"Regular text with \")\n    withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = Color.Red)) {\n        append(\"bold red\")\n    }\n    append(\" text in the same line.\")\n}\nText(text = annotated)",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "collectAsStateWithLifecycle over collectAsState",
+                    "content": "collectAsState keeps collecting a Flow even when the app is backgrounded,\nwasting resources and potentially causing crashes from state updates on\na torn-down composition.\n\ncollectAsStateWithLifecycle stops collection when the lifecycle drops below\nSTARTED and resumes automatically, matching repeatOnLifecycle semantics —\nit's the recommended default for any Flow originating from a ViewModel.",
+                    "codeSnippet": "// Prefer this:\nval uiState by viewModel.uiState.collectAsStateWithLifecycle()\n\n// Over this, which keeps collecting in the background:\nval uiState by viewModel.uiState.collectAsState()",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "Type-safe navigation routes with @Serializable",
+                    "content": "Navigation Compose 2.8+ supports typed route objects instead of raw string\npaths, removing an entire class of bugs from manual argument encoding/decoding.\n\nPass only primitive IDs through the route and resolve full objects inside the\ndestination's ViewModel via SavedStateHandle.toRoute<T>() — passing large\nobjects through navigation arguments bloats the saved state and breaks\nprocess-death restoration.",
+                    "codeSnippet": "@Serializable\ndata class BillDetails(val billId: String)\n\nNavHost(navController, startDestination = BillList) {\n    composable<BillDetails> { backStackEntry ->\n        val route: BillDetails = backStackEntry.toRoute()\n        BillDetailsScreen(billId = route.billId)\n    }\n}\n\n// Inside the ViewModel:\nval billId: String = savedStateHandle.toRoute<BillDetails>().billId",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Think in composables, not views",
+                    "content": "In Compose, UI is built with functions annotated @Composable.\nUnlike XML layouts, you describe WHAT the UI should look like,\nand the framework figures out HOW to render and update it.\n\nEach composable function is a building block. You compose them together\nlike Lego pieces — a Screen calls a Header, which calls a Title, etc.\n\nWhen state changes, only the composables reading that state recompose.\nThis is fundamentally different from the View system where you manually\nfind views and update them.",
+                    "codeSnippet": "@Composable\nfun Greeting(name: String) {\n    // Declarative — just describe what you want\n    Text(\n        text = \"Hello, $name!\",\n        style = MaterialTheme.typography.headlineMedium\n    )\n}\n\n@Composable\nfun GreetingScreen() {\n    Column {\n        Greeting(\"Android\")\n        Greeting(\"Compose\")\n    }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "remember saves values across recompositions",
+                    "content": "Composable functions can be called many times (recomposition).\nLocal variables are reset on every call. Use 'remember' to retain\na value across recompositions.\n\n'remember' stores the value in the composition. It survives\nrecomposition but NOT configuration changes (like screen rotation).\nFor that, use 'rememberSaveable'.\n\nPair remember with mutableStateOf to create observable state\nthat triggers recomposition when changed.",
+                    "codeSnippet": "@Composable\nfun Counter() {\n    // Survives recomposition\n    var count by remember { mutableStateOf(0) }\n    \n    Button(onClick = { count++ }) {\n        Text(\"Clicked $count times\")\n    }\n}\n\n// ❌ Without remember — resets to 0 every recomposition\n// var count = 0",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "State hoisting for reusable composables",
+                    "content": "State hoisting moves state UP to the caller, making your composable\nstateless and reusable. The composable receives state as parameters\nand emits events via callbacks.\n\nPattern: (value: T, onValueChange: (T) -> Unit)\n\nThis makes composables easier to test, preview, and reuse.\nThe parent decides where the state lives (ViewModel, remember, etc.),\nand the child just renders whatever it receives.",
+                    "codeSnippet": "// ✅ Stateless — reusable and testable\n@Composable\nfun SearchBar(\n    query: String,\n    onQueryChange: (String) -> Unit\n) {\n    TextField(\n        value = query,\n        onValueChange = onQueryChange,\n        placeholder = { Text(\"Search...\") }\n    )\n}\n\n// Parent hoists the state\n@Composable\nfun SearchScreen() {\n    var query by remember { mutableStateOf(\"\") }\n    SearchBar(query = query, onQueryChange = { query = it })\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "rememberSaveable survives process death; remember only survives recomposition",
+                    "content": "remember keeps a value across recompositions but loses it on\nconfiguration changes and process death, since it's just held in memory\ntied to the composition instance.\n\nrememberSaveable additionally saves the value into the Activity's saved\nstate (via the same Bundle mechanism as onSaveInstanceState), so it\nsurvives rotation and process death — use it for UI state that should\npersist across those events, like a text field's current input or a\nselected tab.",
+                    "codeSnippet": "var query by remember { mutableStateOf(\"\") } // lost on rotation\nvar selectedTab by rememberSaveable { mutableStateOf(0) } // survives rotation and process death",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                }
+            ]
+        }
+    ]
+}

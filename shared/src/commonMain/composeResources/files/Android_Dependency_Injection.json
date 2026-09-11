@@ -1,0 +1,21 @@
+{
+    "version": 1,
+    "author": "TechTalk",
+    "description": "Android — Dependency Injection",
+    "entries": [
+        {
+            "technologyName": "Android",
+            "topicName": "Dependency Injection",
+            "topicDescription": "Managing object creation and dependencies with Hilt, Koin, and manual DI patterns.",
+            "tips": [
+                {
+                    "title": "Constructor injection over field injection keeps dependencies explicit and testable",
+                    "content": "Field-injected dependencies (a @Inject-annotated var, or a service\nlocator lookup inside a class) hide what a class actually needs from\nanyone reading its public API — you have to inspect the implementation\nto know what to provide in a test.\n\nConstructor injection makes every dependency visible in the class's\nsignature, so a unit test can construct the class directly with fakes or\nmocks with no DI framework involved at all — Hilt and Koin both support\nconstructor injection as the preferred pattern for exactly this\ntestability benefit.",
+                    "codeSnippet": "// Preferred — dependencies visible and swappable in tests\nclass UserRepository @Inject constructor(\n    private val api: UserApi,\n    private val dao: UserDao\n)\n\n// test: no DI framework needed at all\nval repo = UserRepository(fakeApi, fakeDao)",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                }
+            ]
+        }
+    ]
+}

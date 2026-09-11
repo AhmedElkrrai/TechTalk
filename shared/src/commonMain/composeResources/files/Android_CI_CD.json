@@ -1,0 +1,21 @@
+{
+    "version": 1,
+    "author": "TechTalk",
+    "description": "Android — CI/CD",
+    "entries": [
+        {
+            "technologyName": "Android",
+            "topicName": "CI/CD",
+            "topicDescription": "Continuous integration and delivery pipelines for Android apps, including Azure Pipelines.",
+            "tips": [
+                {
+                    "title": "Cache the Gradle dependency and build cache directories to cut CI build time significantly",
+                    "content": "Without caching, every CI run re-downloads every Gradle dependency from\nscratch and rebuilds every module with no incremental build state to\nreuse — on a large multi-module project, this can dominate total\npipeline time even when only a small part of the code actually changed.\n\nCaching ~/.gradle/caches and the project's build/ directories (keyed by a\nhash of the Gradle lockfiles/version catalog) between pipeline runs lets\nsubsequent builds skip re-downloading unchanged dependencies and reuse\nincremental compilation state, often cutting build time substantially.",
+                    "codeSnippet": "# Azure Pipelines YAML\n- task: Cache@2\n  inputs:\n    key: 'gradle | \"$(Agent.OS)\" | **/*.gradle.kts, **/gradle/libs.versions.toml'\n    path: '$(GRADLE_USER_HOME)/caches'\n  displayName: Cache Gradle dependencies",
+                    "codeLang": "YAML",
+                    "difficulty": "INTERMEDIATE"
+                }
+            ]
+        }
+    ]
+}

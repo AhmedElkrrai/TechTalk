@@ -1,0 +1,203 @@
+{
+    "version": 1,
+    "author": "TechTalk",
+    "description": "Android — Activity Lifecycle",
+    "entries": [
+        {
+            "technologyName": "Android",
+            "topicName": "Activity Lifecycle",
+            "topicDescription": "Understanding how Android creates, pauses, and destroys activities.",
+            "tips": [
+                {
+                    "title": "The 6 lifecycle callbacks",
+                    "content": "Every Activity goes through: onCreate → onStart → onResume\n(visible & interactive) and then onPause → onStop → onDestroy.\n\nonCreate: initialize UI, set content view, restore saved state.\nonStart: activity becomes visible but not yet interactive.\nonResume: activity is in the foreground and receiving user input.\nonPause: another activity is coming to the foreground.\nonStop: activity is no longer visible.\nonDestroy: activity is finishing or being destroyed by the system.",
+                    "codeSnippet": "class MainActivity : AppCompatActivity() {\n    override fun onCreate(savedInstanceState: Bundle?) {\n        super.onCreate(savedInstanceState)\n        setContentView(R.layout.activity_main)\n        // Initialize once\n    }\n    \n    override fun onResume() {\n        super.onResume()\n        // Start animations, sensors, etc.\n    }\n    \n    override fun onPause() {\n        super.onPause()\n        // Pause animations, release resources\n    }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "Surviving configuration changes",
+                    "content": "When the user rotates the screen, Android destroys and recreates\nthe Activity. All local variables are lost.\n\nUse ViewModel to hold UI state that must survive rotation.\nUse onSaveInstanceState for small, serializable data.\nUse rememberSaveable in Compose.\n\nNever hold references to Activity or Context in a ViewModel —\nthe old Activity is destroyed but the ViewModel lives on,\ncausing a memory leak.",
+                    "codeSnippet": "// ❌ Lost on rotation\nclass MyActivity : AppCompatActivity() {\n    var counter = 0  // reset to 0 on rotation!\n}\n\n// ✅ Survives rotation\nclass MyViewModel : ViewModel() {\n    var counter by mutableStateOf(0)\n        private set\n    fun increment() { counter++ }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "LifecycleObserver for clean components",
+                    "content": "Instead of putting everything in Activity callbacks,\nuse LifecycleObserver to make self-contained components.\n\nA LifecycleObserver watches lifecycle events independently.\nThis keeps your Activity clean and makes components reusable\nacross different Activities or Fragments.\n\nThe DefaultLifecycleObserver interface provides default\nimplementations for all lifecycle methods.",
+                    "codeSnippet": "class LocationTracker : DefaultLifecycleObserver {\n    override fun onResume(owner: LifecycleOwner) {\n        startTracking()\n    }\n    override fun onPause(owner: LifecycleOwner) {\n        stopTracking()\n    }\n}\n\n// In Activity — just add the observer\nclass MapActivity : AppCompatActivity() {\n    override fun onCreate(savedInstanceState: Bundle?) {\n        super.onCreate(savedInstanceState)\n        lifecycle.addObserver(LocationTracker())\n    }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "onCreate, onStart, and onResume mark increasing degrees of visibility",
+                    "content": "onCreate runs once per instance for one-time setup (inflating views,\nrestoring saved state). onStart means the Activity is becoming visible but\nmay not have focus yet. onResume means it's fully visible and interactive\n— this is where you should start anything that needs the UI actively in\nthe foreground, like camera previews or sensor listeners.",
+                    "codeSnippet": "override fun onCreate(savedInstanceState: Bundle?) { super.onCreate(savedInstanceState); setContentView(R.layout.main) }\noverride fun onStart() { super.onStart() /* becoming visible */ }\noverride fun onResume() { super.onResume(); startCameraPreview() /* fully interactive */ }",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "onPause must be fast; onStop is where heavier cleanup belongs",
+                    "content": "onPause runs even when another Activity is only partially covering yours\n(a dialog, a transparent Activity) — the system waits for it before\nletting the new Activity fully resume, so slow work here visibly delays\nthe UI.\n\nonStop only fires once your Activity is completely hidden, giving you\nmore headroom for heavier cleanup like unregistering listeners or pausing\nvideo playback that doesn't need to stop the instant focus is lost.",
+                    "codeSnippet": "override fun onPause() { super.onPause(); saveDraftQuickly() } // must be fast\noverride fun onStop() { super.onStop(); unregisterSensorListener() } // heavier cleanup ok here",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "Configuration changes destroy and recreate the Activity by default",
+                    "content": "A screen rotation, language change, or dark-mode toggle destroys the\ncurrent Activity instance and creates a brand new one by default — any\nstate held only in local variables or views is lost unless it's explicitly\nsaved and restored.\n\nThis is intentional: it lets the system re-select the correct resources\n(layouts, strings, dimensions) for the new configuration by re-running\nyour setup code from scratch, rather than trying to patch an existing UI.",
+                    "codeSnippet": "// rotating the device by default triggers:\n// onPause -> onStop -> onDestroy -> onCreate -> onStart -> onResume (new instance)",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "onSaveInstanceState preserves transient UI state across recreation",
+                    "content": "Views handle their own simple state automatically (EditText text,\nScrollView position) if they have an ID, but anything held in your\nActivity's own fields — a selected tab index, a temporary form draft —\nneeds to be saved manually.\n\nonSaveInstanceState is called before the Activity is destroyed for\nconfiguration changes or system-initiated destruction (not for user-\ninitiated back/finish), and the Bundle it fills is handed back in\nonCreate's savedInstanceState parameter.",
+                    "codeSnippet": "override fun onSaveInstanceState(outState: Bundle) {\n    super.onSaveInstanceState(outState)\n    outState.putInt(\"selectedTab\", selectedTabIndex)\n}\n\noverride fun onCreate(savedInstanceState: Bundle?) {\n    super.onCreate(savedInstanceState)\n    selectedTabIndex = savedInstanceState?.getInt(\"selectedTab\") ?: 0\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "ViewModel survives configuration changes, but not process death",
+                    "content": "A ViewModel scoped to an Activity or Fragment is retained across\nconfiguration-change-triggered recreation — the same instance is handed\nback, so in-memory state (loaded lists, network results) doesn't need to\nbe reloaded on rotation.\n\nBut ViewModel does NOT survive the system killing your process entirely\n(e.g. to reclaim memory while your app is backgrounded) — for that\nscenario, only data explicitly saved via SavedStateHandle or persisted to\ndisk survives.",
+                    "codeSnippet": "class MyViewModel(private val savedStateHandle: SavedStateHandle) : ViewModel() {\n    // survives config changes automatically via the ViewModel itself\n    var cachedResults: List<Item> = emptyList()\n\n    // survives process death too, since it's backed by SavedStateHandle\n    var query: String by savedStateHandle.saveable(\"query\") { mutableStateOf(\"\") }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "onDestroy isn't guaranteed to run — never rely on it for critical cleanup",
+                    "content": "When the system needs memory and kills a backgrounded process, it does so\nwithout calling onDestroy at all — the process simply ends. Code that\nrelies on onDestroy for something essential (flushing unsaved data,\nreleasing a critical resource) can silently never run.\n\nFor anything that must happen reliably, use onPause or onStop instead\n(which are much more reliably called before process death), or persist\nstate incrementally as it changes rather than batching it for a\ndestruction callback.",
+                    "codeSnippet": "// Risky — may never run if the process is killed directly:\noverride fun onDestroy() { super.onDestroy(); flushCriticalData() }\n\n// More reliable — called far more consistently before backgrounding:\noverride fun onStop() { super.onStop(); flushCriticalData() }",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "isFinishing distinguishes user-initiated exit from a config-change destroy",
+                    "content": "onDestroy fires both when the user is genuinely leaving the Activity for\ngood (back press, finish()) and when it's being destroyed only to be\nimmediately recreated for a configuration change — treating both cases\nidentically can trigger unwanted cleanup during a routine rotation.\n\nisFinishing() returns true only in the genuine-exit case, while\nisChangingConfigurations() returns true specifically during a config-\nchange-triggered destroy — checking these lets onDestroy logic\ndifferentiate the two situations.",
+                    "codeSnippet": "override fun onDestroy() {\n    super.onDestroy()\n    if (isFinishing) {\n        cleanupPermanently() // genuinely leaving\n    } else if (isChangingConfigurations) {\n        // being recreated — no need to tear down resources meant to persist\n    }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "LifecycleObserver decouples lifecycle-aware logic from the Activity itself",
+                    "content": "Overriding every lifecycle callback in the Activity to manage an\nunrelated component (a location tracker, an analytics session timer)\nbloats the Activity with logic that isn't really about the Activity's own\nUI.\n\nImplementing DefaultLifecycleObserver on a separate class and registering\nit via lifecycle.addObserver(...) lets that component react to lifecycle\nevents on its own, keeping the Activity's own callbacks focused only on\nwhat's genuinely Activity-specific.",
+                    "codeSnippet": "class LocationTracker : DefaultLifecycleObserver {\n    override fun onStart(owner: LifecycleOwner) { startTracking() }\n    override fun onStop(owner: LifecycleOwner) { stopTracking() }\n}\n\n// in the Activity:\nlifecycle.addObserver(LocationTracker())",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Fragment lifecycle has its own states layered on top of the host Activity's",
+                    "content": "A Fragment's lifecycle isn't identical to its host Activity's — it adds\nits own view-specific callbacks (onCreateView, onViewCreated,\nonDestroyView) because a Fragment's underlying View can be destroyed and\nrecreated (e.g. when placed in a ViewPager) independently of the Fragment\nobject itself being destroyed.\n\nThis is why Fragment code must clean up view references in onDestroyView\nspecifically, not onDestroy — the Fragment instance can outlive its view,\nand holding a stale view reference past onDestroyView is a common memory\nleak source.",
+                    "codeSnippet": "class MyFragment : Fragment() {\n    private var _binding: FragmentMainBinding? = null\n    private val binding get() = _binding!!\n\n    override fun onDestroyView() {\n        super.onDestroyView()\n        _binding = null // view destroyed here, Fragment instance may persist\n    }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "onNewIntent fires instead of onCreate for singleTop/singleTask launches",
+                    "content": "When an Activity with launchMode singleTop or singleTask is relaunched\nwhile an instance already exists at the top of the stack, Android reuses\nthat instance instead of creating a new one — onCreate does NOT run\nagain, and the new Intent is delivered via onNewIntent instead.\n\nForgetting to handle onNewIntent means data from the new launch (a fresh\ndeep link, a new notification payload) is silently ignored, since the\nActivity's original Intent (from getIntent()) is unaffected unless you\nexplicitly call setIntent(intent) inside onNewIntent.",
+                    "codeSnippet": "override fun onNewIntent(intent: Intent) {\n    super.onNewIntent(intent)\n    setIntent(intent) // update so getIntent() reflects the latest launch\n    handleDeepLink(intent)\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "View binding references must be nulled out to avoid leaking a destroyed view",
+                    "content": "Holding a ViewBinding reference in an Activity field is generally safe\nsince the Activity and its views share the same lifecycle — but in a\nFragment, the underlying View is destroyed in onDestroyView while the\nFragment object itself can live on, so a lingering binding reference\nholds onto (and leaks) the destroyed View tree.\n\nAlways null out the Fragment's binding reference in onDestroyView, and\naccess it only through a getter that assumes it's non-null between\nonCreateView and onDestroyView — a stray access outside that window\nshould crash loudly, not silently reference a stale view.",
+                    "codeSnippet": "private var _binding: FragmentMainBinding? = null\nprivate val binding get() = _binding!!\n\noverride fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {\n    _binding = FragmentMainBinding.inflate(inflater, container, false)\n    return binding.root\n}\n\noverride fun onDestroyView() { super.onDestroyView(); _binding = null }",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Multi-window mode changes lifecycle assumptions — an Activity may stay resumed while partly hidden",
+                    "content": "In traditional single-window use, only one Activity is ever fully\nresumed at a time. In split-screen or free-form multi-window mode, a\nvisible-but-not-focused Activity can remain in onResume rather than\ndropping to onPause, since it's genuinely still visible to the user even\nwithout input focus.\n\nonMultiWindowModeChanged notifies you when the Activity enters or exits\nmulti-window mode, letting you adjust assumptions that previously relied\non 'resumed always means focused' being true.",
+                    "codeSnippet": "override fun onMultiWindowModeChanged(isInMultiWindowMode: Boolean, newConfig: Configuration) {\n    super.onMultiWindowModeChanged(isInMultiWindowMode, newConfig)\n    if (isInMultiWindowMode) adjustLayoutForSplitScreen()\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "onRestart only fires when returning from a stopped, not paused, state",
+                    "content": "onRestart is easy to overlook because it doesn't fire on every return to\nthe Activity — only specifically when the Activity is coming back from\nthe stopped state (fully hidden, then revisited), not from paused (only\npartially covered).\n\nIt always runs immediately before onStart in that specific transition, so\nit's the right place for logic that should only re-run after a genuine\nfull hide-and-return, not after a brief partial obstruction like a\ndialog.",
+                    "codeSnippet": "override fun onRestart() {\n    super.onRestart()\n    refreshDataIfStale() // only runs when returning from fully stopped, not from a dialog dismiss\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "ActivityResultLauncher replaces the deprecated onActivityResult callback",
+                    "content": "The old startActivityForResult()/onActivityResult() pattern used a single\nshared callback keyed by integer request codes, which got unwieldy and\nerror-prone as more result-producing calls were added to one Activity.\n\nActivityResultLauncher registers a dedicated, type-safe callback per\nlaunch site at registration time (typically as a property, before\nonCreate finishes), decoupling each result handler from a fragile shared\nrequest-code switch statement.",
+                    "codeSnippet": "private val pickImageLauncher = registerForActivityResult(\n    ActivityResultContracts.GetContent()\n) { uri: Uri? -> uri?.let { handlePickedImage(it) } }\n\n// later, anywhere after registration:\npickImageLauncher.launch(\"image/*\")",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Process death loses everything not persisted, even ViewModel state",
+                    "content": "It's a common misconception that ViewModel alone is enough to survive\nanything short of the user explicitly closing the app — but when the OS\nkills your process to reclaim memory while backgrounded, the entire\nprocess (including every ViewModel instance) is gone, and a fresh process\nstarts from scratch on return.\n\nSavedStateHandle is specifically designed to survive this case — its data\nis serialized to a small Bundle written to disk, separate from the\nViewModel instance itself, and restored into a new ViewModel when the\nprocess restarts.",
+                    "codeSnippet": "class SearchViewModel(private val savedStateHandle: SavedStateHandle) : ViewModel() {\n    var query: String\n        get() = savedStateHandle[\"query\"] ?: \"\"\n        set(value) { savedStateHandle[\"query\"] = value } // survives process death, unlike a plain var\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Holding an Activity context beyond its lifecycle leaks the whole view tree",
+                    "content": "Passing `this` (an Activity context) into a long-lived singleton, a\nstatic field, or a callback that outlives the Activity keeps the entire\nActivity — and everything it references, including its full view\nhierarchy — from being garbage collected even after the Activity is\ndestroyed.\n\nUse applicationContext for anything that genuinely needs to outlive the\nActivity (a singleton's initialization, for example), and prefer\nWeakReference or lifecycle-scoped cleanup for callbacks that must\ntemporarily hold an Activity reference.",
+                    "codeSnippet": "// Leak risk: singleton holds an Activity reference indefinitely\nobject AnalyticsHolder { var context: Context? = null } // never assign an Activity here\nAnalyticsHolder.context = applicationContext // use applicationContext instead of 'this'",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Lifecycle.State is a snapshot; Lifecycle.Event is a transition",
+                    "content": "It's easy to conflate these two related but distinct concepts:\nLifecycle.State (CREATED, STARTED, RESUMED, etc.) represents where the\nActivity currently sits, while Lifecycle.Event (ON_CREATE, ON_START,\nON_RESUME, etc.) represents the specific transition that just happened to\nget there.\n\nAPIs like repeatOnLifecycle take a State (the condition to maintain),\nwhile a LifecycleEventObserver's callback receives an Event (the moment-\nin-time transition) — mixing these up is a common source of confusion\nwhen implementing custom lifecycle-aware components.",
+                    "codeSnippet": "lifecycle.addObserver(LifecycleEventObserver { _, event ->\n    when (event) { Lifecycle.Event.ON_START -> {} else -> {} } // reacts to a transition\n})\n\nlifecycleScope.launch {\n    repeatOnLifecycle(Lifecycle.State.STARTED) { /* maintains this state condition */ }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "repeatOnLifecycle safely ties Flow collection to a lifecycle state, cancelling and restarting automatically",
+                    "content": "Launching a Flow collector directly in onCreate with lifecycleScope.launch\nkeeps collecting even when the Activity is stopped, wasting resources and\npotentially processing stale UI updates against a backgrounded screen.\n\nrepeatOnLifecycle(Lifecycle.State.STARTED) automatically cancels the block\nwhen the lifecycle drops below STARTED and restarts it when it comes back\nabove — this is the recommended pattern for collecting any Flow that\nshould only be active while the UI is visible.",
+                    "codeSnippet": "lifecycleScope.launch {\n    repeatOnLifecycle(Lifecycle.State.STARTED) {\n        viewModel.uiState.collect { state -> render(state) }\n    } // collection auto-cancels on stop, auto-restarts on start\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "onTrimMemory signals memory pressure independently of the visible lifecycle callbacks",
+                    "content": "onPause/onStop tell you about visibility changes, but they say nothing\nabout system memory pressure — an Activity can stay fully resumed while\nthe system is under heavy memory pressure system-wide.\n\nonTrimMemory delivers memory-pressure levels (from UI_HIDDEN through the\nmore severe COMPLETE/CRITICAL levels) so you can release caches or\nnonessential resources proactively before the system is forced to kill\nyour process outright.",
+                    "codeSnippet": "override fun onTrimMemory(level: Int) {\n    super.onTrimMemory(level)\n    if (level >= ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN) {\n        imageCache.evictAll() // release memory proactively before a possible kill\n    }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Launch modes change how many lifecycle callback sequences you actually see",
+                    "content": "The default launchMode (\"standard\") always creates a brand new Activity\ninstance on every launch, running the full onCreate-through-onResume\nsequence each time — even if an identical Activity is already on the\nstack.\n\nsingleTop, singleTask, and singleInstance launch modes can instead reuse\nan existing instance, replacing the full onCreate sequence with just\nonNewIntent, onRestart, onStart, onResume for that reused instance — the\nsame code can execute a very different lifecycle sequence depending on\nthe launch mode declared in the manifest.",
+                    "codeSnippet": "<!-- AndroidManifest.xml -->\n<activity android:name=\".MainActivity\" android:launchMode=\"singleTop\" />\n<!-- relaunching while already on top skips onCreate — goes to onNewIntent instead -->",
+                    "codeLang": "XML",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Background execution limits interact with what an Activity can safely do while stopped",
+                    "content": "Once an Activity is stopped (fully backgrounded), the app as a whole is\nsubject to background execution limits (Doze mode, App Standby Buckets)\nthat can defer, batch, or restrict network access and wake locks — code\nthat assumes background work continues at full speed after onStop can\nsilently underperform or stall.\n\nWork that must survive backgrounding reliably (sync, uploads) belongs in\nWorkManager rather than in an Activity-scoped coroutine, since WorkManager\nis specifically designed to cooperate with these system-level execution\nrestrictions.",
+                    "codeSnippet": "// Risky — tied to Activity lifecycle and subject to background limits:\nlifecycleScope.launch { uploadInBackground() }\n\n// More reliable for guaranteed background completion:\nWorkManager.getInstance(context).enqueue(uploadWorkRequest)",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "onWindowFocusChanged signals input focus, which is distinct from onResume's visibility",
+                    "content": "onResume means the Activity is on top of the task stack and interactive\nin principle, but it doesn't guarantee actual keyboard/touch focus — a\nsystem dialog, a notification shade pull-down, or picture-in-picture can\nleave your Activity resumed but without window focus.\n\nonWindowFocusChanged(hasFocus: Boolean) is the more precise signal for\n'can the user currently interact with this window' — useful for pausing\ntime-sensitive interactions (game input, drawing) that should only run\nwhile genuinely focused, not merely resumed.",
+                    "codeSnippet": "override fun onWindowFocusChanged(hasFocus: Boolean) {\n    super.onWindowFocusChanged(hasFocus)\n    if (!hasFocus) pauseGameInput() // more precise than relying on onPause alone\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Predictive back gestures (Android 13+) introduce an in-progress, cancellable back state",
+                    "content": "Traditionally, a back press is a single atomic event — the system either\nnavigates back or it doesn't, with no in-between state visible to your\ncode. Predictive back introduces a gesture that can be previewed and\ncancelled mid-swipe, meaning an Activity/Fragment can receive progress\ncallbacks for a back navigation that never actually completes.\n\nOnBackPressedCallback's handleOnBackProgressed and\nhandleOnBackCancelled let you animate a preview of the destination and\nrevert cleanly if the user cancels the gesture, rather than assuming\nevery back signal is a completed, committed navigation.",
+                    "codeSnippet": "val callback = object : OnBackPressedCallback(true) {\n    override fun handleOnBackStarted(backEvent: BackEventCompat) { showPreview() }\n    override fun handleOnBackCancelled() { revertPreview() } // gesture cancelled mid-swipe\n    override fun handleOnBackPressed() { finish() }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "ActivityScenario lets tests drive lifecycle transitions explicitly",
+                    "content": "Manually simulating lifecycle transitions in an instrumented test (via\nreal user interaction or Robolectric shadow calls) is fragile and doesn't\nreliably test how your Activity handles a specific transition in\nisolation, like verifying state is preserved correctly across a\nsimulated rotation.\n\nActivityScenario (from androidx.test) lets a test explicitly move an\nActivity through lifecycle states (moveToState, recreate()) and inspect\nits behavior at each step, giving deterministic, repeatable coverage of\nlifecycle-dependent logic without needing a real device rotation.",
+                    "codeSnippet": "@Test\nfun survivesRecreation() {\n    val scenario = ActivityScenario.launch(MainActivity::class.java)\n    scenario.onActivity { it.selectedTabIndex = 2 }\n    scenario.recreate() // simulates a configuration change\n    scenario.onActivity { assertEquals(2, it.selectedTabIndex) }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                }
+            ]
+        }
+    ]
+}

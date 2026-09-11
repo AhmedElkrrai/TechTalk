@@ -1,0 +1,21 @@
+{
+    "version": 1,
+    "author": "TechTalk",
+    "description": "Android — Testing",
+    "entries": [
+        {
+            "technologyName": "Android",
+            "topicName": "Testing",
+            "topicDescription": "Unit testing, instrumented testing, and Compose UI testing on Android.",
+            "tips": [
+                {
+                    "title": "Turbine simplifies testing Flow emissions without manual collector boilerplate",
+                    "content": "Testing a Flow by manually launching a collector coroutine, appending\nemissions to a list, then asserting on that list after the fact is\nverbose and easy to get subtly wrong around coroutine timing and test\ndispatcher scheduling.\n\nTurbine's test {} extension on a Flow gives you awaitItem(), awaitError(),\nand awaitComplete() functions that suspend until the next relevant event\narrives, reading like a sequential assertion of exactly what the Flow\nshould emit and when — purpose-built for testing Flow-based code\ncorrectly.",
+                    "codeSnippet": "@Test\nfun `emits loading then success`() = runTest {\n    viewModel.uiState.test {\n        assertEquals(UiState.Loading, awaitItem())\n        assertEquals(UiState.Success(data), awaitItem())\n        cancelAndIgnoreRemainingEvents()\n    }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                }
+            ]
+        }
+    ]
+}

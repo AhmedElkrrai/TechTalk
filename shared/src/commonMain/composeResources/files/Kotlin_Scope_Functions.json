@@ -1,0 +1,35 @@
+{
+    "version": 1,
+    "author": "TechTalk",
+    "description": "Kotlin — Scope Functions",
+    "entries": [
+        {
+            "technologyName": "Kotlin",
+            "topicName": "Scope Functions",
+            "topicDescription": "Functions that execute a block of code within the context of an object.",
+            "tips": [
+                {
+                    "title": "let — transform nullable values",
+                    "content": "'let' executes a block only when the object is non-null (when used with ?.).\nThe object is referenced as 'it' inside the block.\nReturns the result of the block.\n\nBest used for: executing code with a non-null value, \ntransforming an object into something else, \nor limiting variable scope.",
+                    "codeSnippet": "// Only runs if user is non-null\nuser?.let { nonNullUser ->\n    sendEmail(nonNullUser.email)\n    logLogin(nonNullUser.id)\n}\n\n// Transform and return\nval upperName = name?.let { it.trim().uppercase() }",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "apply — configure an object",
+                    "content": "'apply' executes a block where 'this' refers to the object.\nReturns the object itself (not the block result).\n\nPerfect for object configuration — setting multiple properties \non a newly created object without repeating the variable name.\n\nThink of it as: \"apply these settings to this object, then give it back.\"",
+                    "codeSnippet": "// Without apply\nval button = Button(context)\nbutton.text = \"Click me\"\nbutton.isEnabled = true\nbutton.setOnClickListener { handleClick() }\n\n// With apply — cleaner\nval button = Button(context).apply {\n    text = \"Click me\"\n    isEnabled = true\n    setOnClickListener { handleClick() }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "also — side effects without changing the chain",
+                    "content": "'also' executes a block (referencing the object as 'it') \nand returns the original object unchanged.\n\nUse it for side effects: logging, validation, or debugging \nin the middle of a call chain without breaking the flow.\n\nThink of it as: \"and also do this.\"",
+                    "codeSnippet": "fun getUser(): User =\n    repository.findUser(id)\n        .also { println(\"Found user: $it\") }  // log\n        .also { require(it.isActive) }              // validate\n\n// Great for debugging chains\nlistOf(1, 2, 3)\n    .map { it * 2 }\n    .also { println(\"After map: $it\") }  // [2, 4, 6]\n    .filter { it > 3 }\n    .also { println(\"After filter: $it\") }  // [4, 6]",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                }
+            ]
+        }
+    ]
+}

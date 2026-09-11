@@ -1,0 +1,689 @@
+{
+    "version": 1,
+    "author": "TechTalk",
+    "description": "Android battles",
+    "entries": [
+        {
+            "technologyName": "Android",
+            "topicName": "Activity Lifecycle",
+            "topicDescription": "Understanding how Android creates, pauses, and destroys activities.",
+            "questions": [
+                {
+                    "questionText": "Which lifecycle callback is called when an Activity is no longer visible to the user?",
+                    "difficulty": "BEGINNER",
+                    "explanation": "onStop() is invoked after onPause() when the Activity is fully hidden.",
+                    "answers": [
+                        {
+                            "answerText": "onStop()",
+                            "isCorrect": true
+                        },
+                        {
+                            "answerText": "onDestroy()",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "onCreate()",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "onAttach()",
+                            "isCorrect": false
+                        }
+                    ]
+                },
+                {
+                    "questionText": "Which callback should be used to store transient UI state before an Activity may be recreated?",
+                    "difficulty": "INTERMEDIATE",
+                    "explanation": "Use onSaveInstanceState() to persist small UI state values across process death and configuration changes.",
+                    "answers": [
+                        {
+                            "answerText": "onSaveInstanceState()",
+                            "isCorrect": true
+                        },
+                        {
+                            "answerText": "onLowMemory()",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "onRestoreInstanceState()",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "onPostResume()",
+                            "isCorrect": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "technologyName": "Android",
+            "topicName": "CI/CD",
+            "topicDescription": "Continuous integration and delivery pipelines for Android apps, including Azure Pipelines.",
+            "questions": [
+                {
+                    "questionText": "In Android CI, which Gradle task is commonly used to run JVM unit tests for the debug variant?",
+                    "difficulty": "BEGINNER",
+                    "explanation": "testDebugUnitTest executes local JVM unit tests for the debug build variant.",
+                    "answers": [
+                        {
+                            "answerText": "testDebugUnitTest",
+                            "isCorrect": true
+                        },
+                        {
+                            "answerText": "assembleDebug",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "lintDebug",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "signingReport",
+                            "isCorrect": false
+                        }
+                    ]
+                },
+                {
+                    "questionText": "What is a major benefit of dependency and build caching in Android CI/CD pipelines?",
+                    "difficulty": "INTERMEDIATE",
+                    "explanation": "Caching avoids re-downloading dependencies and re-running unchanged work, which reduces pipeline time.",
+                    "answers": [
+                        {
+                            "answerText": "Faster build times by reusing unchanged artifacts",
+                            "isCorrect": true
+                        },
+                        {
+                            "answerText": "Automatic app store publishing without credentials",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "No need to run tests in pull requests",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "Guaranteed zero build failures",
+                            "isCorrect": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "technologyName": "Android",
+            "topicName": "Clean Architecture",
+            "topicDescription": "Layered architecture patterns for Android: domain, data, and presentation boundaries.",
+            "questions": [
+                {
+                    "questionText": "In Clean Architecture, where should core business rules and use cases live?",
+                    "difficulty": "BEGINNER",
+                    "explanation": "Business logic belongs in the domain layer so it stays independent of frameworks, UI, and data sources.",
+                    "answers": [
+                        {
+                            "answerText": "Presentation layer",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "Data layer",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "Domain layer",
+                            "isCorrect": true
+                        },
+                        {
+                            "answerText": "UI theme layer",
+                            "isCorrect": false
+                        }
+                    ]
+                },
+                {
+                    "questionText": "What dependency rule does Clean Architecture enforce?",
+                    "difficulty": "ADVANCED",
+                    "explanation": "Dependencies point inward: outer layers depend on abstractions in inner layers, not the other way around.",
+                    "answers": [
+                        {
+                            "answerText": "All layers should depend directly on framework classes",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "Data layer must import UI composables",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "Outer layers can depend on inner layers, but inner layers must not depend on outer layers",
+                            "isCorrect": true
+                        },
+                        {
+                            "answerText": "Domain layer should call Android Context APIs directly",
+                            "isCorrect": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "technologyName": "Android",
+            "topicName": "Dependency Injection",
+            "topicDescription": "Managing object creation and dependencies with Hilt, Koin, and manual DI patterns.",
+            "questions": [
+                {
+                    "questionText": "In Hilt, what annotation is used on a constructor to request dependency injection?",
+                    "difficulty": "INTERMEDIATE",
+                    "explanation": "Applying @Inject to a constructor lets Hilt create that class when its dependencies are available.",
+                    "answers": [
+                        {
+                            "answerText": "@Provides",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "@Inject",
+                            "isCorrect": true
+                        },
+                        {
+                            "answerText": "@Binds",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "@Module",
+                            "isCorrect": false
+                        }
+                    ]
+                },
+                {
+                    "questionText": "Which annotation provides a single dependency instance for the whole application in Hilt?",
+                    "difficulty": "ADVANCED",
+                    "explanation": "@Singleton scopes a dependency to the application's lifetime when installed in the singleton component.",
+                    "answers": [
+                        {
+                            "answerText": "@Singleton",
+                            "isCorrect": true
+                        },
+                        {
+                            "answerText": "@Reusable",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "@Retained",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "@ActivityResult",
+                            "isCorrect": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "technologyName": "Android",
+            "topicName": "DexGuard & RASP",
+            "topicDescription": "Runtime application self-protection and obfuscation strategies.",
+            "questions": [
+                {
+                    "questionText": "What is the main goal of code obfuscation tools like DexGuard?",
+                    "difficulty": "BEGINNER",
+                    "explanation": "Obfuscation makes app code harder to reverse engineer by renaming and transforming symbols and logic.",
+                    "answers": [
+                        {
+                            "answerText": "Make reverse engineering and tampering harder",
+                            "isCorrect": true
+                        },
+                        {
+                            "answerText": "Increase APK size for security",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "Replace runtime permissions",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "Automatically encrypt all network traffic",
+                            "isCorrect": false
+                        }
+                    ]
+                },
+                {
+                    "questionText": "What does RASP primarily help detect at runtime?",
+                    "difficulty": "INTERMEDIATE",
+                    "explanation": "RASP checks runtime conditions such as hooking, tampering, or rooted devices and can react defensively.",
+                    "answers": [
+                        {
+                            "answerText": "Threats like hooking, tampering, and rooted environments",
+                            "isCorrect": true
+                        },
+                        {
+                            "answerText": "Only XML layout rendering issues",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "Only Play Store signing key expiry",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "Only low battery conditions",
+                            "isCorrect": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "technologyName": "Android",
+            "topicName": "Fragments",
+            "topicDescription": "Fragment lifecycle, communication, and management within Activities and Navigation.",
+            "questions": [
+                {
+                    "questionText": "Which Fragment callback is responsible for inflating and returning the Fragment's UI?",
+                    "difficulty": "BEGINNER",
+                    "explanation": "onCreateView() should inflate and return the Fragment view hierarchy.",
+                    "answers": [
+                        {
+                            "answerText": "onCreateView()",
+                            "isCorrect": true
+                        },
+                        {
+                            "answerText": "onAttach()",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "onActivityCreated()",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "onStart()",
+                            "isCorrect": false
+                        }
+                    ]
+                },
+                {
+                    "questionText": "What is a recommended way for two fragments in the same Activity to share UI state?",
+                    "difficulty": "INTERMEDIATE",
+                    "explanation": "An Activity-scoped shared ViewModel is lifecycle-aware and avoids tight coupling between fragments.",
+                    "answers": [
+                        {
+                            "answerText": "Use a shared Activity-scoped ViewModel",
+                            "isCorrect": true
+                        },
+                        {
+                            "answerText": "Cast one Fragment to the other and call methods directly",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "Store shared state in static global variables",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "Pass data only through manifest placeholders",
+                            "isCorrect": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "technologyName": "Android",
+            "topicName": "Fundamentals",
+            "topicDescription": "Core Android building blocks: intents, broadcast receivers, the manifest, and services.",
+            "questions": [
+                {
+                    "questionText": "Which lifecycle method is called when an Activity first becomes visible?",
+                    "difficulty": "BEGINNER",
+                    "explanation": "onStart() is called when the Activity becomes visible to the user, after onCreate() and before onResume().",
+                    "answers": [
+                        {
+                            "answerText": "onStart()",
+                            "isCorrect": true
+                        },
+                        {
+                            "answerText": "onCreate()",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "onResume()",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "onAttach()",
+                            "isCorrect": false
+                        }
+                    ]
+                },
+                {
+                    "questionText": "What happens to an Activity when the user rotates the device?",
+                    "difficulty": "INTERMEDIATE",
+                    "explanation": "By default, Android destroys and recreates the Activity on configuration changes like rotation. Use ViewModel to survive this.",
+                    "answers": [
+                        {
+                            "answerText": "Activity is destroyed and recreated",
+                            "isCorrect": true
+                        },
+                        {
+                            "answerText": "onPause() is called then onResume()",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "Nothing — Compose handles it automatically",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "The app is restarted from the launcher",
+                            "isCorrect": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "technologyName": "Android",
+            "topicName": "Gradle & Build Configuration",
+            "topicDescription": "Build variants, product flavors, and custom Gradle tasks for Android projects.",
+            "questions": [
+                {
+                    "questionText": "What do product flavors enable in an Android Gradle project?",
+                    "difficulty": "BEGINNER",
+                    "explanation": "Product flavors let you build multiple app variants (for example free vs paid) from one codebase.",
+                    "answers": [
+                        {
+                            "answerText": "Creating multiple app variants from the same codebase",
+                            "isCorrect": true
+                        },
+                        {
+                            "answerText": "Automatically replacing all dependencies at runtime",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "Disabling ProGuard and R8 in release",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "Removing the need for build types",
+                            "isCorrect": false
+                        }
+                    ]
+                },
+                {
+                    "questionText": "Where are Android build types like debug and release typically configured?",
+                    "difficulty": "ADVANCED",
+                    "explanation": "Build types are defined inside the android { buildTypes { ... } } block in the module Gradle build file.",
+                    "answers": [
+                        {
+                            "answerText": "In the module's build.gradle.kts under android.buildTypes",
+                            "isCorrect": true
+                        },
+                        {
+                            "answerText": "Only in AndroidManifest.xml",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "Inside proguard-rules.pro",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "In strings.xml",
+                            "isCorrect": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "technologyName": "Android",
+            "topicName": "Jetpack Compose",
+            "topicDescription": "Android's modern declarative UI toolkit.",
+            "questions": [
+                {
+                    "questionText": "In Compose Navigation, what component hosts the navigation graph?",
+                    "difficulty": "INTERMEDIATE",
+                    "explanation": "NavHost is the composable that displays the current destination and manages the navigation back stack.",
+                    "answers": [
+                        {
+                            "answerText": "NavHost",
+                            "isCorrect": true
+                        },
+                        {
+                            "answerText": "NavController",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "Scaffold",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "NavigationBar",
+                            "isCorrect": false
+                        }
+                    ]
+                },
+                {
+                    "questionText": "How do you pass arguments between destinations in Compose Navigation?",
+                    "difficulty": "ADVANCED",
+                    "explanation": "You define arguments in the route pattern (e.g., 'detail/{id}') and read them from NavBackStackEntry's arguments bundle.",
+                    "answers": [
+                        {
+                            "answerText": "Define in route pattern and read from NavBackStackEntry arguments",
+                            "isCorrect": true
+                        },
+                        {
+                            "answerText": "Use global variables",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "Pass through Intent extras",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "Store in SharedPreferences before navigating",
+                            "isCorrect": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "technologyName": "Android",
+            "topicName": "Ktor Client",
+            "topicDescription": "Networking layer patterns for production Android apps.",
+            "questions": [
+                {
+                    "questionText": "Which Ktor client plugin is commonly used to serialize and deserialize JSON payloads?",
+                    "difficulty": "BEGINNER",
+                    "explanation": "ContentNegotiation with a JSON serializer handles request/response body conversion in Ktor Client.",
+                    "answers": [
+                        {
+                            "answerText": "ContentNegotiation",
+                            "isCorrect": true
+                        },
+                        {
+                            "answerText": "Logging",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "HttpCache",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "WebSockets",
+                            "isCorrect": false
+                        }
+                    ]
+                },
+                {
+                    "questionText": "How can you add an Authorization header to every Ktor client request?",
+                    "difficulty": "INTERMEDIATE",
+                    "explanation": "Install DefaultRequest and set the header there so it is applied to outgoing requests by default.",
+                    "answers": [
+                        {
+                            "answerText": "Install DefaultRequest and add the Authorization header in its configuration",
+                            "isCorrect": true
+                        },
+                        {
+                            "answerText": "Put the token in AndroidManifest meta-data",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "Use NavController arguments for all HTTP headers",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "Set it once in build.gradle.kts",
+                            "isCorrect": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "technologyName": "Android",
+            "topicName": "ViewModel",
+            "topicDescription": "Architecture component for managing UI-related data across configuration changes.",
+            "questions": [
+                {
+                    "questionText": "What is the main reason to use a ViewModel in Android?",
+                    "difficulty": "BEGINNER",
+                    "explanation": "ViewModel survives configuration changes and keeps UI state separate from Activity/Fragment lifecycle.",
+                    "answers": [
+                        {
+                            "answerText": "To retain UI-related data across configuration changes",
+                            "isCorrect": true
+                        },
+                        {
+                            "answerText": "To replace Room for local persistence",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "To render composables faster by default",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "To remove the need for lifecycle-aware components",
+                            "isCorrect": false
+                        }
+                    ]
+                },
+                {
+                    "questionText": "Which coroutine scope should be used inside a ViewModel for async work?",
+                    "difficulty": "BEGINNER",
+                    "explanation": "viewModelScope is lifecycle-aware for ViewModel and is cancelled automatically when ViewModel is cleared.",
+                    "answers": [
+                        {
+                            "answerText": "viewModelScope",
+                            "isCorrect": true
+                        },
+                        {
+                            "answerText": "GlobalScope",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "rememberCoroutineScope",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "MainScope from the Activity",
+                            "isCorrect": false
+                        }
+                    ]
+                },
+                {
+                    "questionText": "What is a recommended way to expose mutable state from a ViewModel?",
+                    "difficulty": "INTERMEDIATE",
+                    "explanation": "Keep mutable state private and expose immutable state (StateFlow/LiveData) to prevent external mutation.",
+                    "answers": [
+                        {
+                            "answerText": "Expose StateFlow publicly and keep MutableStateFlow private",
+                            "isCorrect": true
+                        },
+                        {
+                            "answerText": "Expose MutableStateFlow directly so UI can update it",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "Store UI state in Fragment fields only",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "Use static singleton variables for all screen state",
+                            "isCorrect": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "technologyName": "Android",
+            "topicName": "WorkManager",
+            "topicDescription": "Scheduling deferrable, guaranteed background work with WorkManager.",
+            "questions": [
+                {
+                    "questionText": "When should you prefer WorkManager over a Foreground Service?",
+                    "difficulty": "BEGINNER",
+                    "explanation": "WorkManager is best for deferrable, guaranteed background work that should run even after app restarts. Foreground Service is for user-visible ongoing tasks.",
+                    "answers": [
+                        {
+                            "answerText": "For guaranteed deferrable background work that can run later",
+                            "isCorrect": true
+                        },
+                        {
+                            "answerText": "For immediate long-running user-visible playback",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "For drawing UI when app is in background",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "For replacing all coroutines in ViewModel",
+                            "isCorrect": false
+                        }
+                    ]
+                },
+                {
+                    "questionText": "What does enqueueUniqueWork() help prevent?",
+                    "difficulty": "INTERMEDIATE",
+                    "explanation": "Unique work ensures only one chain with the same unique name exists according to the chosen ExistingWorkPolicy.",
+                    "answers": [
+                        {
+                            "answerText": "Creating duplicate background work chains for the same task",
+                            "isCorrect": true
+                        },
+                        {
+                            "answerText": "All worker retries on failure",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "Device reboot from clearing jobs",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "Needing constraints like network type",
+                            "isCorrect": false
+                        }
+                    ]
+                },
+                {
+                    "questionText": "If a Worker returns Result.retry(), what happens next?",
+                    "difficulty": "INTERMEDIATE",
+                    "explanation": "WorkManager reschedules the work using its backoff policy (linear or exponential), then attempts it again later.",
+                    "answers": [
+                        {
+                            "answerText": "The work is rescheduled and retried later using backoff policy",
+                            "isCorrect": true
+                        },
+                        {
+                            "answerText": "The work is marked as permanently failed immediately",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "The worker runs again instantly in a tight loop",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "All pending work in the app is cancelled",
+                            "isCorrect": false
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

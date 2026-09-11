@@ -1,0 +1,35 @@
+{
+    "version": 1,
+    "author": "TechTalk",
+    "description": "Kotlin — Data & Sealed Classes",
+    "entries": [
+        {
+            "technologyName": "Kotlin",
+            "topicName": "Data & Sealed Classes",
+            "topicDescription": "Special class types for modeling data and restricted hierarchies.",
+            "tips": [
+                {
+                    "title": "data class — instant value objects",
+                    "content": "Data classes auto-generate equals(), hashCode(), toString(), copy(),\nand destructuring functions from the properties in the primary constructor.\n\nPerfect for models, DTOs, and state holders — any class whose identity\nis defined by its data rather than a unique reference.\n\nUse 'copy()' to create modified copies without mutating the original.\nThis is the foundation of immutable state management in Kotlin.",
+                    "codeSnippet": "data class User(val name: String, val age: Int)\n\nval alice = User(\"Alice\", 30)\nval aliceCopy = alice.copy(age = 31)\n\nprintln(alice)         // User(name=Alice, age=30)\nprintln(alice == aliceCopy)  // false — different age\n\n// Destructuring\nval (name, age) = alice\nprintln(\"$name is $age\")  // Alice is 30",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "sealed class — restricted hierarchies",
+                    "content": "A sealed class restricts which classes can extend it.\nAll subclasses must be defined in the same package.\n\nThis makes 'when' expressions exhaustive — the compiler ensures\nyou handle every possible subtype. No 'else' branch needed.\n\nSealed classes are perfect for modeling states, events, and results.\nThey're like enums on steroids — each subclass can hold different data.",
+                    "codeSnippet": "sealed class Result<out T> {\n    data class Success<T>(val data: T) : Result<T>()\n    data class Error(val message: String) : Result<Nothing>()\n    data object Loading : Result<Nothing>()\n}\n\n// Exhaustive when — compiler enforces all cases\nfun handleResult(result: Result<User>) = when (result) {\n    is Result.Success -> showUser(result.data)\n    is Result.Error   -> showError(result.message)\n    is Result.Loading -> showSpinner()\n    // No 'else' needed — all cases covered ✅\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "sealed interface — flexible sealed hierarchies",
+                    "content": "Since Kotlin 1.5, you can use sealed interfaces in addition to sealed classes.\nA class can implement multiple sealed interfaces but can only extend one class.\n\nThis allows more flexible hierarchies where a subtype can belong\nto multiple sealed groups simultaneously.\n\nSealed interfaces are great for modeling capabilities or cross-cutting\ncategories that don't fit into a single inheritance tree.",
+                    "codeSnippet": "sealed interface Error\nsealed interface UserError : Error\nsealed interface NetworkError : Error\n\n// Can implement multiple sealed interfaces\ndata class Timeout(val ms: Long) : NetworkError\ndata class NotFound(val id: String) : NetworkError, UserError\ndata class Unauthorized(val reason: String) : UserError\n\nfun handleError(error: Error) = when (error) {\n    is Timeout      -> retry()\n    is NotFound     -> show404()\n    is Unauthorized -> redirectToLogin()\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                }
+            ]
+        }
+    ]
+}

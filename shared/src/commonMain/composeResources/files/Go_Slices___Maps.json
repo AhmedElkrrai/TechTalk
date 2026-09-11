@@ -1,0 +1,35 @@
+{
+    "version": 1,
+    "author": "TechTalk",
+    "description": "Go — Slices & Maps",
+    "entries": [
+        {
+            "technologyName": "Go",
+            "topicName": "Slices & Maps",
+            "topicDescription": "Dynamic arrays and hash maps — Go's essential data structures.",
+            "tips": [
+                {
+                    "title": "Maps are hash tables with simple syntax",
+                    "content": "Maps in Go are built-in hash tables: map[KeyType]ValueType.\nKeys must be comparable (==), which includes strings, ints,\nand structs with comparable fields.\n\nAlways initialize maps before use: either with make() or a\nliteral. Writing to a nil map panics. Reading from a nil or\nmissing key returns the zero value.\n\nUse the two-value form (value, ok := m[key]) to distinguish\nbetween a missing key and a key with a zero value. This is\nessential for maps of booleans or integers.\n\nMaps are not safe for concurrent access. Use sync.RWMutex\nor sync.Map when multiple goroutines read and write the\nsame map.",
+                    "codeSnippet": "// Create and populate\nscores := map[string]int{\n    \"Alice\": 95,\n    \"Bob\":   87,\n}\n\n// Add / update\nscores[\"Charlie\"] = 92\n\n// Check existence — don't just read!\nscore, ok := scores[\"Dave\"]\nif !ok {\n    fmt.Println(\"Dave not found\")\n}\n\n// Delete\ndelete(scores, \"Bob\")\n\n// Iterate (order is random!)\nfor name, score := range scores {\n    fmt.Printf(\"%s: %d\\n\", name, score)\n}\n\n// Common pattern: counting occurrences\nwords := []string{\"go\", \"is\", \"go\", \"fun\"}\nfreq := make(map[string]int)\nfor _, w := range words {\n    freq[w]++  // zero value of int is 0\n}\n// freq: map[go:2 is:1 fun:1]",
+                    "codeLang": "go",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Generics make slice and map utilities type-safe",
+                    "content": "Before Go 1.18, utility functions for slices and maps\nrequired interface{} or code generation. Generics let you\nwrite them once with full type safety.\n\nThe standard library's 'slices' and 'maps' packages (Go 1.21+)\nprovide common operations: sorting, searching, filtering,\nand comparing. Use them instead of writing your own.\n\nType constraints like 'comparable' and 'constraints.Ordered'\nrestrict type parameters to types that support specific\noperations. This catches errors at compile time.\n\nGenerics shine for data structure utilities but aren't\nneeded everywhere. If a function works fine with a concrete\ntype, keep it simple — don't add generics just because\nyou can.",
+                    "codeSnippet": "import \"slices\"\n\n// Generic filter — works for any type\nfunc Filter[T any](items []T, predicate func(T) bool) []T {\n    result := make([]T, 0)\n    for _, item := range items {\n        if predicate(item) {\n            result = append(result, item)\n        }\n    }\n    return result\n}\n\n// Usage\nnums := []int{1, 2, 3, 4, 5, 6}\nevens := Filter(nums, func(n int) bool { return n%2 == 0 })\n// [2, 4, 6]\n\n// Standard library (Go 1.21+)\nslices.Sort(nums)\nidx, found := slices.BinarySearch(nums, 4)\nslices.Contains(nums, 3)  // true\n\n// Generic map keys\nfunc Keys[K comparable, V any](m map[K]V) []K {\n    keys := make([]K, 0, len(m))\n    for k := range m {\n        keys = append(keys, k)\n    }\n    return keys\n}",
+                    "codeLang": "go",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Slices are references to arrays — understand the gotchas",
+                    "content": "A slice is a descriptor (pointer, length, capacity) that\nreferences an underlying array. Multiple slices can share\nthe same array, which is efficient but can cause surprises.\n\nWhen you append to a slice and it exceeds capacity, Go\nallocates a new, larger array and copies data. The old\nslice and new slice now point to different arrays.\n\nUse make([]T, length, capacity) to preallocate when you\nknow the size. This avoids repeated allocations during\nappend loops and significantly improves performance.\n\nThe built-in copy() function safely copies between slices.\nUse it when you need an independent copy that won't affect\nthe original.",
+                    "codeSnippet": "// Creating slices\nnums := []int{1, 2, 3, 4, 5}\n\n// Slice of a slice — shares underlying array!\nsub := nums[1:3]  // [2, 3]\nsub[0] = 99       // nums is now [1, 99, 3, 4, 5]\n\n// Preallocate for performance\nresult := make([]string, 0, 1000)\nfor i := 0; i < 1000; i++ {\n    result = append(result, fmt.Sprintf(\"item_%d\", i))\n}\n\n// Independent copy\noriginal := []int{1, 2, 3}\nclone := make([]int, len(original))\ncopy(clone, original)\nclone[0] = 99  // original is unchanged\n\n// Nil slice vs empty slice\nvar s1 []int          // nil (len=0, cap=0)\ns2 := []int{}        // empty, not nil\ns3 := make([]int, 0) // empty, not nil",
+                    "codeLang": "go",
+                    "difficulty": "BEGINNER"
+                }
+            ]
+        }
+    ]
+}

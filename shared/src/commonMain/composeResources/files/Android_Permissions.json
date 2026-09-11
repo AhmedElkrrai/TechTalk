@@ -1,0 +1,35 @@
+{
+    "version": 1,
+    "author": "TechTalk",
+    "description": "Android — Permissions",
+    "entries": [
+        {
+            "technologyName": "Android",
+            "topicName": "Permissions",
+            "topicDescription": "Requesting and handling runtime permissions on Android.",
+            "tips": [
+                {
+                    "title": "Runtime permissions flow",
+                    "content": "Since Android 6.0, dangerous permissions must be requested at runtime.\nThe flow: check → explain (optional) → request → handle result.\n\nAlways check if you already have the permission before requesting.\nIf the user denied before, show a rationale explaining WHY you need it.\nIf they denied twice, the system won't show the dialog again —\nyou need to direct them to Settings.\n\nCommon dangerous permissions: CAMERA, LOCATION, CONTACTS, MICROPHONE.",
+                    "codeSnippet": "// Modern approach with Activity Result API\nval launcher = registerForActivityResult(\n    ActivityResultContracts.RequestPermission()\n) { isGranted ->\n    if (isGranted) {\n        openCamera()\n    } else {\n        showDeniedMessage()\n    }\n}\n\n// Check & request\nwhen {\n    ContextCompat.checkSelfPermission(ctx, CAMERA)\n        == PERMISSION_GRANTED -> openCamera()\n    shouldShowRequestPermissionRationale(CAMERA)\n        -> showRationale()\n    else -> launcher.launch(CAMERA)\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "Permissions in Compose with rememberLauncherForActivityResult",
+                    "content": "In Compose, use rememberLauncherForActivityResult to handle\npermission requests declaratively.\n\nAccompanist used to be the go-to library, but now the core\nActivityResultContracts work perfectly in Compose.\n\nKeep the permission logic in the composable or ViewModel,\nand show appropriate UI based on the permission state.",
+                    "codeSnippet": "@Composable\nfun CameraScreen() {\n    val context = LocalContext.current\n    val launcher = rememberLauncherForActivityResult(\n        ActivityResultContracts.RequestPermission()\n    ) { granted ->\n        if (granted) openCamera(context)\n    }\n    \n    Button(onClick = {\n        launcher.launch(Manifest.permission.CAMERA)\n    }) {\n        Text(\"Take Photo\")\n    }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Multiple permissions at once",
+                    "content": "Sometimes a feature needs multiple permissions\n(e.g., video call needs CAMERA + RECORD_AUDIO).\n\nUse RequestMultiplePermissions contract to ask for them together.\nThe result is a Map<String, Boolean> showing which were granted.\n\nHandle partial grants gracefully — maybe the user allows the mic\nbut denies the camera. Offer degraded functionality where possible\ninstead of blocking the entire feature.",
+                    "codeSnippet": "val permissions = arrayOf(\n    Manifest.permission.CAMERA,\n    Manifest.permission.RECORD_AUDIO\n)\n\nval launcher = rememberLauncherForActivityResult(\n    ActivityResultContracts.RequestMultiplePermissions()\n) { results ->\n    val allGranted = results.values.all { it }\n    if (allGranted) {\n        startVideoCall()\n    } else {\n        // Handle partial grants\n        val hasCamera = results[Manifest.permission.CAMERA] == true\n        val hasMic = results[Manifest.permission.RECORD_AUDIO] == true\n    }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                }
+            ]
+        }
+    ]
+}

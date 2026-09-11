@@ -1,0 +1,21 @@
+{
+    "version": 1,
+    "author": "TechTalk",
+    "description": "Android — Gradle & Build Configuration",
+    "entries": [
+        {
+            "technologyName": "Android",
+            "topicName": "Gradle & Build Configuration",
+            "topicDescription": "Build variants, product flavors, and custom Gradle tasks for Android projects.",
+            "tips": [
+                {
+                    "title": "Product flavors and build types combine to form every build variant",
+                    "content": "Build types (debug/release) alone only control things like\ndebuggability and minification, while separate concerns like\n'which backend environment' or 'which app tier' (free vs paid) don't fit\nnaturally into that same axis.\n\nProduct flavors add a second, independent axis — Gradle automatically\ncombines every flavor with every build type to produce the full variant\nmatrix (e.g. freeDebug, freeRelease, paidDebug, paidRelease), each with\nits own source set for flavor-specific code, resources, and\nconfiguration.",
+                    "codeSnippet": "android {\n    flavorDimensions += \"tier\"\n    productFlavors {\n        create(\"free\") { dimension = \"tier\"; applicationIdSuffix = \".free\" }\n        create(\"paid\") { dimension = \"tier\"; applicationIdSuffix = \".paid\" }\n    }\n} // produces freeDebug, freeRelease, paidDebug, paidRelease variants automatically",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                }
+            ]
+        }
+    ]
+}

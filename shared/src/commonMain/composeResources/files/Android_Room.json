@@ -1,0 +1,21 @@
+{
+    "version": 1,
+    "author": "TechTalk",
+    "description": "Android — Room",
+    "entries": [
+        {
+            "technologyName": "Android",
+            "topicName": "Room",
+            "topicDescription": "Local SQLite persistence with Room: entities, DAOs, migrations, and query patterns.",
+            "tips": [
+                {
+                    "title": "Room validates queries against your schema at compile time",
+                    "content": "A raw SQLite query with a typo'd column name or a mismatched return type\nonly fails at runtime, often deep into testing or after release, since\nplain SQLiteDatabase calls aren't checked against your actual schema.\n\nRoom's annotation processor parses every @Query string against the\nentities and DAOs it knows about, failing the build immediately if a\ncolumn doesn't exist, a type doesn't match, or a query is malformed SQL —\ncatching an entire class of database bugs before the app ever runs.",
+                    "codeSnippet": "@Dao\ninterface UserDao {\n    @Query(\"SELECT * FROM users WHERE name = :name\") // validated against the User entity at compile time\n    suspend fun findByName(name: String): List<User>\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                }
+            ]
+        }
+    ]
+}

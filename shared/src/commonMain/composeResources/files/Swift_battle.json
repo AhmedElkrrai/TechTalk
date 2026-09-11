@@ -1,0 +1,106 @@
+{
+    "version": 1,
+    "author": "TechTalk",
+    "description": "Swift battles",
+    "entries": [
+        {
+            "technologyName": "Swift",
+            "topicName": "Structured Concurrency",
+            "topicDescription": "Modern async/await and task-based concurrency in Swift.",
+            "questions": [
+                {
+                    "questionText": "What is a trailing closure in Swift?",
+                    "difficulty": "INTERMEDIATE",
+                    "explanation": "When a closure is the last argument to a function, it can be written outside the parentheses for cleaner syntax.",
+                    "answers": [
+                        {
+                            "answerText": "A closure written outside the parentheses when it's the last argument",
+                            "isCorrect": true
+                        },
+                        {
+                            "answerText": "A closure that runs after the function returns",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "A closure with no parameters",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "A closure stored as a global variable",
+                            "isCorrect": false
+                        }
+                    ]
+                },
+                {
+                    "questionText": "What is a protocol in Swift?",
+                    "difficulty": "BEGINNER",
+                    "explanation": "A protocol defines a blueprint of methods, properties, and requirements that a conforming type must implement.",
+                    "answers": [
+                        {
+                            "answerText": "A blueprint of methods and properties a type must implement",
+                            "isCorrect": true
+                        },
+                        {
+                            "answerText": "A concrete base class for inheritance",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "A networking layer specification",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "An enum with associated values",
+                            "isCorrect": false
+                        }
+                    ]
+                },
+                {
+                    "questionText": "What keyword marks a function as asynchronous in Swift?",
+                    "difficulty": "INTERMEDIATE",
+                    "explanation": "The 'async' keyword marks a function as asynchronous, and 'await' is used at the call site to suspend until the result is ready.",
+                    "answers": [
+                        {
+                            "answerText": "async",
+                            "isCorrect": true
+                        },
+                        {
+                            "answerText": "await",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "suspend",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "concurrent",
+                            "isCorrect": false
+                        }
+                    ]
+                },
+                {
+                    "questionText": "What is an actor in Swift concurrency?",
+                    "difficulty": "ADVANCED",
+                    "explanation": "An actor is a reference type that protects its mutable state from data races by ensuring only one task accesses its state at a time.",
+                    "answers": [
+                        {
+                            "answerText": "A type that isolates mutable state to prevent data races",
+                            "isCorrect": true
+                        },
+                        {
+                            "answerText": "A class that runs on the main thread only",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "A protocol for networking",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "A design pattern for dependency injection",
+                            "isCorrect": false
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

@@ -1,0 +1,21 @@
+{
+    "version": 1,
+    "author": "TechTalk",
+    "description": "Android — Performance & Profiling",
+    "entries": [
+        {
+            "technologyName": "Android",
+            "topicName": "Performance & Profiling",
+            "topicDescription": "Diagnosing and improving app startup time, memory usage, and runtime performance.",
+            "tips": [
+                {
+                    "title": "Baseline Profiles pre-compile hot code paths to speed up cold app startup",
+                    "content": "Without a Baseline Profile, the Android Runtime (ART) interprets and\nJIT-compiles your app's code from scratch on every fresh install or app\nupdate's first launches, which measurably slows down cold startup time\nuntil the JIT has 'warmed up' the frequently-used code paths.\n\nA Baseline Profile — a list of classes and methods known to be critical\nto startup and common user flows — is shipped with the APK and lets ART\nahead-of-time compile those specific code paths at install time, giving\na faster cold start from the very first launch instead of only after\nrepeated JIT warm-up.",
+                    "codeSnippet": "// generated via the Macrobenchmark library's BaselineProfileRule, then included in the release build\n@RunWith(AndroidJUnit4::class)\nclass BaselineProfileGenerator {\n    @get:Rule val rule = BaselineProfileRule()\n    @Test fun generate() = rule.collect(\"com.example.app\") { startActivityAndWait() }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                }
+            ]
+        }
+    ]
+}

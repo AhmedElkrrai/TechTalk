@@ -1,0 +1,35 @@
+{
+    "version": 1,
+    "author": "TechTalk",
+    "description": "iOS — UIKit Essentials",
+    "entries": [
+        {
+            "technologyName": "iOS",
+            "topicName": "UIKit Essentials",
+            "topicDescription": "The imperative UI framework that underpins most production iOS apps.",
+            "tips": [
+                {
+                    "title": "Auto Layout with anchors is the modern way",
+                    "content": "Auto Layout defines your UI with constraints rather than fixed\nframes. The system calculates positions and sizes at runtime,\nadapting to different screen sizes and orientations.\n\nThe anchor API (NSLayoutConstraint anchors) is the cleanest\nway to create constraints in code. Each view has anchors for\ntop, bottom, leading, trailing, width, height, and center.\n\nAlways set translatesAutoresizingMaskIntoConstraints to false\nwhen creating views in code. Forgetting this is the number\none Auto Layout mistake — your constraints will conflict with\nauto-generated ones.\n\nActivate constraints in batches with NSLayoutConstraint.activate\nfor better performance.",
+                    "codeSnippet": "let titleLabel = UILabel()\ntitleLabel.text = \"Welcome\"\ntitleLabel.translatesAutoresizingMaskIntoConstraints = false\nview.addSubview(titleLabel)\n\nlet button = UIButton(type: .system)\nbutton.setTitle(\"Get Started\", for: .normal)\nbutton.translatesAutoresizingMaskIntoConstraints = false\nview.addSubview(button)\n\nNSLayoutConstraint.activate([\n    // Title centered horizontally, near the top\n    titleLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),\n    titleLabel.topAnchor.constraint(\n        equalTo: view.safeAreaLayoutGuide.topAnchor,\n        constant: 40\n    ),\n    \n    // Button below the title\n    button.centerXAnchor.constraint(equalTo: view.centerXAnchor),\n    button.topAnchor.constraint(\n        equalTo: titleLabel.bottomAnchor,\n        constant: 20\n    ),\n    button.widthAnchor.constraint(equalToConstant: 200)\n])",
+                    "codeLang": "Swift",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "Diffable data sources make collection views reliable",
+                    "content": "UICollectionViewDiffableDataSource (iOS 13+) replaces the\nold numberOfItemsInSection/cellForItemAt pattern with a\nsnapshot-based approach.\n\nYou create a snapshot describing the current state of your\ndata, then apply it. The framework automatically calculates\ninsertions, deletions, and moves with smooth animations.\n\nNo more \"Invalid number of items\" crashes from mismatched\ndata source counts. The snapshot is the single source of\ntruth, and you apply it atomically.\n\nCombine this with compositional layouts for complex,\nmulti-section collection views that are still easy to reason\nabout and maintain.",
+                    "codeSnippet": "enum Section { case main }\n\nvar dataSource: UICollectionViewDiffableDataSource<Section, User>!\n\nfunc configureDataSource() {\n    let cellReg = UICollectionView.CellRegistration<UICollectionViewListCell, User> {\n        cell, indexPath, user in\n        var config = cell.defaultContentConfiguration()\n        config.text = user.name\n        config.secondaryText = user.email\n        cell.contentConfiguration = config\n    }\n    \n    dataSource = UICollectionViewDiffableDataSource(\n        collectionView: collectionView\n    ) { collectionView, indexPath, user in\n        collectionView.dequeueConfiguredReusableCell(\n            using: cellReg, for: indexPath, item: user\n        )\n    }\n}\n\nfunc updateList(with users: [User]) {\n    var snapshot = NSDiffableDataSourceSnapshot<Section, User>()\n    snapshot.appendSections([.main])\n    snapshot.appendItems(users)\n    dataSource.apply(snapshot, animatingDifferences: true)\n}",
+                    "codeLang": "Swift",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Coordinator pattern bridges UIKit and SwiftUI",
+                    "content": "UIViewControllerRepresentable lets you wrap any UIKit view\ncontroller for use in SwiftUI. The key is the Coordinator — a\nclass that acts as delegate and data source.\n\nThe coordinator lives between SwiftUI's value-type world and\nUIKit's reference-type world. It handles delegate callbacks\nand communicates changes back via bindings.\n\nCreate the coordinator in makeCoordinator(), set it as the\ndelegate in makeUIViewController(), and update state in\nupdateUIViewController(). This three-step pattern covers\nvirtually any UIKit integration.\n\nThis is essential for using UIKit components that have no\nSwiftUI equivalent: camera, map annotations, PDF views, etc.",
+                    "codeSnippet": "struct ImagePicker: UIViewControllerRepresentable {\n    @Binding var selectedImage: UIImage?\n    @Environment(\\.dismiss) var dismiss\n    \n    func makeCoordinator() -> Coordinator {\n        Coordinator(self)\n    }\n    \n    func makeUIViewController(context: Context) -> UIImagePickerController {\n        let picker = UIImagePickerController()\n        picker.delegate = context.coordinator\n        return picker\n    }\n    \n    func updateUIViewController(_ uiVC: UIImagePickerController, context: Context) {}\n    \n    class Coordinator: NSObject, UIImagePickerControllerDelegate,\n                       UINavigationControllerDelegate {\n        let parent: ImagePicker\n        init(_ parent: ImagePicker) { self.parent = parent }\n        \n        func imagePickerController(_ picker: UIImagePickerController,\n            didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]) {\n            parent.selectedImage = info[.originalImage] as? UIImage\n            parent.dismiss()\n        }\n    }\n}",
+                    "codeLang": "Swift",
+                    "difficulty": "ADVANCED"
+                }
+            ]
+        }
+    ]
+}

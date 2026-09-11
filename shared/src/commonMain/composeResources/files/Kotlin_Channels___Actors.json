@@ -1,0 +1,98 @@
+{
+    "version": 1,
+    "author": "TechTalk",
+    "description": "Kotlin — Channels & Actors",
+    "entries": [
+        {
+            "technologyName": "Kotlin",
+            "topicName": "Channels & Actors",
+            "topicDescription": "Communication primitives for coroutines — send and receive values between concurrent tasks.",
+            "tips": [
+                {
+                    "title": "Fan-out lets multiple coroutines compete for values from one channel",
+                    "content": "Launching several coroutines that all receive from the same channel\ndistributes the work automatically — each value sent is delivered to\nexactly one of the competing receivers, giving you a worker-pool pattern\nwithout any manual load-balancing logic.\n\nThis is useful for parallelizing processing of a stream of work items\nwhere order doesn't matter and you want N workers consuming from a shared\nqueue.",
+                    "codeSnippet": "val workChannel = Channel<WorkItem>()\n\nrepeat(4) { workerId ->\n    launch {\n        for (item in workChannel) { process(item) } // 4 workers compete for items\n    }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Fan-in merges several producer channels into a single consumer stream",
+                    "content": "When multiple independent sources need to feed one processing pipeline,\nrunning a separate consumer per source duplicates the downstream logic.\n\nLaunching one coroutine per producer that forwards into a shared output\nchannel merges all sources into a single stream a single consumer can\nprocess uniformly, without the consumer needing to know how many\nproducers exist.",
+                    "codeSnippet": "suspend fun <T> fanIn(vararg sources: ReceiveChannel<T>, output: SendChannel<T>) = coroutineScope {\n    sources.forEach { source ->\n        launch { for (value in source) output.send(value) }\n    }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "select {} multiplexes across several channel operations at once",
+                    "content": "Waiting on multiple channels with separate blocking receive() calls forces\nyou to process them in a fixed order, even if a later channel has data\nready first.\n\nselect {} suspends until any one of several registered clauses (onReceive,\nonSend, a Deferred's onAwait) becomes ready, and runs only that clause —\nletting you react to whichever source is ready first, similar to a\nmulti-way non-blocking select() in networking code.",
+                    "codeSnippet": "select<Unit> {\n    channelA.onReceive { value -> handleA(value) }\n    channelB.onReceive { value -> handleB(value) }\n} // runs whichever channel has a value ready first",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Build an actor manually with a channel and a processing loop",
+                    "content": "The old actor{} coroutine builder is deprecated, but the actor pattern —\nserializing access to mutable state by funneling all mutations through\none channel and a single consuming coroutine — is still a valid,\nsupported approach when built manually.\n\nBecause only one coroutine ever reads from the channel and mutates the\nstate, there's no need for locks; concurrency safety comes from the\nsingle-consumer design itself.",
+                    "codeSnippet": "sealed interface CounterMsg { data object Increment : CounterMsg; data class Get(val response: CompletableDeferred<Int>) : CounterMsg }\n\nfun CoroutineScope.counterActor() = launch {\n    var count = 0\n    for (msg in actorChannel) when (msg) {\n        is CounterMsg.Increment -> count++\n        is CounterMsg.Get -> msg.response.complete(count)\n    }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "onUndeliveredElement prevents resource leaks on channel cancellation",
+                    "content": "If a channel holding closeable resources (file handles, subscriptions) is\ncancelled or closed while elements are still buffered, those elements are\nsimply dropped — nothing closes them automatically, which leaks the\nunderlying resource.\n\nPassing an onUndeliveredElement lambda to Channel()'s constructor registers\na cleanup callback invoked for every element that never reaches a\nreceiver, whether due to cancellation, an exception, or the channel\nclosing early.",
+                    "codeSnippet": "val channel = Channel<Connection>(capacity = 16, onUndeliveredElement = { conn -> conn.close() })\n// any Connection stuck in the buffer when cancelled gets closed automatically",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "close(cause) vs cancel() have different consumer-visible semantics",
+                    "content": "channel.close() (no cause) lets consumers finish draining any already-\nbuffered elements before the for-loop ends normally — it's a graceful\nshutdown signal. channel.close(cause) still drains buffered elements, but\nthe consumer's iteration eventually throws that cause once drained.\n\nchannel.cancel() is more aggressive: it immediately discards any buffered\nelements and makes all pending and future receive attempts fail right\naway, rather than draining first — use cancel() when buffered data is no\nlonger relevant, not just to signal completion.",
+                    "codeSnippet": "channel.close() // consumers finish draining buffered values, then exit the for-loop\nchannel.close(IOException(\"connection lost\")) // drains, then throws after\nchannel.cancel() // buffered values discarded immediately, receivers fail right away",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Prefer SharedFlow over BroadcastChannel for hot multicast streams",
+                    "content": "BroadcastChannel is deprecated in favor of SharedFlow, which solves the\nsame 'one value, many subscribers' problem with clearer backpressure\nsemantics (replay cache, extraBufferCapacity, and an explicit\nonBufferOverflow strategy) instead of BroadcastChannel's less flexible\nconflation-only behavior.\n\nSharedFlow is also better integrated with the rest of the Flow API,\nletting you apply standard operators to a hot multicast stream instead of\nworking with a separate Channel-based API surface.",
+                    "codeSnippet": "val events = MutableSharedFlow<Event>(\n    replay = 1,\n    extraBufferCapacity = 8,\n    onBufferOverflow = BufferOverflow.DROP_OLDEST\n)\n// replaces BroadcastChannel(Channel.CONFLATED)",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Pipeline pattern chains channels through coroutines for streaming transforms",
+                    "content": "Processing a large stream through several sequential transformation\nsteps (parse, validate, enrich, persist) as one monolithic loop makes it\nhard to parallelize individual stages or reason about them independently.\n\nA channel-based pipeline has each stage be its own coroutine reading from\none channel and writing to the next — each stage can run concurrently\nwith the others, and stages naturally backpressure upstream if a buffered\nchannel fills up.",
+                    "codeSnippet": "fun CoroutineScope.parseStage(input: ReceiveChannel<String>) = produce<Record> {\n    for (line in input) send(parse(line))\n}\nfun CoroutineScope.validateStage(input: ReceiveChannel<Record>) = produce<Record> {\n    for (record in input) if (record.isValid) send(record)\n}\n// chain: validateStage(parseStage(rawLines))",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "CONFLATED channels implement backpressure by keeping only the latest value",
+                    "content": "A rendezvous or bounded channel applies backpressure by making the sender\nsuspend when the consumer falls behind — but sometimes only the most\nrecent value matters (live location updates, current UI state), and\nolder unconsumed values are just noise.\n\nChannel(Channel.CONFLATED) never suspends the sender; instead, sending a\nnew value while an old one is still unconsumed silently overwrites it —\nthe consumer only ever sees the latest state, never a backlog.",
+                    "codeSnippet": "val locationChannel = Channel<Location>(Channel.CONFLATED)\n\nlaunch { while (true) { locationChannel.send(getCurrentLocation()); delay(100) } }\n// consumer always gets the freshest location, never queued stale ones",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "produce{} combines channel creation and coroutine launch into one call",
+                    "content": "Manually creating a Channel and separately launching a coroutine to fill\nit is boilerplate that's easy to get slightly wrong — forgetting to close\nthe channel, or launching in the wrong scope.\n\nThe produce{} coroutine builder returns a ReceiveChannel directly, runs\nthe given block in a new coroutine bound to the calling scope, and\nautomatically closes the channel when the block completes or the\ncoroutine is cancelled.",
+                    "codeSnippet": "fun CoroutineScope.numbersFrom(start: Int) = produce<Int> {\n    var x = start\n    while (true) { send(x++); delay(100) }\n} // channel auto-closes when this coroutine is cancelled",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Closing a channel tells receivers no more values are coming",
+                    "content": "A channel that's never closed leaves receivers waiting (suspended)\nindefinitely once the producer is done, since `for (value in channel)`\nonly ends when the channel closes.\n\nCalling channel.close() after the last send() lets any active or future\nfor-loop over the channel finish cleanly instead of hanging forever.",
+                    "codeSnippet": "val channel = Channel<Int>()\n\nlaunch {\n    repeat(5) { channel.send(it) }\n    channel.close() // signals \"no more values\" to receivers\n}\n\nfor (value in channel) { println(value) } // loop ends automatically after close()",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "trySend and tryReceive never suspend, unlike send and receive",
+                    "content": "send() and receive() are suspend functions — they pause the coroutine if\nthe channel isn't ready (full or empty). Sometimes you need to attempt an\noperation without suspending at all, such as inside a non-suspending\ncallback.\n\ntrySend()/tryReceive() attempt the operation immediately and return a\nChannelResult indicating success or failure, instead of suspending — useful\nwhen suspension isn't possible at the call site.",
+                    "codeSnippet": "val channel = Channel<Int>(capacity = 10)\n\nval result = channel.trySend(5)\nif (result.isSuccess) println(\"Sent immediately\") else println(\"Channel full or closed\")",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                }
+            ]
+        }
+    ]
+}

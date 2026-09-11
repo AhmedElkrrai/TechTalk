@@ -1,0 +1,265 @@
+{
+    "version": 1,
+    "author": "TechTalk",
+    "description": "iOS battles",
+    "entries": [
+        {
+            "technologyName": "iOS",
+            "topicName": "App Lifecycle",
+            "topicDescription": "Understanding app states, scene delegates, and background execution.",
+            "questions": [
+                {
+                    "questionText": "How does a type implement an interface in Go?",
+                    "difficulty": "BEGINNER",
+                    "explanation": "In Go, a type implements an interface implicitly by implementing all of its methods. There's no 'implements' keyword.",
+                    "answers": [
+                        {
+                            "answerText": "Implicitly, by implementing all interface methods",
+                            "isCorrect": true
+                        },
+                        {
+                            "answerText": "With the 'implements' keyword",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "By inheriting from the interface",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "By registering with the runtime",
+                            "isCorrect": false
+                        }
+                    ]
+                },
+                {
+                    "questionText": "What is the empty interface (interface{}) in Go?",
+                    "difficulty": "INTERMEDIATE",
+                    "explanation": "interface{} (or 'any' in Go 1.18+) has zero methods, so every type satisfies it. It's used for values of unknown type.",
+                    "answers": [
+                        {
+                            "answerText": "An interface with no methods — satisfied by every type",
+                            "isCorrect": true
+                        },
+                        {
+                            "answerText": "An interface that cannot be used",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "A special error type",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "An interface for empty structs only",
+                            "isCorrect": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "technologyName": "iOS",
+            "topicName": "Core Data & SwiftData",
+            "topicDescription": "Persistent storage and object-graph management on Apple platforms.",
+            "questions": [
+                {
+                    "questionText": "How are errors typically returned in Go?",
+                    "difficulty": "BEGINNER",
+                    "explanation": "Go functions return errors as the last return value. Callers check 'if err != nil' to handle the error.",
+                    "answers": [
+                        {
+                            "answerText": "As the last return value, checked with 'if err != nil'",
+                            "isCorrect": true
+                        },
+                        {
+                            "answerText": "By throwing exceptions",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "Via a global error variable",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "By logging to stderr automatically",
+                            "isCorrect": false
+                        }
+                    ]
+                },
+                {
+                    "questionText": "What does panic() do in Go?",
+                    "difficulty": "INTERMEDIATE",
+                    "explanation": "panic() stops normal execution, runs deferred functions, then crashes the program. It's for unrecoverable errors, not normal error handling.",
+                    "answers": [
+                        {
+                            "answerText": "Stops execution, runs deferred functions, then crashes",
+                            "isCorrect": true
+                        },
+                        {
+                            "answerText": "Returns an error to the caller",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "Logs a warning and continues",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "Retries the failed operation",
+                            "isCorrect": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "technologyName": "iOS",
+            "topicName": "Networking",
+            "topicDescription": "Making HTTP requests and handling APIs with URLSession and modern patterns.",
+            "questions": [
+                {
+                    "questionText": "What is the difference between a slice and an array in Go?",
+                    "difficulty": "BEGINNER",
+                    "explanation": "Arrays have a fixed size that's part of their type. Slices are dynamically-sized references to arrays, and are used far more often.",
+                    "answers": [
+                        {
+                            "answerText": "Arrays are fixed-size; slices are dynamic references to arrays",
+                            "isCorrect": true
+                        },
+                        {
+                            "answerText": "Slices are immutable; arrays are mutable",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "They are the same thing",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "Arrays can hold any type; slices are typed",
+                            "isCorrect": false
+                        }
+                    ]
+                },
+                {
+                    "questionText": "What function is used to add elements to a slice in Go?",
+                    "difficulty": "INTERMEDIATE",
+                    "explanation": "The built-in append() function adds elements to a slice, growing its underlying array if needed.",
+                    "answers": [
+                        {
+                            "answerText": "append()",
+                            "isCorrect": true
+                        },
+                        {
+                            "answerText": "add()",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "push()",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "insert()",
+                            "isCorrect": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "technologyName": "iOS",
+            "topicName": "SwiftUI",
+            "topicDescription": "Apple's declarative UI framework for building interfaces across all platforms.",
+            "questions": [
+                {
+                    "questionText": "What is the entry point of a SwiftUI app?",
+                    "difficulty": "BEGINNER",
+                    "explanation": "The @main attribute on an App struct marks it as the entry point. The 'body' property returns a Scene containing your views.",
+                    "answers": [
+                        {
+                            "answerText": "A struct with @main and a body returning a Scene",
+                            "isCorrect": true
+                        },
+                        {
+                            "answerText": "AppDelegate's didFinishLaunching method",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "The first View in the project",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "Main.storyboard",
+                            "isCorrect": false
+                        }
+                    ]
+                },
+                {
+                    "questionText": "What property wrapper makes a value observable in SwiftUI?",
+                    "difficulty": "INTERMEDIATE",
+                    "explanation": "@State creates a source of truth for value types. When the state changes, SwiftUI automatically re-renders the views that read it.",
+                    "answers": [
+                        {
+                            "answerText": "@State",
+                            "isCorrect": true
+                        },
+                        {
+                            "answerText": "@Binding",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "@Published",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "@Observable",
+                            "isCorrect": false
+                        }
+                    ]
+                },
+                {
+                    "questionText": "What does 'go mod init' do?",
+                    "difficulty": "BEGINNER",
+                    "explanation": "It initializes a new Go module by creating a go.mod file that tracks the module path and its dependencies.",
+                    "answers": [
+                        {
+                            "answerText": "Creates a go.mod file to initialize a new module",
+                            "isCorrect": true
+                        },
+                        {
+                            "answerText": "Compiles all Go files in the directory",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "Downloads all dependencies",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "Runs all tests in the module",
+                            "isCorrect": false
+                        }
+                    ]
+                },
+                {
+                    "questionText": "What is the naming convention for exported identifiers in Go?",
+                    "difficulty": "INTERMEDIATE",
+                    "explanation": "Identifiers starting with an uppercase letter are exported (public). Lowercase identifiers are unexported (package-private).",
+                    "answers": [
+                        {
+                            "answerText": "Uppercase first letter = exported; lowercase = unexported",
+                            "isCorrect": true
+                        },
+                        {
+                            "answerText": "Use the 'public' and 'private' keywords",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "Prefix with underscore for private",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "All identifiers are public by default",
+                            "isCorrect": false
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

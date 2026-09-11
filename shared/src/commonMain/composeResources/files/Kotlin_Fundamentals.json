@@ -1,0 +1,357 @@
+{
+    "version": 1,
+    "author": "TechTalk",
+    "description": "Kotlin — Fundamentals",
+    "entries": [
+        {
+            "technologyName": "Kotlin",
+            "topicName": "Fundamentals",
+            "topicDescription": "Core language features and idioms that make Kotlin code more concise and expressive.",
+            "tips": [
+                {
+                    "title": "Function references (::) avoid redundant wrapper lambdas",
+                    "content": "Writing `list.map { it -> someFunction(it) }` when someFunction's\nsignature already matches what map expects is unnecessary indirection —\nthe lambda does nothing but forward its argument.\n\n`::someFunction` passes the function itself as a value, which is both\nshorter and, for top-level and member functions, resolves without\nallocating a wrapping lambda in cases the compiler can optimize.",
+                    "codeSnippet": "fun isEven(n: Int) = n % 2 == 0\n\nval evens = numbers.filter { isEven(it) } // redundant wrapper\nval evens2 = numbers.filter(::isEven)      // direct function reference\n\nval lengths = strings.map(String::length)  // bound to a member function",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "SAM conversion lets a lambda satisfy a Java functional interface",
+                    "content": "Java functional interfaces (Runnable, Comparator, custom single-abstract-\nmethod interfaces) traditionally need an anonymous class implementation\nwhen called from Kotlin.\n\nSAM (Single Abstract Method) conversion automatically wraps a lambda as an\nimplementation of any functional interface with exactly one abstract\nmethod, so you can pass a plain lambda anywhere a Java or Kotlin `fun\ninterface` is expected — Kotlin interfaces need the `fun interface`\nmodifier to opt into this.",
+                    "codeSnippet": "fun interface Validator { fun isValid(input: String): Boolean }\n\nfun check(input: String, validator: Validator) = validator.isValid(input)\n\ncheck(\"test\") { it.isNotBlank() } // lambda auto-converted to Validator",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Trailing lambda syntax moves the last lambda parameter outside parens",
+                    "content": "When a function's last parameter is a lambda, Kotlin lets you move it\noutside the parentheses entirely — and if it's the only parameter, the\nparentheses can be omitted altogether. This is what makes builder-style\nAPIs like `Column { ... }` in Compose or `apply { ... }` read cleanly.\n\nBe careful when a function has two lambda parameters — only the last one\ncan use trailing syntax, so earlier lambda parameters must be passed\nnormally inside the parentheses.",
+                    "codeSnippet": "list.forEach { println(it) } // no parens needed — sole lambda param\n\nfun retry(times: Int, action: () -> Unit) { repeat(times) { action() } }\nretry(3) { println(\"attempt\") } // trailing lambda after a regular param",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "Single-expression functions cut boilerplate for simple logic",
+                    "content": "A function whose body is a single return expression doesn't need explicit\nbraces or a return statement — assigning the body with `=` lets the\ncompiler infer the return type from the expression (unless it's part of\na public API, where an explicit type is good practice for documentation).\n\nThis is purely a readability convention: single-expression functions read\nmore like a definition ('this function equals this expression') than a\nprocedure with a return statement.",
+                    "codeSnippet": "// Verbose:\nfun square(x: Int): Int { return x * x }\n\n// Single-expression:\nfun square(x: Int) = x * x\n\nfun isAdult(age: Int) = age >= 18",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "tailrec eliminates stack growth for tail-recursive functions",
+                    "content": "A plain recursive function adds a new stack frame per call, risking\nStackOverflowError for deep recursion (e.g. processing a very long list\nrecursively).\n\nMarking a function tailrec tells the compiler to rewrite genuine tail\nrecursion (the recursive call is the very last operation, with no\nadditional computation after it returns) into an equivalent loop at compile\ntime — the compiler warns you if the function doesn't actually qualify as\ntail-recursive.",
+                    "codeSnippet": "tailrec fun factorial(n: Long, accumulator: Long = 1): Long =\n    if (n <= 1) accumulator else factorial(n - 1, n * accumulator)\n\nfactorial(100_000) // compiled to a loop — no stack overflow",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Labeled break/continue escape nested loops precisely",
+                    "content": "A plain `break` or `continue` only affects the innermost enclosing loop —\nescaping an outer loop from inside a nested one traditionally requires a\nflag variable checked after the inner loop, adding noise.\n\nA label (`outer@ for (...) { ... break@outer }`) lets break/continue target\na specific enclosing loop directly, removing the need for a manual flag\nvariable to signal an early exit from a nested structure.",
+                    "codeSnippet": "outer@ for (row in matrix) {\n    for (cell in row) {\n        if (cell == target) break@outer // exits both loops immediately\n    }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "== calls equals(); === checks reference identity",
+                    "content": "Coming from languages where `==` means identity comparison, it's easy to\nmisuse Kotlin's operators: `==` is structural equality (it calls\n.equals(), null-safely), while `===` is the one that checks whether two\nreferences point to the exact same object in memory.\n\nFor data classes this distinction matters constantly — two separately\nconstructed instances with identical field values are `==` equal but\n`===` different, since they're distinct objects with the same content.",
+                    "codeSnippet": "val a = User(\"1\", \"Ahmed\")\nval b = User(\"1\", \"Ahmed\")\n\nprintln(a == b)  // true — equals() compares field values\nprintln(a === b) // false — two distinct object instances",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "Extension properties add computed members without a backing field",
+                    "content": "Like extension functions, extension properties let you add members to a\ntype you don't own — but they can't have a backing field (no state storage\nof their own), since they don't actually modify the original class.\n\nAn extension property must be computed entirely from a custom getter (and\noptionally a setter that writes through to some existing state on the\nreceiver) — you can't declare `val Foo.bar = 5` with a stored initial value.",
+                    "codeSnippet": "val String.isValidEmail: Boolean\n    get() = Regex(\"^[^@]+@[^@]+\\\\.[^@]+$\").matches(this)\n\nprintln(\"a@b.com\".isValidEmail) // reads like a real property",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Custom property getters/setters run logic on every access",
+                    "content": "Unlike a plain stored property, a custom get()/set() lets you run\nvalidation, transformation, or derived-value logic every time the\nproperty is read or written — while still looking like ordinary field\naccess at every call site.\n\nA `val` with only a getter recomputes its value on every access (it's not\ncached, unlike `by lazy`), so keep the getter's logic cheap or move to a\nlazy delegate if the computation is expensive and the value shouldn't\nchange.",
+                    "codeSnippet": "class Rectangle(val width: Int, val height: Int) {\n    val area: Int\n        get() = width * height // recomputed on every access\n\n    var name: String = \"\"\n        set(value) { field = value.trim() } // 'field' refers to the backing field\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "Enum classes can hold properties and per-constant method overrides",
+                    "content": "Kotlin enums aren't limited to plain named constants — each entry can\ncarry constructor-assigned properties, and individual entries can override\nabstract methods with entry-specific behavior, similar to Java enums.\n\nThis is useful for fixed, closed sets where each variant needs distinct\nbehavior but no additional per-instance data beyond the enum's own\nproperties — for a genuinely open set of variants with per-instance data,\na sealed class is usually the better fit.",
+                    "codeSnippet": "enum class HttpMethod(val isIdempotent: Boolean) {\n    GET(true) { override fun describe() = \"Fetches a resource\" },\n    POST(false) { override fun describe() = \"Creates a resource\" };\n\n    abstract fun describe(): String\n}\n\nprintln(HttpMethod.GET.isIdempotent) // true",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "operator fun invoke makes an object callable like a function",
+                    "content": "Defining `invoke` as an operator function on a class lets instances of\nthat class be called directly with function-call syntax — `myObject(args)`\n— which is how many DSL entry points and factory-style objects present a\nfunction-like API while still being a full object with state.\n\nThis is commonly used for factory objects (a companion object's invoke\nacting as a constructor-like call) or for wrapping stateful logic behind\nwhat looks like a plain function call at the use site.",
+                    "codeSnippet": "class Multiplier(private val factor: Int) {\n    operator fun invoke(value: Int): Int = value * factor\n}\n\nval triple = Multiplier(3)\nprintln(triple(10)) // 30 — calls invoke() under the hood",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Pick the right scope function by what it returns and what 'this' means",
+                    "content": "let/run/with/apply/also all do similar things but differ in receiver type\n(this vs it) and return value (lambda result vs receiver).\n\napply and also return the receiver — use apply for configuring an object\n(this-style) and also for side effects like logging (it-style). let and run\nreturn the lambda result — use let for null-checked transformations and run\nfor computing a value from a receiver's members.",
+                    "codeSnippet": "val user = User().apply { name = \"Ahmed\" } // configure, returns User\nval length = name?.let { it.length } ?: 0   // null-safe transform\nval result = connection.run { execute(query) } // compute from receiver",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "inline functions eliminate lambda allocation overhead",
+                    "content": "Every lambda passed to a regular function is compiled to an anonymous class\ninstance, which allocates on the heap and adds indirection on each call.\n\nMarking a higher-order function inline copies its bytecode (and the lambda\nbody) directly into the call site, avoiding the allocation entirely — this\nis why standard library functions like map, filter, and let are all inline.\nOnly inline functions that take function parameters; inlining large\nfunction bodies bloats generated bytecode.",
+                    "codeSnippet": "inline fun <T> measureAndLog(label: String, block: () -> T): T {\n    val start = System.nanoTime()\n    val result = block()\n    println(\"$label took ${(System.nanoTime() - start) / 1_000_000}ms\")\n    return result\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Extension functions don't override — they resolve statically",
+                    "content": "Extension functions look like methods but are resolved at compile time\nbased on the declared static type of the receiver, not the runtime type.\n\nThis means an extension function is never polymorphic like a real member\nfunction — if a subclass defines an extension with the same signature, the\none that runs depends on the variable's declared type, which can silently\nsurprise you when working with base-class-typed references.",
+                    "codeSnippet": "open class Animal\nclass Dog : Animal()\n\nfun Animal.sound() = \"...\"\nfun Dog.sound() = \"Woof\"\n\nval a: Animal = Dog()\nprintln(a.sound()) // prints \"...\" — resolved by declared type, not Dog",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Use value classes to wrap primitives without runtime overhead",
+                    "content": "Passing raw String or Int for domain concepts like UserId or CentsAmount\nmakes it easy to accidentally swap two same-typed parameters at a call site.\n\nA @JvmInline value class wraps a single property and is erased to the\nunderlying type at compile time in most cases, giving you type safety at\ncompile time without the allocation cost of a full wrapper object — though\nboxing still occurs when the value class is used in generic or nullable\ncontexts.",
+                    "codeSnippet": "@JvmInline\nvalue class UserId(val value: String)\n\nfun fetchUser(id: UserId) { /* ... */ }\n\n// fetchUser(\"some-string\") // compile error — can't pass raw String\nfetchUser(UserId(\"u_123\"))",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Reified type parameters let you inspect T at runtime",
+                    "content": "Generic type parameters are normally erased at runtime, so you can't do\n`T::class` or `is T` inside a generic function — the JVM doesn't know what\nT was.\n\nMarking an inline function's type parameter reified keeps the actual type\navailable inside the function body, because the compiler substitutes the\nreal type at each inlined call site. This is how functions like\nGson's fromJson<T>() avoid needing a Class<T> parameter.",
+                    "codeSnippet": "inline fun <reified T> Gson.fromJson(json: String): T =\n    fromJson(json, T::class.java)\n\nval user: User = gson.fromJson(jsonString) // no Class<User> needed",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Prefer sealed interfaces over enums when variants carry different data",
+                    "content": "Enums are great for a fixed set of interchangeable constants, but every\nenum entry shares the same properties — you can't give one variant an extra\nfield without giving it to all of them.\n\nSealed interfaces let each variant be its own class with its own\nproperties, while still giving you exhaustive `when` checks like an enum.\nReach for sealed interfaces whenever different states or variants need\ndifferent associated data.",
+                    "codeSnippet": "sealed interface DownloadState {\n    data object Idle : DownloadState\n    data class InProgress(val percent: Int) : DownloadState\n    data class Failed(val error: Throwable) : DownloadState\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "crossinline forbids a lambda from doing a non-local return",
+                    "content": "Inside an inline function, a lambda parameter can normally return from\nthe enclosing function directly (a non-local return) — but if that lambda\nis actually invoked from inside another execution context (a nested\nobject expression or another lambda), a non-local return there isn't\nvalid Kotlin.\n\nMarking the parameter crossinline forbids non-local returns from that\nspecific lambda at compile time, which is required whenever the lambda is\ninvoked indirectly rather than called directly within the inline\nfunction's own body.",
+                    "codeSnippet": "inline fun runInBackground(crossinline action: () -> Unit) {\n    thread { action() } // action is invoked from another execution context\n    // without crossinline, a non-local return inside action would be illegal here\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "noinline opts a specific lambda parameter out of inlining",
+                    "content": "By default, every function-typed parameter of an inline function is\nitself inlined at the call site — but sometimes you need to pass that\nlambda onward as a real object reference (storing it in a field, passing\nit to a non-inline function), which requires it to actually exist as a\ncompiled object.\n\nMarking a specific parameter noinline excludes just that one lambda from\ninlining while the rest of the function and its other lambda parameters\nstay inlined.",
+                    "codeSnippet": "inline fun setup(inlinedAction: () -> Unit, noinline storedCallback: () -> Unit) {\n    inlinedAction() // inlined directly\n    registry.save(storedCallback) // must be a real object reference to store\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Non-local returns only work from lambdas passed to inline functions",
+                    "content": "A `return` written inside a lambda passed to a regular (non-inline)\nhigher-order function is actually illegal Kotlin — the compiler has no way\nto make that return exit the enclosing function, since the lambda is a\nseparate compiled object by the time it runs.\n\nBecause inline functions copy the lambda's body directly into the call\nsite, a `return` inside it genuinely does exit the enclosing function —\nthis is why `return` works naturally inside a forEach {} (inline) but not\ninside a custom non-inline higher-order function with the same shape.",
+                    "codeSnippet": "inline fun forEachInline(items: List<Int>, action: (Int) -> Unit) { for (i in items) action(i) }\n\nfun findFirstEven(items: List<Int>): Int? {\n    forEachInline(items) { if (it % 2 == 0) return it } // legal — inline function\n    return null\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "@DslMarker prevents accidental access to an outer DSL receiver",
+                    "content": "Nested DSL builders (a menu builder inside a screen builder, say) both\nexpose `this` implicitly inside their lambdas — without any restriction,\nan inner lambda can accidentally call a method on the outer receiver\ninstead of the intended inner one, since both are implicitly in scope.\n\n@DslMarker-annotated receiver types restrict implicit receiver resolution\nso only the innermost matching receiver is directly accessible, forcing\nyou to write `this@Outer.method()` explicitly if you genuinely need the\nouter receiver — this is how Kotlin's HTML and Compose-style DSLs avoid\nscope leakage bugs.",
+                    "codeSnippet": "@DslMarker annotation class ScreenDsl\n\n@ScreenDsl class ScreenBuilder { fun menu(block: MenuBuilder.() -> Unit) { } }\n@ScreenDsl class MenuBuilder { fun item(name: String) { } }\n// inside menu { }, calling a ScreenBuilder method requires this@ScreenBuilder explicitly",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "A private constructor on a sealed class fully closes instantiation",
+                    "content": "Sealed classes already restrict subclassing to the same module (or file,\npre-1.5), but the base sealed class itself can still technically be\ninstantiated directly if it has an accessible constructor and isn't\nabstract.\n\nGiving the sealed class a private constructor removes even that\npossibility, ensuring the only way to obtain an instance is through one of\nits declared subclasses — useful when the base type is meant purely as a\ncommon supertype, never a direct instance.",
+                    "codeSnippet": "sealed class Result private constructor() {\n    data class Success(val data: String) : Result()\n    data class Failure(val error: Throwable) : Result()\n}\n// Result() is not callable from anywhere, even within the same file",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "init blocks execute in declaration order, interleaved with property initializers",
+                    "content": "A class can have multiple init blocks and property initializers, and it's\na common misconception that all property initializers run before all init\nblocks — in reality, they execute strictly in the order they're written\nin the class body, top to bottom.\n\nThis matters when an init block reads a property declared above it (safe,\nalready initialized) versus one declared below it (would read the\nuninitialized default, not a compile error but a logic bug).",
+                    "codeSnippet": "class Example {\n    val first = 1\n    init { println(\"first is $first\") } // safe — first already initialized\n    val second = first + 1\n    init { println(\"second is $second\") } // runs after 'second' initializer above it\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Function composition via extension functions creates reusable pipelines",
+                    "content": "Chaining several single-purpose transformation functions manually\n(c(b(a(x)))) reads inside-out and obscures the actual order of operations,\nespecially as more steps are added.\n\nA small `compose`/`andThen` extension on function types lets you build a\nnew function from several smaller ones, then apply the combined pipeline\nto a value — this reads left-to-right in the order operations actually\nhappen, and the composed function can be stored and reused.",
+                    "codeSnippet": "infix fun <A, B, C> ((A) -> B).andThen(next: (B) -> C): (A) -> C = { next(this(it)) }\n\nval pipeline = ::trim andThen ::lowercase andThen ::sanitize\nval result = pipeline(\"  Raw INPUT  \")",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Explicit API mode enforces visibility and return types for library authors",
+                    "content": "In application code, omitting visibility modifiers (defaulting to public)\nand relying on inferred return types is convenient — but for a published\nlibrary, an inferred public return type can change unexpectedly between\nversions if the implementation changes, silently breaking consumers.\n\nEnabling explicitApi() in build.gradle.kts forces every public\ndeclaration to have an explicit visibility modifier and explicit return\ntype, turning accidental API surface changes into compile errors during\ndevelopment instead of runtime surprises for consumers.",
+                    "codeSnippet": "// build.gradle.kts\nkotlin {\n    explicitApi() // or explicitApiWarning() for warnings instead of errors\n}\n\n// now this won't compile without an explicit type:\n// public fun getConfig() = loadConfig() // error: missing return type",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Reflection via KProperty/KFunction accesses metadata, not just values",
+                    "content": "Beyond simply reading a property's value, Kotlin reflection (via the\nkotlin-reflect artifact) exposes metadata about declarations themselves —\nannotations present, parameter names, visibility — enabling generic\nframeworks like serialization libraries or DI containers to inspect code\nstructure at runtime.\n\nThis has real cost: kotlin-reflect adds a non-trivial dependency size and\nruntime overhead, and heavy reflection use is also a common source of\nobfuscation breakage in DexGuard/R8-shrunk builds, since reflected members\nneed explicit keep rules.",
+                    "codeSnippet": "val prop = User::class.members.first { it.name == \"email\" } as KProperty1<User, String>\nval hasAnnotation = prop.annotations.any { it is Sensitive }\n\nprintln(\"Property ${prop.name} is sensitive: $hasAnnotation\")",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Custom annotations combine retention and target to control their lifecycle",
+                    "content": "An annotation with no explicit @Retention defaults to RUNTIME, meaning\nit's compiled into the class file and readable via reflection — but many\nannotations (documentation markers, compiler-only hints) don't need that\ncost and should use SOURCE or BINARY retention instead.\n\n@Target restricts which declarations the annotation can be applied to\n(classes, functions, properties, parameters) — combining a narrow @Target\nwith the minimum necessary @Retention keeps annotations both correctly\nscoped and free of unnecessary runtime footprint.",
+                    "codeSnippet": "@Target(AnnotationTarget.FUNCTION)\n@Retention(AnnotationRetention.SOURCE) // compile-time only, not in the .class file\nannotation class Idempotent\n\n@Idempotent\nfun deleteUser(id: String) { }",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Unit is Kotlin's equivalent of void, but it's a real type",
+                    "content": "A function with no meaningful return value implicitly returns Unit, not\nnothing — unlike Java's void, Unit is an actual singleton object type,\nwhich means it can be used as a generic type argument where void couldn't.\n\nYou rarely write Unit explicitly since the compiler infers it, but knowing\nit's a real value (not the absence of one) explains why function types\nlike `() -> Unit` work uniformly with function types that do return values.",
+                    "codeSnippet": "fun logMessage(msg: String): Unit { println(msg) } // Unit is usually omitted\n\nfun logMessage(msg: String) { println(msg) } // same thing, inferred as Unit\n\nval callback: () -> Unit = { println(\"done\") } // Unit used as a real type argument",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "Semicolons are optional — Kotlin infers statement boundaries from newlines",
+                    "content": "Kotlin doesn't require a semicolon at the end of each statement the way\nJava does; the compiler uses line breaks to determine where one statement\nends and the next begins.\n\nSemicolons are still valid if you want to put multiple statements on one\nline, but idiomatic Kotlin style omits them entirely for single-statement\nlines — most style guides and linters (ktlint, detekt) flag unnecessary\nsemicolons.",
+                    "codeSnippet": "val x = 5 // no semicolon needed\nval y = 10\n\nval a = 1; val b = 2 // semicolon needed only to separate statements on one line",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "Any is the root of Kotlin's class hierarchy, not Object",
+                    "content": "Every class in Kotlin implicitly inherits from Any (not java.lang.Object,\nthough Any maps to Object on the JVM) — Any defines only equals(),\nhashCode(), and toString(), a smaller default surface than Java's Object.\n\nBecause Any has no wait()/notify()/getClass() methods, Kotlin keeps the\ncommon supertype minimal — reflection-style operations go through separate\nfunctions like ::class instead of being baked into every object.",
+                    "codeSnippet": "fun describe(value: Any): String = value.toString() // Any accepted for any type\n\nclass Foo // implicitly : Any\nprintln(Foo() is Any) // true — every type is a subtype of Any",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "data class auto-generates equals, hashCode, toString, and copy",
+                    "content": "Writing equals/hashCode/toString by hand for every model class is\nrepetitive and easy to get subtly wrong (forgetting a field in equals but\nnot toString, for example).\n\nThe data modifier generates all of these from the primary constructor\nproperties automatically, plus a copy() function for immutable-style\nupdates. Properties declared in the class body (not the constructor) are\nexcluded from the generated methods, which is a common source of confusion.",
+                    "codeSnippet": "data class User(val id: String, val name: String)\n\nval u1 = User(\"1\", \"Ahmed\")\nval u2 = u1.copy(name = \"Ali\") // new instance, id unchanged\nprintln(u1 == u2) // false — equals compares constructor properties",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "componentN() functions power destructuring declarations",
+                    "content": "Destructuring like `val (id, name) = user` isn't special syntax tied only\nto data classes — it works on any type that defines component1(),\ncomponent2(), etc. as operator functions.\n\ndata class generates these automatically for its constructor properties,\nbut you can add them to any class (or via extension functions on types you\ndon't own) to enable destructuring for your own types.",
+                    "codeSnippet": "class Point(val x: Int, val y: Int) {\n    operator fun component1() = x\n    operator fun component2() = y\n}\n\nval (x, y) = Point(3, 4) // destructures via component1()/component2()",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Named arguments make call sites self-documenting",
+                    "content": "A call like `createUser(\"Ahmed\", true, false)` gives no clue what the\nbooleans mean without checking the function signature, and it's easy to\naccidentally swap two same-typed arguments.\n\nNamed arguments let you label each value at the call site, and combined\nwith default parameters, let you skip arguments in the middle of a\nparameter list — something positional arguments can't do.",
+                    "codeSnippet": "fun createUser(name: String, isAdmin: Boolean = false, isVerified: Boolean = false) { }\n\ncreateUser(name = \"Ahmed\", isVerified = true) // isAdmin uses its default, order is clear",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "vararg plus the spread operator bridges arrays and variable arguments",
+                    "content": "A vararg parameter lets callers pass any number of arguments without\nwrapping them in a list, but you can't pass an existing Array directly —\nKotlin requires the spread operator to unpack it into individual arguments.\n\nOnly one vararg parameter is allowed per function, and it's conventionally\nplaced last so trailing lambda syntax still works alongside it.",
+                    "codeSnippet": "fun sum(vararg numbers: Int): Int = numbers.sum()\n\nsum(1, 2, 3) // direct varargs\n\nval array = intArrayOf(4, 5, 6)\nsum(*array) // spread operator unpacks the array",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "Local functions scope helper logic without polluting the class",
+                    "content": "A private helper method used by only one function still shows up in the\nclass's full member list and can be called from anywhere else in the\nclass, even though it's only meaningful in one context.\n\nA function declared inside another function is scoped entirely to that\nenclosing function, can capture its local variables and parameters like a\nclosure, and disappears from the class's public surface entirely.",
+                    "codeSnippet": "fun processOrder(order: Order) {\n    fun validate(item: OrderItem): Boolean = item.quantity > 0 && item.price >= 0\n\n    val validItems = order.items.filter(::validate)\n    // validate() is invisible outside processOrder\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "Lambdas with receiver are the foundation of Kotlin DSLs",
+                    "content": "A normal lambda type like `(Config) -> Unit` requires callers to reference\nthe parameter explicitly (`it.setName(...)`). A function type with a\nreceiver, `Config.() -> Unit`, makes the parameter the implicit `this`\ninside the lambda, so its members are called directly without a prefix.\n\nThis is exactly what powers builder-style DSLs like Compose's Modifier\nchains or Gradle's build.gradle.kts blocks — the lambda body reads like it\nis a method inside the receiver type.",
+                    "codeSnippet": "class HttpRequestBuilder { var url: String = \"\"; var method: String = \"GET\" }\n\nfun request(block: HttpRequestBuilder.() -> Unit): HttpRequestBuilder =\n    HttpRequestBuilder().apply(block)\n\nval req = request {\n    url = \"https://api.example.com\" // 'this' is implicit HttpRequestBuilder\n    method = \"POST\"\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Operator overloading maps symbols to conventionally-named functions",
+                    "content": "Kotlin lets you define what `+`, `[]`, `in`, and other operators mean for\nyour own types by implementing specifically-named functions marked with\nthe operator keyword — the compiler translates the symbol to a function\ncall at compile time.\n\nUse this sparingly and only when the operator's mathematical or\nconventional meaning genuinely matches your type — overloading `+` to mean\nsomething unrelated to addition makes code misleading rather than concise.",
+                    "codeSnippet": "data class Money(val cents: Long) {\n    operator fun plus(other: Money) = Money(cents + other.cents)\n    operator fun compareTo(other: Money) = cents.compareTo(other.cents)\n}\n\nval total = Money(500) + Money(250) // calls plus()\nprintln(Money(100) < Money(200))     // calls compareTo()",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "infix functions read like natural-language operators",
+                    "content": "A regular function call like `map.put(key, value)` or\n`list.zipWith(other)` works fine, but for simple two-operand operations,\nthe dot-and-parentheses syntax adds visual noise that isn't always needed.\n\nA single-parameter member or extension function marked infix can be called\nwithout the dot or parentheses — this is how `1 to 2` (creating a Pair) and\n`x downTo y` read as naturally as built-in operators, despite being regular\nfunctions.",
+                    "codeSnippet": "infix fun Int.pow(exponent: Int): Int {\n    var result = 1\n    repeat(exponent) { result *= this }\n    return result\n}\n\nval value = 2 pow 10 // reads naturally, equivalent to 2.pow(10)",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "when as an expression forces exhaustiveness, unlike when as a statement",
+                    "content": "Using `when` as a statement (not assigning its result) doesn't require\ncovering every branch — an unmatched case just falls through silently,\nwhich can hide bugs when a new enum or sealed subtype is added later.\n\nUsing `when` as an expression (assigning it to a variable or returning it)\nforces the compiler to verify every possible case is handled — for sealed\ntypes and enums, this means adding a new variant produces a compile error\nanywhere the when isn't updated, catching missed cases immediately.",
+                    "codeSnippet": "// As a statement — no exhaustiveness check, easy to miss a case\nwhen (status) { OrderStatus.Shipped -> notify() }\n\n// As an expression — compiler forces every OrderStatus case to be handled\nval message: String = when (status) {\n    OrderStatus.Pending -> \"Waiting\"\n    OrderStatus.Shipped -> \"On the way\"\n    OrderStatus.Delivered -> \"Arrived\"\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Ranges and progressions unify loops, checks, and slicing",
+                    "content": "`1..10`, `10 downTo 1`, and `1..10 step 2` all create Progression objects\nthat can be iterated in a for-loop, checked with `in`, or used to slice a\nlist — one construct replaces several different idioms from other\nlanguages.\n\nFor a half-open range that excludes the upper bound, use `until` (or\n`..<` in newer Kotlin versions) instead of subtracting one from the end\nvalue, which is both clearer and avoids an off-by-one mistake.",
+                    "codeSnippet": "for (i in 0 until list.size) { /* excludes list.size */ }\n\nif (age in 18..65) { /* range membership check */ }\n\nval everyOther = (0..20 step 2).toList() // [0, 2, 4, ..., 20]",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "Raw strings with trimIndent/trimMargin avoid escaping in multi-line text",
+                    "content": "Regular strings require escaping every quote and newline, making embedded\nJSON, SQL, or multi-line templates hard to read directly in source code.\n\nTriple-quoted raw strings preserve literal newlines and don't require\nescaping backslashes or quotes; trimIndent() strips the common leading\nwhitespace so the string isn't polluted by your code's indentation level.",
+                    "codeSnippet": "val query = \"\"\"\n    SELECT * FROM users\n    WHERE status = 'active'\n    ORDER BY created_at DESC\n\"\"\".trimIndent()\n// leading indentation from the source code is stripped from the result",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "String templates evaluate expressions, not just variables",
+                    "content": "String templates aren't limited to simple variable interpolation with\n`$name` — `${...}` accepts any expression, including function calls,\nproperty access chains, and even multi-line logic, evaluated at the point\nthe string is built.\n\nFor anything beyond a single property access, wrap the expression in\n`${}` explicitly — `$user.name` interpolates only `$user` and then\nappends the literal text `.name`, which is a common source of subtle bugs.",
+                    "codeSnippet": "val user = User(\"Ahmed\", 30)\nprintln(\"Name: $user.name\")        // WRONG: prints \"Name: User(...).name\"\nprintln(\"Name: ${user.name}\")      // correct — property access inside braces\nprintln(\"Adult: ${user.age >= 18}\") // any expression works inside braces",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "companion object gives a class a single shared, class-scoped namespace",
+                    "content": "Kotlin has no `static` keyword — instead, a companion object attached to a\nclass provides members that belong to the class itself rather than to any\ninstance, accessed through the class name directly.\n\nA companion object is a real singleton object (it can implement interfaces\nand be passed around as a value), which makes it more flexible than Java's\nstatic members — commonly used for factory functions and constants tied to\nthe class.",
+                    "codeSnippet": "class User private constructor(val id: String) {\n    companion object {\n        const val MAX_NAME_LENGTH = 50\n        fun create(id: String): User = User(id)\n    }\n}\n\nval user = User.create(\"u_1\") // called via class name, no instance needed",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "object declarations create thread-safe singletons with no boilerplate",
+                    "content": "Implementing a singleton in Java requires a private constructor, a static\ninstance field, and careful handling of lazy initialization for thread\nsafety. Kotlin's `object` keyword does all of this automatically —\ninitialization is guaranteed thread-safe by the JVM class-loading\nmechanism.\n\nUse an object declaration for genuinely stateless or shared services\n(a logger, a config holder); avoid it for anything that needs per-instance\nstate or needs to be mocked easily in unit tests, since singletons are\nharder to substitute in tests than injected dependencies.",
+                    "codeSnippet": "object AppLogger {\n    fun log(message: String) = println(\"[LOG] $message\")\n}\n\nAppLogger.log(\"App started\") // no instantiation, guaranteed single instance",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "Object expressions create one-off anonymous implementations",
+                    "content": "When you need a throwaway implementation of an interface or abstract class\nfor a single use — a click listener, a comparator — creating a full named\nclass just for that one use adds unnecessary ceremony.\n\nAn object expression (`object : SomeInterface { ... }`) creates an\nanonymous instance inline, similar to an anonymous inner class in Java,\nand can capture variables from the enclosing scope just like a lambda can.",
+                    "codeSnippet": "button.setOnClickListener(object : View.OnClickListener {\n    override fun onClick(v: View) {\n        println(\"Clicked\")\n    }\n})\n// for single-abstract-method interfaces, a lambda is usually shorter (SAM conversion)",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "typealias improves readability but creates no new type",
+                    "content": "A typealias gives an existing type a different name at the source level —\nit's purely a compile-time readability aid, and the compiler treats the\nalias and the original type as fully interchangeable everywhere, including\ntype-checking and overload resolution.\n\nUse it to shorten long generic signatures (like a callback type used\nrepeatedly) or to give domain meaning to a type, but don't expect it to\nprovide type safety the way a value class or a wrapper class would.",
+                    "codeSnippet": "typealias UserId = String\ntypealias OnResult<T> = (Result<T>) -> Unit\n\nfun fetchUser(id: UserId, callback: OnResult<User>) { }\n// UserId is still just String — fetchUser(\"anything\", ...) compiles fine",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "lateinit trades null-safety for avoiding unnecessary nullability",
+                    "content": "Some properties (Android Views, DI-injected fields) can't be initialized\nin the constructor but are guaranteed to be set before first use — making\nthem nullable var just to work around this forces null checks everywhere\nthey're used, even though they're logically never null after setup.\n\nlateinit var skips the null check but throws an\nUninitializedPropertyAccessException if accessed before assignment — it\nonly works on var properties of non-primitive types, and there's no way\nto give it a default value.",
+                    "codeSnippet": "class MyFragment : Fragment() {\n    private lateinit var binding: FragmentMainBinding\n\n    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {\n        binding = FragmentMainBinding.bind(view) // must assign before use\n    }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "const val is a true compile-time constant, plain val is not",
+                    "content": "A regular `val` is still evaluated at runtime (even if it's assigned a\nliteral), and its value gets inlined by reference, not by value, at usage\nsites — that matters for things like annotation arguments, which require\ntrue compile-time constants.\n\n`const val` is restricted to top-level or companion-object String/primitive\nliterals known at compile time, and its value is inlined directly into\nbytecode at every use site — this also means changing a const val in a\nlibrary requires consumers to recompile to pick up the new value.",
+                    "codeSnippet": "const val MAX_RETRIES = 3 // compile-time constant, usable in annotations\nval currentTime = System.currentTimeMillis() // runtime value — const val not allowed here\n\n@Retention(AnnotationRetention.RUNTIME)\nannotation class RetryLimit(val max: Int = MAX_RETRIES) // requires const val",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "internal visibility enforces module boundaries the compiler checks",
+                    "content": "private restricts access to a single file or class, and public exposes a\nmember everywhere — but in a multi-module project (like separate\ndomain/data/app Gradle modules), you often want something visible across\na module's own files but hidden from other modules.\n\ninternal does exactly that: visible anywhere inside the same Gradle module,\nbut a compile error if another module tries to reference it — useful for\nexposing implementation details between a module's internal packages\nwithout leaking them into your public API surface.",
+                    "codeSnippet": "// inside the :data module\ninternal class RetrofitApiClient(...) // usable by other classes in :data\n// but a compile error if :app tries to reference RetrofitApiClient directly",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                }
+            ]
+        }
+    ]
+}

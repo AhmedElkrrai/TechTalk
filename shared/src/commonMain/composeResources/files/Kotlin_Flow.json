@@ -1,0 +1,35 @@
+{
+    "version": 1,
+    "author": "TechTalk",
+    "description": "Kotlin — Flow",
+    "entries": [
+        {
+            "technologyName": "Kotlin",
+            "topicName": "Flow",
+            "topicDescription": "Reactive streams built on coroutines for asynchronous data processing.",
+            "tips": [
+                {
+                    "title": "Flow basics — cold async streams",
+                    "content": "Flow is Kotlin's answer to reactive streams. It's cold — the producer\ncode runs only when someone collects the flow.\n\nUnlike channels or LiveData, flows are declarative pipelines.\nYou build a flow with the 'flow { }' builder and emit values with 'emit()'.\n\nFlows integrate naturally with coroutines — they suspend instead of blocking,\nand they're cancelled when the collecting coroutine is cancelled.",
+                    "codeSnippet": "// Create a flow\nfun countDown(from: Int): Flow<Int> = flow {\n    for (i in from downTo 0) {\n        delay(1000)\n        emit(i)  // send value downstream\n    }\n}\n\n// Collect it (terminal operator)\nviewModelScope.launch {\n    countDown(5).collect { value ->\n        println(value)  // 5, 4, 3, 2, 1, 0\n    }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "StateFlow and SharedFlow",
+                    "content": "StateFlow is a hot flow that always holds a current value.\nIt replays the latest value to new collectors and ignores duplicate emissions.\n\nSharedFlow is more flexible — configurable replay cache and buffer.\nUse it for events that shouldn't be replayed (navigation, snackbar).\n\nStateFlow = state holder (replaces LiveData).\nSharedFlow = event bus (one-shot events).\nBoth are hot — they exist independently of collectors.",
+                    "codeSnippet": "// StateFlow — always has a value\nprivate val _count = MutableStateFlow(0)\nval count: StateFlow<Int> = _count.asStateFlow()\n\nfun increment() { _count.update { it + 1 } }\n\n// SharedFlow — for one-shot events\nprivate val _events = MutableSharedFlow<UiEvent>()\nval events: SharedFlow<UiEvent> = _events.asSharedFlow()\n\nsuspend fun showError(msg: String) {\n    _events.emit(UiEvent.ShowSnackbar(msg))\n}\n\n// Collecting StateFlow in Compose\nval count by viewModel.count.collectAsState()",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Flow operators — combine, flatMapLatest, debounce",
+                    "content": "Flow operators transform, combine, and control the timing of emissions.\nThey create new flows — the original flow is unchanged (immutable pipeline).\n\ncombine() merges multiple flows, emitting when any flow updates.\nflatMapLatest() cancels the previous inner flow when a new value arrives.\ndebounce() waits for a pause in emissions before forwarding.\n\nThese operators are the building blocks of reactive UI patterns\nlike search-as-you-type and multi-source state combination.",
+                    "codeSnippet": "// Search with debounce + flatMapLatest\nsearchQuery\n    .debounce(300)           // wait 300ms after typing stops\n    .filter { it.length > 2 } // ignore short queries\n    .flatMapLatest { query ->\n        repository.search(query) // cancel previous search\n    }\n    .collect { results -> _state.update { it.copy(results = results) } }\n\n// Combine multiple flows\ncombine(userFlow, settingsFlow) { user, settings ->\n    UiState(user = user, darkMode = settings.darkMode)\n}.collect { state -> _uiState.value = state }",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                }
+            ]
+        }
+    ]
+}

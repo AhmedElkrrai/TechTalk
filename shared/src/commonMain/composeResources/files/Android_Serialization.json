@@ -1,0 +1,21 @@
+{
+    "version": 1,
+    "author": "TechTalk",
+    "description": "Android — Serialization",
+    "entries": [
+        {
+            "technologyName": "Android",
+            "topicName": "Serialization",
+            "topicDescription": "Serializing and deserializing data with kotlinx.serialization on Android.",
+            "tips": [
+                {
+                    "title": "kotlinx.serialization's compile-time codegen avoids reflection entirely",
+                    "content": "Reflection-based serializers (like Gson's default behavior) inspect a\nclass's fields at runtime to determine how to serialize it — this adds\nruntime overhead on every call and requires broad keep rules under\nobfuscation, since the serializer needs to reflectively access field\nnames that DexGuard/R8 might otherwise rename.\n\nkotlinx.serialization instead generates a dedicated serializer\nimplementation for each @Serializable class at compile time, with field\nmapping baked directly into generated code — no runtime reflection is\ninvolved at all, which is both faster and means obfuscating a\n@Serializable class's field names doesn't break serialization the way it\nwould with a reflection-based library.",
+                    "codeSnippet": "@Serializable\ndata class UserDto(\n    @SerialName(\"user_name\") val userName: String,\n    val age: Int\n)\n// Json.encodeToString(userDto) uses a generated serializer — no reflection, obfuscation-safe",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                }
+            ]
+        }
+    ]
+}

@@ -1,0 +1,35 @@
+{
+    "version": 1,
+    "author": "TechTalk",
+    "description": "Kotlin — Extension Functions",
+    "entries": [
+        {
+            "technologyName": "Kotlin",
+            "topicName": "Extension Functions",
+            "topicDescription": "Adding new functionality to existing classes without inheritance.",
+            "tips": [
+                {
+                    "title": "Add methods to any class",
+                    "content": "Extension functions let you add new functions to existing classes \nwithout modifying their source code or using inheritance.\n\nThe class you extend is called the \"receiver\". Inside the function, \nyou access the receiver's members with 'this' (which can be omitted).\n\nExtensions are resolved statically at compile time — \nthey don't actually modify the class. They're syntactic sugar for \na static utility function with the receiver as the first parameter.",
+                    "codeSnippet": "// Add a function to String\nfun String.isPalindrome(): Boolean {\n    val cleaned = this.lowercase().filter { it.isLetter() }\n    return cleaned == cleaned.reversed()\n}\n\n// Usage — reads like a built-in method\n\"racecar\".isPalindrome()  // true\n\"hello\".isPalindrome()    // false",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "Extension properties",
+                    "content": "You can also define extension properties, not just functions.\nSince extensions can't store state, they can only have \ncustom getters (and setters for var with a backing mechanism).\n\nExtension properties are great for computed values \nthat feel natural as properties rather than function calls.",
+                    "codeSnippet": "val String.wordCount: Int\n    get() = this.trim().split(\"\\\\s+\".toRegex()).size\n\n// Usage\n\"Hello World\".wordCount  // 2\n\"Kotlin is great\".wordCount  // 3",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Extensions on nullable types",
+                    "content": "You can define extensions on nullable types (T?). \nThis lets you call the function even on null references \nwithout a null check at the call site.\n\nInside the extension, 'this' can be null, so you must handle it.\n\nKotlin's stdlib uses this pattern — that's why you can call \ntoString() on a nullable variable without ?. operator.",
+                    "codeSnippet": "fun String?.orEmpty(): String = this ?: \"\"\n\nfun String?.isNullOrBlank(): Boolean =\n    this == null || this.isBlank()\n\n// Usage — no ?. needed!\nval name: String? = null\nname.orEmpty()       // \"\"\nname.isNullOrBlank() // true",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                }
+            ]
+        }
+    ]
+}

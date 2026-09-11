@@ -1,0 +1,35 @@
+{
+    "version": 1,
+    "author": "TechTalk",
+    "description": "iOS — Networking",
+    "entries": [
+        {
+            "technologyName": "iOS",
+            "topicName": "Networking",
+            "topicDescription": "Making HTTP requests and handling APIs with URLSession and modern patterns.",
+            "tips": [
+                {
+                    "title": "URLSession with async/await is clean and simple",
+                    "content": "URLSession gained async/await overloads in iOS 15. You can\nfetch data, download files, or upload content with a single\nawait call — no delegates or completion handlers needed.\n\nThe async data(from:) method returns both the Data and the\nURLResponse. Always check the HTTP status code before\ndecoding the response body.\n\nCombine this with JSONDecoder for a complete networking\nlayer in just a few lines. Mark your network functions\nas async throws for clean error propagation.\n\nFor more complex needs (background downloads, auth challenges),\nyou'll still need URLSessionDelegate, but most REST API calls\nare beautifully simple with async/await.",
+                    "codeSnippet": "struct APIClient {\n    let baseURL = URL(string: \"https://api.example.com\")!\n    let decoder = JSONDecoder()\n    \n    func fetch<T: Decodable>(_ path: String) async throws -> T {\n        let url = baseURL.appendingPathComponent(path)\n        let (data, response) = try await URLSession.shared.data(from: url)\n        \n        guard let http = response as? HTTPURLResponse,\n              (200...299).contains(http.statusCode) else {\n            throw APIError.badResponse\n        }\n        \n        return try decoder.decode(T.self, from: data)\n    }\n}\n\n// Usage\nlet client = APIClient()\nlet users: [User] = try await client.fetch(\"/users\")",
+                    "codeLang": "Swift",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "Codable makes JSON parsing type-safe",
+                    "content": "Swift's Codable protocol (Encodable + Decodable) maps JSON\nto Swift types automatically. The compiler synthesizes the\nimplementation when all properties are themselves Codable.\n\nUse CodingKeys to map JSON field names to Swift property names.\nThis handles snake_case to camelCase conversion and renaming\nwithout manual parsing.\n\nFor nested JSON, create nested Codable structs that mirror\nthe JSON structure. Use optional properties for fields that\nmay be missing.\n\nJSONDecoder has strategies for common transformations:\n.convertFromSnakeCase for key decoding, .iso8601 for dates,\nand custom strategies for anything else.",
+                    "codeSnippet": "struct User: Codable {\n    let id: Int\n    let fullName: String\n    let email: String\n    let createdAt: Date?\n    \n    enum CodingKeys: String, CodingKey {\n        case id\n        case fullName = \"full_name\"\n        case email\n        case createdAt = \"created_at\"\n    }\n}\n\n// Or use decoder strategies instead of CodingKeys\nlet decoder = JSONDecoder()\ndecoder.keyDecodingStrategy = .convertFromSnakeCase\ndecoder.dateDecodingStrategy = .iso8601\n\nlet jsonStr = #\"{\"id\": 1, \"full_name\": \"Alice\", \"email\": \"a@b.com\"}\"#\nlet json = jsonStr.data(using: .utf8)!\n\nlet user = try decoder.decode(User.self, from: json)",
+                    "codeLang": "Swift",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Build a robust API layer with request interceptors",
+                    "content": "Production apps need more than raw URLSession calls. You\nneed authentication headers, retry logic, logging, and\nconsistent error handling.\n\nBuild a thin API layer that intercepts requests to add\nauth tokens, logs responses for debugging, and retries\non transient failures (network timeouts, 5xx errors).\n\nUse URLRequest to customize headers, HTTP method, and body.\nCreate a protocol for your API endpoints so each one\ndeclares its path, method, and expected response type.\n\nThis pattern scales well: adding a new endpoint is just a\nnew enum case or struct, and cross-cutting concerns like\nauth and logging are handled in one place.",
+                    "codeSnippet": "protocol Endpoint {\n    associatedtype Response: Decodable\n    var path: String { get }\n    var method: String { get }\n    var headers: [String: String] { get }\n}\n\nstruct NetworkClient {\n    let baseURL: URL\n    let session: URLSession\n    var authToken: String?\n    \n    func request<E: Endpoint>(_ endpoint: E) async throws -> E.Response {\n        var urlRequest = URLRequest(\n            url: baseURL.appendingPathComponent(endpoint.path)\n        )\n        urlRequest.httpMethod = endpoint.method\n        \n        // Interceptor: add auth\n        if let token = authToken {\n            urlRequest.setValue(\"Bearer \\(token)\",\n                               forHTTPHeaderField: \"Authorization\")\n        }\n        \n        // Add endpoint-specific headers\n        for (key, val) in endpoint.headers {\n            urlRequest.setValue(val, forHTTPHeaderField: key)\n        }\n        \n        let (data, _) = try await session.data(for: urlRequest)\n        return try JSONDecoder().decode(E.Response.self, from: data)\n    }\n}",
+                    "codeLang": "Swift",
+                    "difficulty": "ADVANCED"
+                }
+            ]
+        }
+    ]
+}

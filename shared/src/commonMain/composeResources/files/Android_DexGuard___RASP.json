@@ -1,0 +1,21 @@
+{
+    "version": 1,
+    "author": "TechTalk",
+    "description": "Android — DexGuard & RASP",
+    "entries": [
+        {
+            "technologyName": "Android",
+            "topicName": "DexGuard & RASP",
+            "topicDescription": "Runtime application self-protection and obfuscation strategies.",
+            "tips": [
+                {
+                    "title": "Hollow-shell pattern for RASP threat callbacks",
+                    "content": "Exposing your real ThreatEngine implementation as a keepClassMembers target\nleaks its method structure to reverse engineers even under obfuscation,\nsince kept methods retain readable names and signatures.\n\nInstead, expose a minimal hollow interface/shell class that DexGuard's runtime\nhooks call into, and keep the actual detection logic in an internal,\nfully-obfuscated implementation reached only through that shell — this is a\nProxy pattern applied specifically to minimize the attack surface exposed by\nkeep rules.",
+                    "codeSnippet": "// Shell — kept, minimal surface\ninterface ThreatCallback {\n    fun onThreatDetected(type: Int)\n}\n\n// Internal impl — fully obfuscated, not directly referenced by name\ninternal class ThreatEngineImpl : ThreatCallback {\n    override fun onThreatDetected(type: Int) { /* real logic */ }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                }
+            ]
+        }
+    ]
+}

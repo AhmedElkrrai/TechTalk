@@ -1,0 +1,42 @@
+{
+    "version": 1,
+    "author": "TechTalk",
+    "description": "Android — Navigation",
+    "entries": [
+        {
+            "technologyName": "Android",
+            "topicName": "Navigation",
+            "topicDescription": "Navigating between screens and handling the back stack.",
+            "tips": [
+                {
+                    "title": "A single Activity with multiple destinations simplifies shared state and transitions",
+                    "content": "Multiple Activities each maintain their own separate ViewModel scope and\ntask-stack entry, making it awkward to share state (a logged-in user\nsession, a shopping cart) across screens without passing everything\nthrough Intent extras or a singleton.\n\nThe single-Activity pattern — one Activity hosting a NavHost with many\ncomposable or fragment destinations — lets you scope a ViewModel to the\nActivity itself and share it across destinations naturally, while shared-\nelement transitions and consistent navigation animations become simpler\nto implement within one continuous navigation graph.",
+                    "codeSnippet": "@Composable\nfun AppNavHost(navController: NavHostController) {\n    NavHost(navController, startDestination = \"home\") {\n        composable(\"home\") { HomeScreen(navController) }\n        composable(\"details/{id}\") { DetailsScreen(navController) }\n    } // one Activity, one NavHost, shared ViewModel scope available across all destinations\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "NavHost and NavController basics",
+                    "content": "Jetpack Navigation uses a NavHost to display destinations\nand a NavController to manage the back stack.\n\nDefine routes as strings (or type-safe objects in newer versions).\nNavHost renders the composable for the current route.\nNavController.navigate() pushes new destinations onto the stack.\n\nAlways hoist the NavController to the top-level composable\nand pass callbacks down, not the controller itself.",
+                    "codeSnippet": "@Composable\nfun AppNavigation() {\n    val navController = rememberNavController()\n    \n    NavHost(\n        navController = navController,\n        startDestination = \"home\"\n    ) {\n        composable(\"home\") {\n            HomeScreen(onDetail = { id ->\n                navController.navigate(\"detail/$id\")\n            })\n        }\n        composable(\"detail/{id}\") { backStackEntry ->\n            val id = backStackEntry.arguments?.getString(\"id\")\n            DetailScreen(id = id)\n        }\n    }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "Pop back stack to avoid duplicates",
+                    "content": "By default, navigate() pushes a new instance onto the stack.\nIf the user taps a button twice, you get duplicate screens.\n\nUse launchSingleTop to prevent duplicate destinations.\nUse popUpTo to clear intermediate screens (e.g., going back to Home\nafter login should remove the login screen from the stack).\n\nThink carefully about your back stack — users expect\nthe back button to behave predictably.",
+                    "codeSnippet": "// Avoid duplicate destinations\nnavController.navigate(\"home\") {\n    launchSingleTop = true\n}\n\n// Clear back stack up to a destination\nnavController.navigate(\"home\") {\n    popUpTo(\"login\") { inclusive = true }\n    launchSingleTop = true\n}\n\n// Pop back\nnavController.popBackStack()",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Type-safe navigation with Kotlin serialization",
+                    "content": "String-based routes are error-prone — typos compile but crash at runtime.\nSince Navigation 2.8, you can define routes as serializable data classes.\n\nThe compiler catches route mismatches at build time.\nArguments are type-safe — no more getString/getInt parsing.\n\nThis is the recommended approach for new Compose Navigation projects.",
+                    "codeSnippet": "@Serializable data object Home\n@Serializable data class Detail(val id: Int)\n\nNavHost(\n    navController = navController,\n    startDestination = Home\n) {\n    composable<Home> {\n        HomeScreen(\n            onItemClick = { id ->\n                navController.navigate(Detail(id))\n            }\n        )\n    }\n    composable<Detail> { backStackEntry ->\n        val detail: Detail = backStackEntry.toRoute()\n        DetailScreen(id = detail.id)\n    }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                }
+            ]
+        }
+    ]
+}

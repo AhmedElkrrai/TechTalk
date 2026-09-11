@@ -1,0 +1,21 @@
+{
+    "version": 1,
+    "author": "TechTalk",
+    "description": "Android — WorkManager",
+    "entries": [
+        {
+            "technologyName": "Android",
+            "topicName": "WorkManager",
+            "topicDescription": "Scheduling deferrable, guaranteed background work with WorkManager.",
+            "tips": [
+                {
+                    "title": "WorkManager guarantees execution even across app restarts and device reboots",
+                    "content": "A coroutine launched in an Activity or Service-scoped CoroutineScope is\nlost the moment its owning component is destroyed or the process is\nkilled — fine for work that only matters while the app is actively\nrunning, but not for work that must eventually complete no matter what.\n\nWorkManager persists enqueued work requests to disk, and the system\nre-schedules and re-runs them even after a process death, an app force-\nstop recovery, or a full device reboot (once the app has run at least\nonce after boot) — making it the right tool for guaranteed-eventually\nwork like syncing pending uploads.",
+                    "codeSnippet": "val uploadRequest = OneTimeWorkRequestBuilder<UploadWorker>()\n    .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())\n    .build()\n\nWorkManager.getInstance(context).enqueue(uploadRequest) // survives process death and reboots",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                }
+            ]
+        }
+    ]
+}

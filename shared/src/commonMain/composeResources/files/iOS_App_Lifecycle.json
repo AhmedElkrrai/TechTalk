@@ -1,0 +1,35 @@
+{
+    "version": 1,
+    "author": "TechTalk",
+    "description": "iOS — App Lifecycle",
+    "entries": [
+        {
+            "technologyName": "iOS",
+            "topicName": "App Lifecycle",
+            "topicDescription": "Understanding app states, scene delegates, and background execution.",
+            "tips": [
+                {
+                    "title": "ScenePhase tracks your app's foreground state",
+                    "content": "In SwiftUI, the @Environment(\\.scenePhase) property tells\nyou whether your app is active, inactive, or in the\nbackground. This replaces UIApplicationDelegate callbacks.\n\nActive means the app is in the foreground and receiving\nevents. Inactive is a transient state (e.g., during a\nphone call overlay). Background means the app is not visible.\n\nUse .onChange(of: scenePhase) to react to transitions: save\ndata when going to background, refresh content when becoming\nactive, or pause timers when inactive.\n\nFor multi-window iPad apps, each window has its own scene\nphase. The app-level phase is the aggregate of all scenes.",
+                    "codeSnippet": "@main\nstruct MyApp: App {\n    @Environment(\\.scenePhase) var scenePhase\n    \n    var body: some Scene {\n        WindowGroup {\n            ContentView()\n        }\n        .onChange(of: scenePhase) { oldPhase, newPhase in\n            switch newPhase {\n            case .active:\n                print(\"App is active — refresh data\")\n            case .inactive:\n                print(\"App is inactive — pause timers\")\n            case .background:\n                print(\"App in background — save state\")\n                saveAppState()\n            @unknown default:\n                break\n            }\n        }\n    }\n}",
+                    "codeLang": "Swift",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "Background tasks with BGTaskScheduler",
+                    "content": "iOS suspends your app shortly after it enters the background.\nFor deferred work (data sync, cleanup), register a background\ntask with BGTaskScheduler.\n\nThere are two types: BGAppRefreshTask for short periodic\nupdates (30 seconds), and BGProcessingTask for longer work\n(minutes) when the device is charging and idle.\n\nRegister task identifiers in Info.plist under\nBGTaskSchedulerPermittedIdentifiers. Schedule tasks before\nyour app goes to background.\n\nAlways call task.setTaskCompleted(success:) when done.\nHandle the task's expirationHandler to clean up if the\nsystem is reclaiming resources.",
+                    "codeSnippet": "// Register in App init or didFinishLaunching\nBGTaskScheduler.shared.register(\n    forTaskWithIdentifier: \"com.app.refresh\",\n    using: nil\n) { task in\n    handleAppRefresh(task: task as! BGAppRefreshTask)\n}\n\n// Schedule when going to background\nfunc scheduleRefresh() {\n    let request = BGAppRefreshTaskRequest(\n        identifier: \"com.app.refresh\"\n    )\n    request.earliestBeginDate = Date(timeIntervalSinceNow: 3600)\n    try? BGTaskScheduler.shared.submit(request)\n}\n\nfunc handleAppRefresh(task: BGAppRefreshTask) {\n    scheduleRefresh()  // reschedule for next time\n    \n    let syncTask = Task {\n        await syncLatestData()\n        task.setTaskCompleted(success: true)\n    }\n    \n    task.expirationHandler = {\n        syncTask.cancel()\n    }\n}",
+                    "codeLang": "Swift",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Deep links and universal links route users to content",
+                    "content": "Deep links let other apps or websites open specific screens\nin your app. iOS supports two kinds: custom URL schemes\n(myapp://profile/42) and universal links (https://myapp.com/profile/42).\n\nUniversal links are preferred because they're secure (Apple\nverifies domain ownership via apple-app-site-association),\nand they fall back to Safari if the app isn't installed.\n\nIn SwiftUI, handle incoming URLs with .onOpenURL. Parse the\nURL components and navigate to the appropriate screen. Use\nan enum-based routing system to keep navigation logic clean.\n\nTest deep links from Terminal with 'xcrun simctl openurl'\nduring development. Remember to handle both cold launches\nand warm opens.",
+                    "codeSnippet": "enum DeepLink {\n    case profile(id: Int)\n    case settings\n    case unknown\n    \n    init(url: URL) {\n        let components = URLComponents(url: url, resolvingAgainstBaseURL: false)\n        let path = components?.path ?? \"\"\n        \n        if path.starts(with: \"/profile/\"),\n           let id = Int(path.replacingOccurrences(of: \"/profile/\", with: \"\")) {\n            self = .profile(id: id)\n        } else if path == \"/settings\" {\n            self = .settings\n        } else {\n            self = .unknown\n        }\n    }\n}\n\n@main\nstruct MyApp: App {\n    @State private var selectedTab = 0\n    \n    var body: some Scene {\n        WindowGroup {\n            TabView(selection: $selectedTab) { /* ... */ }\n                .onOpenURL { url in\n                    let link = DeepLink(url: url)\n                    switch link {\n                    case .profile(let id):\n                        selectedTab = 1\n                        navigateToProfile(id)\n                    case .settings:\n                        selectedTab = 2\n                    case .unknown:\n                        break\n                    }\n                }\n        }\n    }\n}",
+                    "codeLang": "Swift",
+                    "difficulty": "ADVANCED"
+                }
+            ]
+        }
+    ]
+}

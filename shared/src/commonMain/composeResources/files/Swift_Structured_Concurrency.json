@@ -1,0 +1,35 @@
+{
+    "version": 1,
+    "author": "TechTalk",
+    "description": "Swift — Structured Concurrency",
+    "entries": [
+        {
+            "technologyName": "Swift",
+            "topicName": "Structured Concurrency",
+            "topicDescription": "Modern async/await and task-based concurrency in Swift.",
+            "tips": [
+                {
+                    "title": "async/await replaces completion handlers",
+                    "content": "Swift's async/await lets you write asynchronous code that\nreads like synchronous code. Mark a function 'async' and\ncall it with 'await' — no more callback pyramids.\n\nThe compiler suspends execution at each 'await' point and\nresumes when the result is ready. Errors propagate naturally\nwith try/catch instead of Result types in callbacks.\n\nAsync functions can only be called from other async contexts:\nother async functions, Task blocks, or async main entry points.\n\nThis model eliminates common callback bugs: forgetting to call\nthe completion handler, calling it twice, or calling it on the\nwrong thread.",
+                    "codeSnippet": "// Before: completion handler hell\nfunc fetchUser(completion: @escaping (Result<User, Error>) -> Void) {\n    networkCall { result in\n        completion(result)\n    }\n}\n\n// After: clean async/await\nfunc fetchUser() async throws -> User {\n    let data = try await URLSession.shared.data(from: url)\n    return try JSONDecoder().decode(User.self, from: data.0)\n}\n\n// Calling async code\nTask {\n    do {\n        let user = try await fetchUser()\n        print(user.name)\n    } catch {\n        print(\"Failed: \\(error)\")\n    }\n}",
+                    "codeLang": "Swift",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "TaskGroup runs concurrent work with structured lifetimes",
+                    "content": "When you need to run multiple async operations concurrently,\nuse 'withTaskGroup'. It creates child tasks that run in\nparallel but are scoped to the group.\n\nStructured concurrency guarantees: if the group scope ends,\nall child tasks are cancelled. If a child throws, the group\ncan cancel siblings. No orphaned tasks.\n\nUse 'withThrowingTaskGroup' when child tasks can throw errors.\nCollect results by iterating over the group — each value\narrives as its task completes.\n\nThis replaces DispatchGroup and manual synchronization with\na safe, compiler-checked model.",
+                    "codeSnippet": "func fetchAllUsers(ids: [Int]) async throws -> [User] {\n    try await withThrowingTaskGroup(of: User.self) { group in\n        for id in ids {\n            group.addTask {\n                try await fetchUser(id: id)\n            }\n        }\n        \n        var users: [User] = []\n        for try await user in group {\n            users.append(user)\n        }\n        return users\n    }\n}\n\n// All tasks are scoped — if the function is cancelled,\n// every child task is automatically cancelled too.\nlet users = try await fetchAllUsers(ids: [1, 2, 3, 4, 5])",
+                    "codeLang": "Swift",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Actors protect mutable state from data races",
+                    "content": "An actor is a reference type that protects its mutable state\nby serializing access. Only one task can execute an actor's\nmethods at a time — the compiler enforces this.\n\nAccessing an actor's properties or methods from outside\nrequires 'await', because the call may need to wait for\nexclusive access. Inside the actor, access is synchronous.\n\nThe @MainActor attribute marks code that must run on the main\nthread. SwiftUI views and UIKit updates use this to guarantee\nUI work happens on the correct thread.\n\nActors replace manual locks, serial queues, and other\nsynchronization primitives with a safe, language-level model.",
+                    "codeSnippet": "actor BankAccount {\n    private var balance: Double = 0\n    \n    func deposit(_ amount: Double) {\n        balance += amount  // safe — serialized\n    }\n    \n    func withdraw(_ amount: Double) -> Bool {\n        guard balance >= amount else { return false }\n        balance -= amount\n        return true\n    }\n    \n    var currentBalance: Double { balance }\n}\n\nlet account = BankAccount()\n\n// Must use await from outside the actor\nawait account.deposit(100)\nlet success = await account.withdraw(50)\nlet bal = await account.currentBalance  // 50.0\n\n// @MainActor for UI updates\n@MainActor\nfunc updateUI(with balance: Double) {\n    balanceLabel.text = \"\\(balance)\"\n}",
+                    "codeLang": "Swift",
+                    "difficulty": "ADVANCED"
+                }
+            ]
+        }
+    ]
+}

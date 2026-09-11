@@ -1,0 +1,21 @@
+{
+    "version": 1,
+    "author": "TechTalk",
+    "description": "Android — Modularization",
+    "entries": [
+        {
+            "technologyName": "Android",
+            "topicName": "Modularization",
+            "topicDescription": "Structuring a multi-module Android project: module boundaries, dependencies, and build performance.",
+            "tips": [
+                {
+                    "title": "Modularization speeds up builds by letting Gradle skip unaffected modules",
+                    "content": "In a single-module app, any code change forces Gradle to recompile the\nentire codebase, since there's no smaller unit of compilation to isolate\nthe change to.\n\nSplitting the app into well-bounded modules lets Gradle's incremental\nbuild and configuration cache skip recompiling modules whose inputs\nhaven't changed — a change confined to a `:feature:profile` module\ndoesn't force a rebuild of `:feature:checkout` or `:core:network`,\nsignificantly speeding up iterative local builds on a large codebase.",
+                    "codeSnippet": "// settings.gradle.kts\ninclude(\":app\", \":core:network\", \":core:database\", \":feature:profile\", \":feature:checkout\")\n// a change in :feature:profile only triggers rebuilds of modules that depend on it",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                }
+            ]
+        }
+    ]
+}

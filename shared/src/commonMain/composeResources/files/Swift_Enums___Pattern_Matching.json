@@ -1,0 +1,35 @@
+{
+    "version": 1,
+    "author": "TechTalk",
+    "description": "Swift — Enums & Pattern Matching",
+    "entries": [
+        {
+            "technologyName": "Swift",
+            "topicName": "Enums & Pattern Matching",
+            "topicDescription": "Powerful enumerations with associated values and pattern matching.",
+            "tips": [
+                {
+                    "title": "Enums with associated values model state precisely",
+                    "content": "Swift enums can carry associated values — each case stores\ndifferent data. This lets you model states precisely,\neliminating impossible combinations.\n\nInstead of a class with optional fields (where you have to\nwonder \"which fields are valid in which state?\"), each enum\ncase declares exactly the data it needs.\n\nThis is perfect for network results, loading states, and\nnavigation routes. The compiler forces you to handle every\ncase, preventing missed states.\n\nAssociated values can be any type: tuples, structs, other\nenums, or even closures. Each case is independent.",
+                    "codeSnippet": "enum LoadingState<T> {\n    case idle\n    case loading\n    case success(T)\n    case failure(Error)\n}\n\nvar state: LoadingState<[User]> = .idle\n\nfunc fetch() {\n    state = .loading\n    api.getUsers { result in\n        switch result {\n        case .success(let users):\n            state = .success(users)\n        case .failure(let error):\n            state = .failure(error)\n        }\n    }\n}\n\n// The compiler ensures you handle every case\nswitch state {\ncase .idle:         showPlaceholder()\ncase .loading:      showSpinner()\ncase .success(let users): showList(users)\ncase .failure(let err):   showError(err)\n}",
+                    "codeLang": "Swift",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "Pattern matching with switch and if-case",
+                    "content": "Swift's switch statement is exhaustive — you must handle every\ncase of an enum. This catches bugs at compile time when you\nadd a new case.\n\nUse 'let' bindings inside case patterns to extract associated\nvalues. You can also add 'where' clauses for conditional\nmatching within a case.\n\nFor single-case checks, 'if case' and 'guard case' avoid a\nfull switch statement. These are handy when you only care\nabout one specific case.\n\nPattern matching also works with tuples, ranges, optionals,\nand even custom types that implement the ~= operator.",
+                    "codeSnippet": "enum Response {\n    case success(code: Int, body: String)\n    case error(code: Int, message: String)\n}\n\nlet resp: Response = .success(code: 200, body: \"{}\")\n\n// Full switch with where clause\nswitch resp {\ncase .success(let code, _) where code == 200:\n    print(\"OK\")\ncase .success(let code, _):\n    print(\"Success but code: \\(code)\")\ncase .error(_, let msg):\n    print(\"Error: \\(msg)\")\n}\n\n// Single-case check with if-case\nif case .error(let code, let msg) = resp {\n    log(\"Error \\(code): \\(msg)\")\n}\n\n// Pattern matching on ranges\nlet score = 85\nswitch score {\ncase 90...100: print(\"A\")\ncase 80..<90:  print(\"B\")\ndefault:       print(\"C or below\")\n}",
+                    "codeLang": "Swift",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Recursive enums with indirect cases",
+                    "content": "Sometimes an enum case needs to hold another instance of the\nsame enum — for example, modeling a tree or an arithmetic\nexpression. This creates a recursive type.\n\nSwift requires you to mark recursive cases with 'indirect'.\nThis tells the compiler to store that case as a reference\n(pointer) instead of inline, avoiding infinite size.\n\nYou can mark individual cases as indirect, or the entire\nenum. Recursive enums combined with pattern matching let\nyou build and evaluate tree structures elegantly.\n\nThis pattern is common in parsers, expression evaluators,\nand any domain with naturally recursive data structures.",
+                    "codeSnippet": "indirect enum ArithExpr {\n    case number(Double)\n    case add(ArithExpr, ArithExpr)\n    case multiply(ArithExpr, ArithExpr)\n}\n\nfunc evaluate(_ expr: ArithExpr) -> Double {\n    switch expr {\n    case .number(let value):\n        return value\n    case .add(let left, let right):\n        return evaluate(left) + evaluate(right)\n    case .multiply(let left, let right):\n        return evaluate(left) * evaluate(right)\n    }\n}\n\n// (2 + 3) * 4\nlet expr: ArithExpr = .multiply(\n    .add(.number(2), .number(3)),\n    .number(4)\n)\nprint(evaluate(expr))  // 20.0",
+                    "codeLang": "Swift",
+                    "difficulty": "ADVANCED"
+                }
+            ]
+        }
+    ]
+}

@@ -1,0 +1,189 @@
+{
+    "version": 1,
+    "author": "TechTalk",
+    "description": "Android — Fundamentals",
+    "entries": [
+        {
+            "technologyName": "Android",
+            "topicName": "Fundamentals",
+            "topicDescription": "Core Android building blocks: intents, broadcast receivers, the manifest, and services.",
+            "tips": [
+                {
+                    "title": "Explicit intents target a specific component; implicit intents ask the system to find one",
+                    "content": "An explicit intent names the exact component (by class) that should\nhandle it — used for navigating within your own app, where you know\nprecisely which Activity or Service should respond.\n\nAn implicit intent describes an action (VIEW, SEND, DIAL) and lets the\nsystem match it against every installed app's declared intent filters,\nletting the user pick from whichever apps can handle it — used for\ninter-app actions like sharing content or opening a URL.",
+                    "codeSnippet": "// Explicit — targets your own DetailsActivity directly\nstartActivity(Intent(this, DetailsActivity::class.java))\n\n// Implicit — system finds any app that can view this URL\nstartActivity(Intent(Intent.ACTION_VIEW, Uri.parse(\"https://example.com\")))",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "Intent extras must be Parcelable or Serializable, and Parcelable is strongly preferred",
+                    "content": "Only primitive types and objects implementing Parcelable or Serializable\ncan be passed as Intent extras — Serializable relies on reflection and is\nsignificantly slower, with more allocation overhead, than Parcelable's\nexplicit read/write implementation.\n\nData classes can implement Parcelable with minimal boilerplate using the\n@Parcelize annotation, which generates the implementation at compile\ntime — pass only small amounts of data through Intent extras, since the\nsystem enforces a strict total size limit (roughly 1MB) across the whole\nBundle.",
+                    "codeSnippet": "@Parcelize\ndata class UserSummary(val id: String, val name: String) : Parcelable\n\nintent.putExtra(\"user\", UserSummary(\"u1\", \"Ahmed\"))\nval user = intent.getParcelableExtra<UserSummary>(\"user\") // fast, no reflection",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "PendingIntents must declare mutability explicitly on Android 12+",
+                    "content": "A PendingIntent lets another component (the system, a notification, a\nwidget) execute your Intent later, on your app's behalf and with your\napp's permissions — a mutable PendingIntent given to an untrusted party\ncan theoretically have its underlying Intent modified before execution,\nwhich is a security risk.\n\nAndroid 12 (API 31) requires every PendingIntent to explicitly specify\nFLAG_MUTABLE or FLAG_IMMUTABLE — omitting both now throws an exception at\nruntime, whereas older versions defaulted silently to mutable.",
+                    "codeSnippet": "val pendingIntent = PendingIntent.getActivity(\n    context, requestCode, intent,\n    PendingIntent.FLAG_IMMUTABLE // required explicitly since API 31\n)",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Intent filters in the manifest declare what implicit intents a component can handle",
+                    "content": "A component only receives implicit intents matching an <intent-filter>\ndeclared for it in the manifest — the filter specifies which actions,\ncategories, and data types/schemes it accepts, and Android matches\nincoming implicit intents against every declared filter across all\ninstalled apps.\n\nA component can declare multiple intent filters to handle several\ndistinct implicit-intent scenarios, but each filter must independently\nmatch action, category, AND data for the intent to be routed to that\ncomponent.",
+                    "codeSnippet": "<activity android:name=\".ShareActivity\">\n    <intent-filter>\n        <action android:name=\"android.intent.action.SEND\" />\n        <category android:name=\"android.intent.category.DEFAULT\" />\n        <data android:mimeType=\"text/plain\" />\n    </intent-filter>\n</activity>",
+                    "codeLang": "XML",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "App Links with autoVerify make your app the default handler for a domain's URLs",
+                    "content": "A plain deep-link intent filter still shows a disambiguation dialog\n('Open with: Browser / Your App') every time, since the system can't\nverify you actually own the domain being linked to.\n\nandroid:autoVerify=\"true\" combined with a Digital Asset Links JSON file\nhosted at the domain's /.well-known/assetlinks.json path proves domain\nownership, letting the system open matching links directly in your app\nwithout the chooser dialog.",
+                    "codeSnippet": "<intent-filter android:autoVerify=\"true\">\n    <action android:name=\"android.intent.action.VIEW\" />\n    <category android:name=\"android.intent.category.DEFAULT\" />\n    <category android:name=\"android.intent.category.BROWSABLE\" />\n    <data android:scheme=\"https\" android:host=\"example.com\" />\n</intent-filter>",
+                    "codeLang": "XML",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "FLAG_ACTIVITY_NEW_TASK and related flags control how an Intent affects the back stack",
+                    "content": "Intent flags change task-stack behavior beyond what launchMode alone\ncontrols — FLAG_ACTIVITY_NEW_TASK starts the Activity in a new task (or\nan existing one if it's already running), FLAG_ACTIVITY_CLEAR_TOP clears\nany Activities above a matching existing instance instead of stacking a\nnew one on top.\n\nStarting an Activity from a non-Activity context (a Service, a\nBroadcastReceiver, an Application-level singleton) requires\nFLAG_ACTIVITY_NEW_TASK explicitly, since there's no existing task context\nto launch into otherwise.",
+                    "codeSnippet": "val intent = Intent(context, MainActivity::class.java).apply {\n    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP\n}\ncontext.startActivity(intent) // context here is not an Activity — NEW_TASK required",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Manifest-registered receivers persist app-wide; context-registered ones follow their owner's lifecycle",
+                    "content": "A <receiver> declared in the manifest is registered system-wide as soon\nas the app is installed and stays active even when your app isn't\nrunning — the system can wake your app via a broadcast, which is powerful\nbut also why it's now restricted for many implicit system broadcasts.\n\nA dynamically registered receiver (context.registerReceiver()) only\nreceives broadcasts while the registering component is alive, and must\nbe explicitly unregistered (typically in onStop/onDestroy) to avoid a\nleaked receiver reference.",
+                    "codeSnippet": "// Dynamic — tied to this Activity's lifecycle\noverride fun onStart() {\n    super.onStart()\n    registerReceiver(myReceiver, IntentFilter(\"com.example.ACTION\"))\n}\noverride fun onStop() { super.onStop(); unregisterReceiver(myReceiver) }",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "Android 8+ restricts most implicit broadcasts from waking apps via the manifest",
+                    "content": "Prior to Android 8 (API 26), a manifest-declared receiver could listen for\nalmost any system broadcast (connectivity changes, for example) and be\nwoken up even when the app wasn't running — this was a major source of\nbattery drain across the ecosystem from many apps all waking\nsimultaneously.\n\nMost implicit system broadcasts now only reach dynamically registered\nreceivers (registered while the app is actually running); a small set of\nexplicitly exempted broadcasts (like BOOT_COMPLETED) still work via the\nmanifest.",
+                    "codeSnippet": "<!-- No longer reliably delivered via manifest registration on API 26+ -->\n<receiver android:name=\".ConnectivityReceiver\">\n    <intent-filter><action android:name=\"android.net.conn.CONNECTIVITY_CHANGE\" /></intent-filter>\n</receiver>\n<!-- register this dynamically at runtime instead -->",
+                    "codeLang": "XML",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "LocalBroadcastManager is deprecated — prefer in-process alternatives",
+                    "content": "LocalBroadcastManager was designed for broadcasting events entirely\nwithin your own app's process, avoiding the security and performance\noverhead of a system-wide broadcast — but it's now deprecated in favor of\nmodern reactive alternatives that fit better with coroutines and Compose.\n\nA SharedFlow, an event bus built on Flow, or simple direct callback\ninterfaces between components generally replace LocalBroadcastManager\ncleanly, with better lifecycle-awareness and less indirection than\nbroadcast-based event delivery.",
+                    "codeSnippet": "// Deprecated:\n// LocalBroadcastManager.getInstance(context).sendBroadcast(intent)\n\n// Preferred — in-process event stream:\nobject AppEvents { val bus = MutableSharedFlow<AppEvent>(extraBufferCapacity = 8) }\nAppEvents.bus.tryEmit(AppEvent.UserLoggedIn)",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Ordered broadcasts let receivers run in priority order and optionally abort propagation",
+                    "content": "A normal broadcast delivers to all matching receivers roughly\nsimultaneously, in no guaranteed order, and none can affect delivery to\nothers. An ordered broadcast (sendOrderedBroadcast) delivers to receivers\nsequentially based on their declared android:priority, and any receiver\ncan call abortBroadcast() to stop it from propagating further down the\nchain.\n\nThis is useful for scenarios like an SMS-receiving app needing first\nrefusal on incoming messages, but it's a less common pattern in modern\nAndroid development given the broader shift away from broadcasts for\nintra-app communication.",
+                    "codeSnippet": "<receiver android:name=\".HighPriorityReceiver\" android:exported=\"true\">\n    <intent-filter android:priority=\"999\">\n        <action android:name=\"com.example.EVENT\" />\n    </intent-filter>\n</receiver>\n// this receiver's onReceive() can call abortBroadcast() to block lower-priority receivers",
+                    "codeLang": "XML",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "android:exported must now be declared explicitly for components with intent filters",
+                    "content": "Prior to Android 12 (API 31), a component with an intent filter but no\nexplicit android:exported attribute defaulted to exported=\"true\",\nsilently exposing it to other apps — a common, easy-to-miss security\nissue.\n\nAndroid 12 requires android:exported to be declared explicitly for any\ncomponent with an intent filter; the app won't even install without it,\nforcing a deliberate decision about whether the component should be\nreachable from outside your app.",
+                    "codeSnippet": "<receiver\n    android:name=\".MyReceiver\"\n    android:exported=\"false\"> <!-- required explicitly on API 31+ -->\n    <intent-filter><action android:name=\"com.example.INTERNAL_EVENT\" /></intent-filter>\n</receiver>",
+                    "codeLang": "XML",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "RECEIVER_NOT_EXPORTED restricts a dynamically registered receiver to your own app",
+                    "content": "The android:exported manifest attribute only applies to statically\ndeclared receivers — a dynamically registered receiver (via\ncontext.registerReceiver()) had no equivalent way to restrict its\nvisibility to only your own app's broadcasts until Android 13 (API 33).\n\nRECEIVER_NOT_EXPORTED explicitly marks a dynamic receiver as internal-\nonly, and RECEIVER_EXPORTED marks it as intentionally open to other apps\n— on API 33+, one of the two flags is now required when registering a\nreceiver for a non-system broadcast action.",
+                    "codeSnippet": "ContextCompat.registerReceiver(\n    context, myReceiver, IntentFilter(\"com.example.INTERNAL_EVENT\"),\n    ContextCompat.RECEIVER_NOT_EXPORTED // explicit intra-app-only scope\n)",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Manifest merging combines declarations from every module and library dependency",
+                    "content": "In a multi-module or library-dependent app, the final AndroidManifest.xml\ninstalled on the device is produced by merging the app module's manifest\nwith every dependency's own manifest — permissions, components, and\nmeta-data all get combined, which can introduce unexpected entries you\nnever declared directly.\n\nRunning ./gradlew app:processDebugManifest (or checking the merged\nmanifest report in Android Studio's build output) reveals exactly what\nended up in the final manifest, which is invaluable for tracking down an\nunexpected permission or component pulled in transitively by a library.",
+                    "codeSnippet": "// In a library module's manifest, declaring:\n<uses-permission android:name=\"android.permission.INTERNET\" />\n// automatically merges into the final app manifest, even if the app module never declared it itself",
+                    "codeLang": "XML",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Dangerous permissions need both a manifest declaration and a runtime request",
+                    "content": "Declaring a permission in the manifest via <uses-permission> is necessary\nbut not sufficient for 'dangerous'-protection-level permissions (camera,\nlocation, contacts) — on API 23+, the app must also explicitly request\nthe permission at runtime and handle the user's grant/deny response,\nsince the manifest declaration alone no longer auto-grants it at install\ntime.\n\n'Normal'-protection-level permissions (internet access, vibration) are\ngranted automatically at install time from the manifest declaration\nalone, with no runtime prompt needed — the distinction matters for\nplanning which permissions need in-app request flows at all.",
+                    "codeSnippet": "<uses-permission android:name=\"android.permission.CAMERA\" /> <!-- necessary but not sufficient -->\n\n// still required at runtime:\nrequestPermissionLauncher.launch(Manifest.permission.CAMERA)",
+                    "codeLang": "XML",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "android:process lets a component run in a separate process from the rest of the app",
+                    "content": "By default, every component in an app runs in a single shared process —\nbut declaring android:process=\":remote\" on a component (commonly a\nService) spins it up in a genuinely separate OS process, isolated from\nthe main app process's memory and, notably, from a crash in the main\nprocess.\n\nThis adds real complexity: components across processes can't share memory\ndirectly and must communicate via IPC (Binder, AIDL) instead of plain\nmethod calls, so it's reserved for cases with a specific isolation need\n(a crash-prone SDK, a memory-heavy background task) rather than a default\nchoice.",
+                    "codeSnippet": "<service\n    android:name=\".SyncService\"\n    android:process=\":sync\" /> <!-- runs in a separate process from the main app -->",
+                    "codeLang": "XML",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "minSdkVersion, targetSdkVersion, and compileSdkVersion each control something different",
+                    "content": "minSdkVersion is the oldest Android version the app can even install on\n— the compiler rejects APIs newer than this unless guarded. targetSdkVersion\ntells the system which version's behavior your app was designed and\ntested against, which changes runtime behavior (permission models,\nbackground restrictions) even on newer devices, since the OS applies\ncompatibility behavior based on it.\n\ncompileSdkVersion is purely a build-time setting — which SDK's APIs and\nlint rules are available while compiling — and has zero effect on runtime\nbehavior or which devices can install the app; it's normal, and\nrecommended, for compileSdkVersion to be higher than targetSdkVersion.",
+                    "codeSnippet": "android {\n    compileSdk = 35 // build-time API surface, no runtime effect\n    defaultConfig {\n        minSdk = 24     // oldest installable OS version\n        targetSdk = 34  // which version's runtime behavior the app opts into\n    }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "The queries element declares which other apps' packages you're allowed to see",
+                    "content": "Android 11 (API 30) introduced package visibility filtering — by default,\nqueryIntentActivities() and similar package-querying APIs only return a\nlimited, curated set of results, hiding most other installed apps for\nprivacy reasons, unless you explicitly declare intent to interact with\nthem.\n\nThe <queries> manifest element declares which specific packages,\nintent actions, or content provider authorities your app needs visibility\ninto — omitting a needed declaration causes package-query APIs to\nsilently return incomplete results instead of throwing an obvious error.",
+                    "codeSnippet": "<queries>\n    <intent>\n        <action android:name=\"android.intent.action.SEND\" />\n        <data android:mimeType=\"text/plain\" />\n    </intent>\n    <package android:name=\"com.whatsapp\" />\n</queries>",
+                    "codeLang": "XML",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Started services run independently of any caller; bound services are tied to their client's connection",
+                    "content": "A started service (via startService()/startForegroundService()) runs\nindependently once launched — it keeps running even if the component\nthat started it is destroyed, and must explicitly call stopSelf() or be\nstopped externally.\n\nA bound service (via bindService()) exists to provide a client-server\ninterface to other components while they're connected — it starts when\nthe first client binds and is destroyed once the last client unbinds, so\nits lifetime is directly tied to active connections rather than an\nindependent running state.",
+                    "codeSnippet": "// Started — runs independently once launched\ncontext.startService(Intent(context, SyncService::class.java))\n\n// Bound — tied to the connection's lifetime\ncontext.bindService(intent, connection, Context.BIND_AUTO_CREATE)",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "Foreground services require an ongoing notification and, since Android 14, a declared type",
+                    "content": "A foreground service must show a persistent notification within a few\nseconds of starting, giving the user visible awareness that something is\nrunning in the background consuming resources on their behalf — without\nit, the system throws an exception and stops the service.\n\nAndroid 14 (API 34) additionally requires declaring a specific foreground\nservice type (dataSync, mediaPlayback, location, etc.) both in the\nmanifest and when starting the service, and restricts which types are\nallowed to be started depending on how the app was launched (from the\nbackground vs. by direct user action).",
+                    "codeSnippet": "<service android:name=\".SyncService\" android:foregroundServiceType=\"dataSync\" />\n\n// starting it:\nServiceCompat.startForeground(this, notificationId, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "IntentService is deprecated — use WorkManager or a CoroutineWorker instead",
+                    "content": "IntentService ran queued work items sequentially on a single background\nthread and stopped itself once the queue was empty — but it's deprecated\nsince it doesn't cooperate with modern background execution limits and\nhas no built-in retry, constraint, or persistence support.\n\nWorkManager (with a CoroutineWorker for coroutine-based implementations)\nis the recommended replacement: it respects Doze/background restrictions\nautomatically, supports constraints (network availability, charging\nstate), and persists queued work across process death and even device\nreboots.",
+                    "codeSnippet": "class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {\n    override suspend fun doWork(): Result {\n        return try { performSync(); Result.success() } catch (e: Exception) { Result.retry() }\n    }\n}\n\nWorkManager.getInstance(context).enqueue(OneTimeWorkRequestBuilder<SyncWorker>().build())",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "onStartCommand's return value controls what happens if the system kills and restarts the service",
+                    "content": "START_STICKY tells the system to recreate the service after it's killed\nfor memory, but delivers a null Intent to onStartCommand on restart —\nappropriate for a service that doesn't rely on the original Intent's data\nto resume its work (like a media player that can just resume its current\nstate).\n\nSTART_REDELIVER_INTENT instead redelivers the last Intent that was\nqueued before the kill, appropriate for services that genuinely need that\ndata to resume correctly (an in-progress upload that needs the file URI\nagain); START_NOT_STICKY doesn't restart the service at all after a kill.",
+                    "codeSnippet": "override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {\n    performWork(intent)\n    return START_REDELIVER_INTENT // needs the original Intent's data to resume correctly\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Background execution limits since Android 8 restrict what a plain background Service can do",
+                    "content": "Since Android 8 (API 26), apps in the background are prevented from\nfreely starting background (non-foreground) services in most\ncircumstances — calling startService() from the background often throws\nan IllegalStateException instead of silently starting the service the way\nit did on older versions.\n\nThis pushed most genuine background-work use cases toward either\nWorkManager (deferred, constraint-aware work) or a foreground service\nwith a visible notification (immediate, user-visible work) — a plain\nbackground service started from the background is no longer a reliable\npattern on modern Android.",
+                    "codeSnippet": "// Throws IllegalStateException if the app is in the background on API 26+:\n// context.startService(Intent(context, MyService::class.java))\n\n// Reliable alternatives:\nWorkManager.getInstance(context).enqueue(workRequest) // deferred, constraint-aware\nContextCompat.startForegroundService(context, intent) // immediate, user-visible",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "ServiceConnection and AIDL enable structured communication with a bound service",
+                    "content": "Binding to a service gives you an IBinder, but working with it directly\nas a raw IBinder is awkward — ServiceConnection's onServiceConnected\ncallback typically casts it to a custom Binder subclass (for same-process\nbinding) that exposes the service's actual public methods directly.\n\nFor cross-process binding (a different app, or a service in a separate\nandroid:process), AIDL (Android Interface Definition Language) defines the\ncontract and generates the IPC marshalling code automatically, since a\nplain custom Binder subclass only works safely within the same process.",
+                    "codeSnippet": "class LocalBinder(val service: MyService) : Binder()\n\nval connection = object : ServiceConnection {\n    override fun onServiceConnected(name: ComponentName, binder: IBinder) {\n        val myService = (binder as LocalBinder).service // direct method access, same process\n    }\n    override fun onServiceDisconnected(name: ComponentName) { }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "A Service runs on the main thread by default — it does not imply background execution",
+                    "content": "A common misconception is that simply being a Service means work runs off\nthe main thread automatically — a plain Service's callbacks\n(onStartCommand, onBind) execute on the main thread just like an\nActivity's, so blocking work inside them still freezes the UI exactly\nlike blocking work in an Activity would.\n\nGenuine background execution requires explicitly moving work off the main\nthread inside the service (a coroutine with Dispatchers.IO, a background\nHandlerThread) — the 'background' in the term refers to the app's UI\nvisibility state, not automatically to which thread the code executes on.",
+                    "codeSnippet": "class SyncService : Service() {\n    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)\n\n    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {\n        scope.launch { performSync() } // explicitly off the main thread\n        return START_NOT_STICKY\n    }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Services declared in a library manifest still require exported/permission review at merge time",
+                    "content": "A Service declared by a third-party SDK's own manifest merges into your\napp's final manifest just like any of your own components — if that\nservice is exported and lacks a permission restriction, it becomes part\nof your app's attack surface even though you never wrote or reviewed its\ndeclaration directly.\n\nReviewing the merged manifest (not just your own module's source) is\nespecially important for services and receivers pulled in transitively,\nsince a poorly-secured component from a dependency is just as exploitable\nas one you declared yourself.",
+                    "codeSnippet": "<!-- from a third-party library's manifest, merged into your final app -->\n<service android:name=\"com.thirdparty.sdk.RemoteService\" android:exported=\"true\" />\n<!-- review the merged manifest report to catch cases like this -->",
+                    "codeLang": "XML",
+                    "difficulty": "ADVANCED"
+                }
+            ]
+        }
+    ]
+}

@@ -1,0 +1,161 @@
+{
+    "version": 1,
+    "author": "TechTalk",
+    "description": "Kotlin — Delegation",
+    "entries": [
+        {
+            "technologyName": "Kotlin",
+            "topicName": "Delegation",
+            "topicDescription": "Reusing behavior with the 'by' keyword for properties and interfaces.",
+            "tips": [
+                {
+                    "title": "Delegates.observable gives reactive state without a full Flow setup",
+                    "content": "For simple cases where you just need to react to a property changing —\nlogging, triggering a UI redraw, notifying a single listener — wiring up\na full StateFlow with collectors can be more machinery than the situation\nneeds.\n\nDelegates.observable takes a lambda called after every assignment with\nthe old and new values, giving you lightweight change notification\ndirectly on a plain property, without introducing a coroutine-based\nreactive stream for a case that doesn't need one.",
+                    "codeSnippet": "var theme: String by Delegates.observable(\"light\") { _, old, new ->\n    if (old != new) applyThemeChange(new)\n}\n\ntheme = \"dark\" // triggers the observer lambda automatically",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "lazy's thread-safety mode is configurable — don't pay for synchronization you don't need",
+                    "content": "by lazy defaults to LazyThreadSafetyMode.SYNCHRONIZED, which uses a lock\nto guarantee the initializer runs exactly once even under concurrent\naccess from multiple threads — necessary for shared singletons, but pure\noverhead in single-threaded contexts like a ViewModel property only ever\naccessed from the main thread.\n\nLazyThreadSafetyMode.NONE skips synchronization entirely for a small\nperformance gain when you can guarantee single-threaded access;\nPUBLICATION allows the initializer to run more than once under a race but\nguarantees all threads see the same final value, trading a possible\nredundant computation for no locking overhead.",
+                    "codeSnippet": "// Main-thread-only property — skip synchronization overhead\nval expensiveRegex by lazy(LazyThreadSafetyMode.NONE) { Regex(\"...\") }\n\n// Shared across threads, occasional redundant init is acceptable\nval sharedCache by lazy(LazyThreadSafetyMode.PUBLICATION) { buildCache() }",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Delegated properties can back lazy, per-row data loading (e.g. a database cursor)",
+                    "content": "Loading every column of a database row eagerly, even ones a particular\nquery result never actually reads, wastes work when rows have many\ncolumns but callers typically only touch a few.\n\nA custom ReadOnlyProperty delegate backed by a Cursor (or similar lazy\ndata source) can defer reading each column until the corresponding\nproperty is actually accessed, turning eager full-row materialization\ninto per-property lazy loading transparently.",
+                    "codeSnippet": "class CursorColumn<T>(private val cursor: Cursor, private val columnName: String, private val read: (Cursor, Int) -> T) : ReadOnlyProperty<Any?, T> {\n    override fun getValue(thisRef: Any?, property: KProperty<*>): T =\n        read(cursor, cursor.getColumnIndexOrThrow(columnName))\n}\n\nclass UserRow(cursor: Cursor) {\n    val name: String by CursorColumn(cursor, \"name\") { c, i -> c.getString(i) }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Class delegation works cleanly with generic interfaces too",
+                    "content": "It's easy to assume `by` delegation only works for simple, non-generic\ninterfaces — but a generic interface delegates just as naturally, with\nthe delegating class either fixing the type parameter concretely or\nremaining generic itself and forwarding the type parameter through.\n\nThis pattern is common for decorator-style wrappers around generic\ncollections or repositories, where you want to add cross-cutting behavior\n(logging, caching) without losing the generic flexibility of the\nunderlying interface.",
+                    "codeSnippet": "interface Repository<T> { fun getAll(): List<T> }\n\nclass CachingRepository<T>(\n    private val delegate: Repository<T>\n) : Repository<T> by delegate {\n    private var cache: List<T>? = null\n    override fun getAll(): List<T> = cache ?: delegate.getAll().also { cache = it }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "A delegate class's own equals/hashCode can leak confusing identity semantics",
+                    "content": "If a custom property delegate class doesn't override equals/hashCode, two\nseparately-created delegate instances wrapping the exact same underlying\nvalue are still considered different objects — this matters if delegate\ninstances themselves ever get compared, stored in a Set, or used as map\nkeys somewhere in the codebase.\n\nWhen a delegate class is meant to represent a value (not an identity),\ngiving it proper equals/hashCode (or making it a data class) avoids\nsubtle bugs where two logically-equal delegates behave as distinct\nobjects in collection-based code.",
+                    "codeSnippet": "class ValueDelegate<T>(private val value: T) : ReadOnlyProperty<Any?, T> {\n    override fun getValue(thisRef: Any?, property: KProperty<*>) = value\n    override fun equals(other: Any?) = other is ValueDelegate<*> && other.value == value\n    override fun hashCode() = value?.hashCode() ?: 0\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Kotlin's delegation is resolved statically at compile time, not via a dynamic proxy",
+                    "content": "Delegation in Java is often implemented with a runtime dynamic proxy\n(java.lang.reflect.Proxy) that intercepts calls reflectively — Kotlin's\n`by` keyword instead generates real forwarding method bytecode at compile\ntime for every interface member, with no reflection or proxy object\ninvolved at all.\n\nThis means Kotlin class delegation has effectively zero runtime overhead\ncompared to writing the forwarding methods by hand, and it's fully visible\nto static analysis and obfuscation tools like DexGuard — unlike a\nreflection-based proxy, which often requires explicit keep rules to avoid\nbreaking under obfuscation.",
+                    "codeSnippet": "interface Greeter { fun greet(): String }\n\nclass LoudGreeter(g: Greeter) : Greeter by g\n// compiles to a real override fun greet() = g.greet() under the hood — no reflection",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Conflicting delegated interface members must be resolved explicitly",
+                    "content": "When a class delegates two interfaces to two different objects and both\ninterfaces declare a member with the same signature, the compiler can't\ndecide which delegate's implementation to use — this is a compile error,\nnot a silent pick-one resolution.\n\nYou must override the conflicting member explicitly in the delegating\nclass and decide manually which delegate to forward to (or combine both),\nmaking the ambiguity resolution visible in code rather than hidden behind\nan implicit rule.",
+                    "codeSnippet": "interface A { fun name(): String }\ninterface B { fun name(): String }\n\nclass Combined(a: A, b: B) : A by a, B by b {\n    override fun name(): String = a.name() // must resolve the conflict explicitly\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "A ThreadLocal-backed delegate gives each thread its own property value",
+                    "content": "A regular property is shared state across every thread that touches the\ninstance — for genuinely per-thread values (a per-thread request context,\na non-thread-safe formatter reused per thread for performance), that\nsharing is exactly the problem, not the solution.\n\nA custom delegate backed by java.lang.ThreadLocal makes each thread see\nits own independent value for the same property, with no cross-thread\ninterference — useful sparingly, since ThreadLocal usage on Android's\nfixed thread pools needs careful cleanup to avoid leaking values into a\nreused pooled thread.",
+                    "codeSnippet": "class ThreadLocalDelegate<T>(private val initializer: () -> T) : ReadWriteProperty<Any?, T> {\n    private val threadLocal = ThreadLocal.withInitial(initializer)\n    override fun getValue(thisRef: Any?, property: KProperty<*>) = threadLocal.get()\n    override fun setValue(thisRef: Any?, property: KProperty<*>, value: T) = threadLocal.set(value)\n}\n\nvar requestContext: RequestContext by ThreadLocalDelegate { RequestContext() }",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Default to val over var — pick mutability deliberately, not by habit",
+                    "content": "A val can only be assigned once (though the object it points to can still\nbe internally mutable, like a val pointing to a MutableList). A var can be\nreassigned freely, which makes it harder to reason about a value's state\nover a function or class's lifetime.\n\nStarting with val and only switching to var when reassignment is genuinely\nneeded keeps more of your code provably stable, and often surfaces design\nissues early — if you find yourself reaching for var frequently, it's\nworth asking whether the logic could be restructured around immutable\nvalues instead.",
+                    "codeSnippet": "val userName = \"Ahmed\" // cannot be reassigned\nvar retryCount = 0      // intentionally mutable — will change during retries\nretryCount++",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "The backing field is implicit unless you refer to it with 'field'",
+                    "content": "Every non-abstract property automatically gets a hidden backing field to\nstore its value, unless the getter/setter you write doesn't need one (for\nexample, a computed property that derives its value from other\nproperties).\n\nInside a custom getter or setter, the keyword `field` refers specifically\nto that backing storage — writing `this.propertyName = value` inside the\nproperty's own setter would call the setter again recursively and cause a\nStackOverflowError, which is exactly why `field` exists as a distinct\nreference.",
+                    "codeSnippet": "var email: String = \"\"\n    set(value) {\n        field = value.lowercase() // 'field' is the real backing storage\n        // this.email = value.lowercase() // would recurse into this same setter forever\n    }",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "lazy delegate defers expensive initialization until first access",
+                    "content": "Initializing an expensive object (a regex, a large lookup table, a network\nclient) in a property initializer runs that cost immediately at object\nconstruction, even if the property is never used in a given code path.\n\nby lazy defers computation until first access and caches the result — by\ndefault it's thread-safe (SYNCHRONIZED mode), but you can pass\nLazyThreadSafetyMode.NONE for single-threaded contexts where the\nsynchronization overhead isn't needed.",
+                    "codeSnippet": "class Validator {\n    private val emailRegex by lazy {\n        Regex(\"^[A-Za-z0-9+_.-]+@([A-Za-z0-9.-]+\\\\.[A-Za-z]{2,})$\")\n    }\n\n    fun isValidEmail(input: String) = emailRegex.matches(input)\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "Delegated properties standardize get/set logic across a class",
+                    "content": "Repeating the same validation or notification logic in every property's\ncustom getter/setter is verbose and error-prone when the logic needs to\nchange in multiple places later.\n\nImplementing ReadWriteProperty lets you package that get/set logic into one\nreusable delegate class, applied to any property with the `by` keyword —\nObservable and Vetoable from kotlin.properties are built-in examples of\nthis pattern.",
+                    "codeSnippet": "class RangeValidated(private val range: IntRange) : ReadWriteProperty<Any?, Int> {\n    private var value = range.first\n    override fun getValue(thisRef: Any?, property: KProperty<*>) = value\n    override fun setValue(thisRef: Any?, property: KProperty<*>, value: Int) {\n        require(value in range) { \"Value must be in $range\" }\n        this.value = value\n    }\n}\n\nclass Settings { var volume by RangeValidated(0..100) }",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Class delegation (by) composes behavior without full inheritance",
+                    "content": "Extending a class just to reuse its implementation (rather than because\nof a genuine is-a relationship) tightly couples you to that class's entire\npublic API and future changes.\n\n`class B(a: A) : InterfaceX by a` forwards all InterfaceX calls to the\nwrapped `a` instance automatically, letting you override only the specific\nmethods you need to change — favoring composition over inheritance with\nzero forwarding boilerplate.",
+                    "codeSnippet": "interface Cache<K, V> { fun get(key: K): V?; fun put(key: K, value: V) }\n\nclass LoggingCache<K, V>(\n    private val delegate: Cache<K, V>\n) : Cache<K, V> by delegate {\n    override fun put(key: K, value: V) {\n        println(\"Caching $key\")\n        delegate.put(key, value)\n    }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Map-backed properties for dynamic, loosely-typed configuration",
+                    "content": "Kotlin lets you delegate a property directly to a Map, reading and writing\nby the property's name as the map key — useful for dynamic configs, JSON-\nlike structures, or wrapping something like a Bundle or JSONObject.\n\nUse this sparingly: it trades compile-time key safety (a typo'd property\nname just returns null/throws at runtime, not a compile error) for\nconvenience, so prefer it only at boundaries dealing with genuinely dynamic\ndata.",
+                    "codeSnippet": "class UserConfig(private val map: Map<String, Any?>) {\n    val name: String by map\n    val age: Int by map\n}\n\nval config = UserConfig(mapOf(\"name\" to \"Ahmed\", \"age\" to 30))\nprintln(config.name) // \"Ahmed\"",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "vetoable lets a delegate reject a property change before it applies",
+                    "content": "Sometimes a setter needs to conditionally reject an update rather than\njust observe it after the fact — for example, refusing to decrease a\ncounter below its current value.\n\nDelegates.vetoable takes a lambda returning Boolean; returning false blocks\nthe assignment entirely, leaving the old value in place, while Delegates\n.observable (its sibling) always allows the change but notifies after.",
+                    "codeSnippet": "var maxRetries: Int by Delegates.vetoable(3) { _, old, new ->\n    new >= old // only allow increasing the retry count\n}\n\nmaxRetries = 5 // applied\nmaxRetries = 2 // rejected — stays at 5",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "provideDelegate customizes delegate creation per property",
+                    "content": "A normal property delegate is a single shared instance, but sometimes each\nproperty needs a delegate configured differently based on the property's\nown name or annotations — like a per-property SharedPreferences key.\n\nImplementing operator fun provideDelegate lets a delegate factory inspect\nthe KProperty at declaration time and return a customized delegate\ninstance, commonly used to auto-derive a storage key from the property\nname instead of hardcoding it.",
+                    "codeSnippet": "class PrefDelegateProvider(private val prefs: SharedPreferences, private val default: String) {\n    operator fun provideDelegate(thisRef: Any?, prop: KProperty<*>): ReadWriteProperty<Any?, String> =\n        object : ReadWriteProperty<Any?, String> {\n            override fun getValue(t: Any?, p: KProperty<*>) = prefs.getString(prop.name, default)!!\n            override fun setValue(t: Any?, p: KProperty<*>, v: String) = prefs.edit { putString(prop.name, v) }\n        }\n}\n\nclass Settings(prefs: SharedPreferences) {\n    var username by PrefDelegateProvider(prefs, \"guest\") // key auto-derived as \"username\"\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "lazy — compute once, use forever",
+                    "content": "'by lazy' creates a property that's computed on first access\nand then cached. The initializer lambda runs only once.\n\nBy default, lazy is thread-safe (SYNCHRONIZED mode).\nUse LazyThreadSafetyMode.NONE if you're sure it's single-threaded\nfor a small performance boost.\n\nGreat for expensive computations, dependency initialization,\nor anything you want to defer until it's actually needed.",
+                    "codeSnippet": "// Computed only when first accessed\nval heavyObject: ExpensiveObject by lazy {\n    println(\"Initializing...\")\n    ExpensiveObject()\n}\n\n// First access — prints \"Initializing...\", returns object\nheavyObject.doWork()\n// Second access — uses cached value, no print\nheavyObject.doMoreWork()\n\n// Single-thread mode (faster, no synchronization)\nval config by lazy(LazyThreadSafetyMode.NONE) {\n    loadConfig()\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "observable & vetoable delegates",
+                    "content": "Delegates.observable() calls a handler AFTER a property changes.\nDelegates.vetoable() calls a handler BEFORE and can reject the change.\n\nObservable is great for logging, UI updates, or reacting to state changes.\nVetoable is perfect for validation — prevent invalid values from being set.\n\nBoth receive the property metadata, old value, and new value as parameters.",
+                    "codeSnippet": "import kotlin.properties.Delegates\n\n// React after change\nvar name: String by Delegates.observable(\"Initial\") {\n    prop, old, new ->\n    println(\"Changed from '$old' to '$new'\")\n}\n\nname = \"Alice\"  // prints: Changed from 'Initial' to 'Alice'\n\n// Reject invalid changes\nvar age: Int by Delegates.vetoable(0) {\n    _, _, newValue -> newValue >= 0  // reject negative ages\n}\n\nage = 25   // ✅ accepted\nage = -1   // ❌ rejected, age stays 25",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Interface delegation with 'by'",
+                    "content": "Kotlin supports the Delegation pattern natively with the 'by' keyword.\nInstead of implementing an interface manually, you delegate to another object.\n\nThis is a powerful alternative to inheritance. Your class gets all the methods\nof the delegate, and you can selectively override specific ones.\n\nComposition over inheritance, made trivially easy by the language.",
+                    "codeSnippet": "interface Logger {\n    fun log(message: String)\n    fun error(message: String)\n}\n\nclass ConsoleLogger : Logger {\n    override fun log(message: String) = println(\"LOG: $message\")\n    override fun error(message: String) = println(\"ERR: $message\")\n}\n\n// Delegates Logger to consoleLogger, overrides just one method\nclass TimestampLogger(\n    consoleLogger: Logger\n) : Logger by consoleLogger {\n    override fun log(message: String) {\n        println(\"[${System.currentTimeMillis()}] $message\")\n    }\n    // error() is automatically delegated ✅\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Delegate a property directly to another property with var x by ::y",
+                    "content": "Sometimes a property is meant to be a pure alias for another property —\nkeeping them manually in sync with a custom getter/setter that just\nforwards reads and writes is boilerplate for something conceptually\nsimple.\n\n`var alias by ::original` delegates directly to another property's own\nbacking storage via a property reference, so reads and writes to alias\ngenuinely read and write the original property, with no separate storage\nor manual forwarding logic needed.",
+                    "codeSnippet": "class LegacyConfig { var timeoutSeconds: Int = 30 }\n\nclass ModernConfig(legacy: LegacyConfig) {\n    var timeoutMs: Int by legacy::timeoutSeconds // delegated alias — reads/writes forward directly\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "A class can delegate multiple interfaces to different objects at once",
+                    "content": "Class delegation with `by` isn't limited to a single interface — a class\nimplementing several interfaces can delegate each one to a different\nbacking object, composing behavior from multiple independent sources\nwithout inheriting from any of them.\n\nThis is useful for combining otherwise-unrelated capabilities (logging,\ncaching, networking) into one facade-like class, where each capability's\nimplementation genuinely lives in a separate, independently-testable\nobject.",
+                    "codeSnippet": "interface Logger { fun log(msg: String) }\ninterface Cache { fun get(key: String): String? }\n\nclass Service(\n    logger: Logger,\n    cache: Cache\n) : Logger by logger, Cache by cache // delegates each interface to a different object",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                }
+            ]
+        }
+    ]
+}

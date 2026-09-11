@@ -1,0 +1,35 @@
+{
+    "version": 1,
+    "author": "TechTalk",
+    "description": "iOS — Core Data & SwiftData",
+    "entries": [
+        {
+            "technologyName": "iOS",
+            "topicName": "Core Data & SwiftData",
+            "topicDescription": "Persistent storage and object-graph management on Apple platforms.",
+            "tips": [
+                {
+                    "title": "SwiftData uses macros for zero-boilerplate models",
+                    "content": "SwiftData (iOS 17+) replaces Core Data's verbose setup with\na single @Model macro. Annotate your class and you get\npersistence, change tracking, and undo support automatically.\n\nProperties are persisted by default. Use @Transient for\ncomputed or non-persistent properties. Relationships are\ninferred from type annotations.\n\nThe @Model macro generates the schema, migration plan, and\nproperty wrappers behind the scenes. No .xcdatamodeld files,\nno NSManagedObject subclasses, no code generation steps.\n\nSwiftData integrates natively with SwiftUI through @Query\nand the modelContainer modifier, making data flow seamless.",
+                    "codeSnippet": "import SwiftData\n\n@Model\nclass Note {\n    var title: String\n    var content: String\n    var createdAt: Date\n    var tags: [Tag]  // relationship inferred\n    \n    @Transient var wordCount: Int {\n        content.split(separator: \" \").count\n    }\n    \n    init(title: String, content: String) {\n        self.title = title\n        self.content = content\n        self.createdAt = .now\n        self.tags = []\n    }\n}\n\n// SwiftUI integration\nstruct NotesView: View {\n    @Query(sort: \\.createdAt, order: .reverse) var notes: [Note]\n    @Environment(\\.modelContext) var context\n    \n    var body: some View {\n        List(notes) { note in\n            Text(note.title)\n        }\n    }\n}",
+                    "codeLang": "Swift",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "Predicates and sort descriptors filter efficiently",
+                    "content": "Both Core Data and SwiftData support predicates for filtering\ndata at the database level. This is much faster than fetching\neverything and filtering in memory.\n\nSwiftData uses the #Predicate macro with Swift's native syntax.\nNo more stringly-typed NSPredicate format strings — you get\ncompile-time checking and autocompletion.\n\nSort descriptors determine the order of results. Chain multiple\nsort descriptors for hierarchical sorting (sort by category,\nthen by date within each category).\n\nUse @Query in SwiftUI views to declare your fetch request\ndeclaratively. The view re-renders automatically when\nmatching data changes.",
+                    "codeSnippet": "// SwiftData — type-safe predicates\nlet today = Calendar.current.startOfDay(for: .now)\nlet predicate = #Predicate<Note> { note in\n    note.createdAt >= today && note.title.contains(\"meeting\")\n}\n\n// In SwiftUI with @Query\n@Query(\n    filter: #Predicate<Note> { $0.tags.count > 0 },\n    sort: [\n        SortDescriptor(\\.createdAt, order: .reverse)\n    ]\n)\nvar taggedNotes: [Note]\n\n// Programmatic fetch\nfunc searchNotes(keyword: String) throws -> [Note] {\n    let descriptor = FetchDescriptor<Note>(\n        predicate: #Predicate { $0.content.contains(keyword) },\n        sortBy: [SortDescriptor(\\.createdAt)]\n    )\n    return try context.fetch(descriptor)\n}",
+                    "codeLang": "Swift",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Model containers and contexts manage the persistence stack",
+                    "content": "In SwiftData, the ModelContainer holds the schema and storage\nconfiguration. The ModelContext is your workspace for creating,\nreading, updating, and deleting model objects.\n\nSet up the container once at the app level using the\n.modelContainer modifier. SwiftUI automatically provides a\ncontext to all child views via the environment.\n\nFor background work, create a separate ModelContext from the\ncontainer. Each context is isolated — changes aren't visible\nto other contexts until you save.\n\nAlways save explicitly when doing batch operations. SwiftUI's\nauto-save handles most cases, but background contexts need\nmanual context.save() calls.",
+                    "codeSnippet": "@main\nstruct MyApp: App {\n    var body: some Scene {\n        WindowGroup {\n            ContentView()\n        }\n        .modelContainer(for: [Note.self, Tag.self])\n    }\n}\n\n// CRUD in a view\nstruct NoteEditor: View {\n    @Environment(\\.modelContext) var context\n    \n    func addNote() {\n        let note = Note(title: \"New\", content: \"\")\n        context.insert(note)\n        // Auto-saved by SwiftUI\n    }\n    \n    func deleteNote(_ note: Note) {\n        context.delete(note)\n    }\n}\n\n// Background context for heavy work\nfunc importNotes(from data: [NoteDTO]) async throws {\n    let container = try ModelContainer(for: Note.self)\n    let bgContext = ModelContext(container)\n    for dto in data {\n        bgContext.insert(Note(title: dto.title, content: dto.body))\n    }\n    try bgContext.save()\n}",
+                    "codeLang": "Swift",
+                    "difficulty": "ADVANCED"
+                }
+            ]
+        }
+    ]
+}

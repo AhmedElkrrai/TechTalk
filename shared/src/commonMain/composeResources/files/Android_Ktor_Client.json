@@ -1,0 +1,21 @@
+{
+    "version": 1,
+    "author": "TechTalk",
+    "description": "Android — Ktor Client",
+    "entries": [
+        {
+            "technologyName": "Android",
+            "topicName": "Ktor Client",
+            "topicDescription": "Networking layer patterns for production Android apps.",
+            "tips": [
+                {
+                    "title": "Restrict retry-with-backoff to idempotent requests only",
+                    "content": "Automatically retrying a failed POST can duplicate side effects (double charges,\nduplicate resource creation). Only GET, PUT, DELETE, and HEAD are safe to retry\nblindly under standard HTTP semantics — POST is idempotent only if your backend\nexplicitly guarantees it (e.g. via an idempotency key).\n\nGate your retry interceptor on the HTTP method, and use exponential backoff with\njitter rather than fixed delays to avoid thundering-herd retries across many\nclients after an outage.",
+                    "codeSnippet": "val idempotentMethods = setOf(HttpMethod.Get, HttpMethod.Put, HttpMethod.Delete, HttpMethod.Head)\n\ninstall(HttpRequestRetry) {\n    retryIf { request, response ->\n        request.method in idempotentMethods && response.status.value in 500..599\n    }\n    exponentialDelay()\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                }
+            ]
+        }
+    ]
+}

@@ -1,0 +1,35 @@
+{
+    "version": 1,
+    "author": "TechTalk",
+    "description": "Go — Interfaces",
+    "entries": [
+        {
+            "technologyName": "Go",
+            "topicName": "Interfaces",
+            "topicDescription": "Implicit interface satisfaction and polymorphism in Go.",
+            "tips": [
+                {
+                    "title": "Interfaces are satisfied implicitly — no 'implements' keyword",
+                    "content": "In Go, a type satisfies an interface simply by implementing\nall its methods. There's no explicit declaration like Java's\n'implements' or Swift's conformance syntax.\n\nThis is called structural typing. If your struct has a\nRead(p []byte) (n int, err error) method, it automatically\nsatisfies io.Reader. No import needed, no annotation.\n\nThis design enables incredible decoupling. You can define an\ninterface in package A that types in package B satisfy, even\nif B was written years before A existed.\n\nKeep interfaces small — one or two methods. The standard\nlibrary's io.Reader, io.Writer, and fmt.Stringer are great\nexamples. Small interfaces are satisfied by many types.",
+                    "codeSnippet": "// Define a small interface\ntype Stringer interface {\n    String() string\n}\n\n// This type satisfies Stringer automatically\ntype User struct {\n    Name  string\n    Email string\n}\n\nfunc (u User) String() string {\n    return fmt.Sprintf(\"%s <%s>\", u.Name, u.Email)\n}\n\n// Works with any Stringer — no coupling\nfunc PrintAll(items []Stringer) {\n    for _, item := range items {\n        fmt.Println(item.String())\n    }\n}\n\n// User satisfies Stringer without knowing about it\nfunc main() {\n    u := User{Name: \"Alice\", Email: \"alice@example.com\"}\n    fmt.Println(u)  // calls String() automatically\n}",
+                    "codeLang": "go",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "Accept interfaces, return structs",
+                    "content": "A widely followed Go proverb: functions should accept\ninterfaces and return concrete types. This maximizes\nflexibility for callers while keeping return types precise.\n\nWhen your function accepts an interface, any type satisfying\nit can be passed in. This makes your function reusable and\ntestable — pass a mock in tests, a real implementation in\nproduction.\n\nReturn concrete types so callers know exactly what they get.\nThey can use it directly or assign it to an interface\nvariable if they want abstraction.\n\nDon't define interfaces preemptively. Wait until you need\none (usually for testing or polymorphism), then define the\nminimal interface at the consumer's side.",
+                    "codeSnippet": "// Interface defined by the consumer, not the provider\ntype UserStore interface {\n    GetUser(id int) (*User, error)\n    SaveUser(u *User) error\n}\n\n// Service accepts interface — easy to test\ntype UserService struct {\n    store UserStore\n}\n\nfunc NewUserService(store UserStore) *UserService {\n    return &UserService{store: store}\n}\n\nfunc (s *UserService) Rename(id int, name string) error {\n    user, err := s.store.GetUser(id)\n    if err != nil {\n        return err\n    }\n    user.Name = name\n    return s.store.SaveUser(user)\n}\n\n// In tests — pass a mock\ntype mockStore struct {\n    users map[int]*User\n}\nfunc (m *mockStore) GetUser(id int) (*User, error) {\n    return m.users[id], nil\n}\nfunc (m *mockStore) SaveUser(u *User) error {\n    m.users[u.ID] = u; return nil\n}",
+                    "codeLang": "go",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "The empty interface and type assertions",
+                    "content": "The empty interface (interface{} or 'any' since Go 1.18)\nis satisfied by every type. It's Go's way of saying \"any\nvalue at all\" — like Object in Java or Any in Kotlin.\n\nUse type assertions to extract the concrete type from an\ninterface value. The two-value form (value, ok) is safe:\nok is false if the assertion fails.\n\nType switches let you branch on the concrete type. This is\ncleaner than chaining type assertions and handles multiple\ntypes elegantly.\n\nAvoid overusing empty interfaces. They bypass Go's type\nsafety. With generics (Go 1.18+), many uses of interface{}\ncan be replaced with type parameters for compile-time checks.",
+                    "codeSnippet": "// Type assertion — extract concrete type\nvar val any = \"hello\"\n\nstr, ok := val.(string)\nif ok {\n    fmt.Println(\"String:\", str)\n}\n\n// Type switch — branch on type\nfunc describe(val any) string {\n    switch v := val.(type) {\n    case int:\n        return fmt.Sprintf(\"integer: %d\", v)\n    case string:\n        return fmt.Sprintf(\"string: %q\", v)\n    case bool:\n        return fmt.Sprintf(\"boolean: %t\", v)\n    default:\n        return fmt.Sprintf(\"unknown: %v\", v)\n    }\n}\n\n// With generics (Go 1.18+) — prefer over interface{}\nfunc Max[T constraints.Ordered](a, b T) T {\n    if a > b {\n        return a\n    }\n    return b\n}",
+                    "codeLang": "go",
+                    "difficulty": "ADVANCED"
+                }
+            ]
+        }
+    ]
+}

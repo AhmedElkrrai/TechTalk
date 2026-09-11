@@ -1,0 +1,21 @@
+{
+    "version": 1,
+    "author": "TechTalk",
+    "description": "Android — Clean Architecture",
+    "entries": [
+        {
+            "technologyName": "Android",
+            "topicName": "Clean Architecture",
+            "topicDescription": "Layered architecture patterns for Android: domain, data, and presentation boundaries.",
+            "tips": [
+                {
+                    "title": "The domain layer should have zero Android framework dependencies",
+                    "content": "A domain module that imports android.* classes (Context, Bundle, even\nandroidx.lifecycle types) is no longer testable with fast, plain JVM unit\ntests — every test now needs Robolectric or an instrumented device,\nslowing feedback loops significantly.\n\nKeeping the domain module (use cases, business models, repository\ninterfaces) as pure Kotlin with no Android imports lets its entire test\nsuite run as fast, JVM-only unit tests — Android-specific concerns stay\nconfined to the data and presentation layers, which depend on domain, not\nthe other way around.",
+                    "codeSnippet": "// domain module build.gradle.kts — no Android plugin applied\nplugins { kotlin(\"jvm\") } // pure Kotlin, no android.* imports possible\n\nclass GetUserUseCase(private val repository: UserRepository) {\n    suspend operator fun invoke(id: String): User = repository.getUser(id)\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                }
+            ]
+        }
+    ]
+}

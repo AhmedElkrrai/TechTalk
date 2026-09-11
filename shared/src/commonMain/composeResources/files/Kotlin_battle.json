@@ -1,0 +1,37 @@
+{
+    "version": 1,
+    "author": "TechTalk",
+    "description": "Kotlin battles",
+    "entries": [
+        {
+            "technologyName": "Kotlin",
+            "topicName": "Null Safety & Types",
+            "topicDescription": "Working effectively with Kotlin's type system, nullability, and smart casts.",
+            "questions": [
+                {
+                    "questionText": "What is the purpose of the '!!' operator in Kotlin?",
+                    "difficulty": "INTERMEDIATE",
+                    "explanation": "The '!!' operator is used to assert that a value is not null. If the value is null, it throws a NullPointerException.",
+                    "answers": [
+                        {
+                            "answerText": "To assert that a value is not null and throw an exception if it is",
+                            "isCorrect": true
+                        },
+                        {
+                            "answerText": "To safely access a nullable value without throwing an exception",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "To convert a nullable type to a non-nullable type",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "To check if a value is null and return a default value",
+                            "isCorrect": false
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

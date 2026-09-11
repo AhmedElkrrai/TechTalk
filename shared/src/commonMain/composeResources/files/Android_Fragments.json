@@ -1,0 +1,21 @@
+{
+    "version": 1,
+    "author": "TechTalk",
+    "description": "Android — Fragments",
+    "entries": [
+        {
+            "technologyName": "Android",
+            "topicName": "Fragments",
+            "topicDescription": "Fragment lifecycle, communication, and management within Activities and Navigation.",
+            "tips": [
+                {
+                    "title": "Use the Fragment Result API instead of direct references between Fragments for communication",
+                    "content": "Having one Fragment hold a direct reference to another (or to its host\nActivity cast to a specific interface) tightly couples them and breaks\neasily during navigation changes or configuration changes, when Fragment\ninstances are recreated.\n\nThe Fragment Result API lets a Fragment set a result keyed by a request\nkey, and another Fragment listen for it via the FragmentManager — neither\nFragment needs a direct reference to the other, and it correctly survives\nFragment recreation since it's coordinated through the FragmentManager\nrather than a direct object reference.",
+                    "codeSnippet": "// Fragment A sets a result:\nsetFragmentResult(\"requestKey\", bundleOf(\"selectedId\" to id))\n\n// Fragment B listens, decoupled from Fragment A entirely:\nparentFragmentManager.setFragmentResultListener(\"requestKey\", viewLifecycleOwner) { _, bundle ->\n    val id = bundle.getString(\"selectedId\")\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                }
+            ]
+        }
+    ]
+}
