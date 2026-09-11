@@ -40,7 +40,7 @@ fun TipCard(
     modifier: Modifier = Modifier
 ) {
     Card(
-        modifier = modifier.fillMaxSize().padding(16.dp),
+        modifier = modifier.fillMaxSize(),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.background),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
@@ -49,7 +49,7 @@ fun TipCard(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(20.dp)
+                .padding(16.dp)
         ) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Badge(
@@ -81,33 +81,7 @@ fun TipCard(
             val snippet = tip.codeSnippet
             if (!snippet.isNullOrBlank()) {
                 Spacer(Modifier.height(16.dp))
-                Column(
-                    modifier = Modifier.fillMaxWidth()
-                        .background(CodeHeaderBackground, RoundedCornerShape(12.dp))
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth()
-                            .padding(horizontal = 12.dp, vertical = 8.dp)
-                    ) {
-                        Text(
-                            text = tip.codeLang ?: "",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = CodeTextColor
-                        )
-                    }
-                    Column(
-                        modifier = Modifier.fillMaxWidth().background(CodeBodyBackground)
-                            .horizontalScroll(rememberScrollState())
-                            .padding(12.dp)
-                    ) {
-                        Text(
-                            text = snippet,
-                            style = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
-                            color = CodeTextColor,
-                            softWrap = false
-                        )
-                    }
-                }
+                CodeSnippet(tip, snippet)
             }
 
             Spacer(Modifier.height(16.dp))
@@ -124,6 +98,37 @@ fun TipCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun CodeSnippet(tip: FeedTip, snippet: String) {
+    Column(
+        modifier = Modifier.fillMaxWidth()
+            .background(CodeHeaderBackground, RoundedCornerShape(12.dp))
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 8.dp)
+        ) {
+            Text(
+                text = tip.codeLang ?: "",
+                style = MaterialTheme.typography.labelSmall,
+                color = CodeTextColor
+            )
+        }
+        Column(
+            modifier = Modifier.fillMaxWidth().background(CodeBodyBackground)
+                .horizontalScroll(rememberScrollState())
+                .padding(12.dp)
+        ) {
+            Text(
+                text = snippet,
+                style = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
+                color = CodeTextColor,
+                softWrap = false
+            )
         }
     }
 }
