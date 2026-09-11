@@ -6,6 +6,7 @@ import com.elkrrai.techtalk.domain.model.common.Difficulty
 import com.elkrrai.techtalk.domain.repository.TechTalkRepository
 import com.elkrrai.techtalk.presentation.battle.home.state.BattleMode
 import com.elkrrai.techtalk.presentation.battle.result.state.BattleResultUiState
+import com.elkrrai.techtalk.presentation.battle.state.BATTLE_TOTAL_QUESTIONS
 import com.elkrrai.techtalk.presentation.battle.state.BattlePhase
 import com.elkrrai.techtalk.presentation.battle.state.BattleSessionStore
 import com.elkrrai.techtalk.presentation.battle.state.BattleState
@@ -32,11 +33,14 @@ class BattleResultViewModel(
         }
     }
 
-    /** Always reloads *local* questions and preserves the session [BattleMode] — after
-     * an online match this restarts into the online flow with unusable local
-     * questions. Matches the original app's behavior; verify before relying on it. */
+    /** Offline only — an online result never shows this button (see
+     * [BattleResultUiState.canTryAgain]), and this guard covers the one-frame race where
+     * a tap lands right as the button is disappearing. [BattleSessionStore.restartOfflineBattle]
+     * itself also hardcodes `mode = OFFLINE`, so even a direct call here can't produce a
+     * battle whose mode doesn't match the local questions it's about to load. */
     fun onTryAgain() {
         val session = sessionStore.state.value
+        if (session.mode != BattleMode.OFFLINE) return
         val technology = session.selectedTechnology ?: return
         viewModelScope.launch {
             val questionIds = (
@@ -45,7 +49,7 @@ class BattleResultViewModel(
                 } else {
                     repository.getQuestionIdsByTechnologyAndDifficulty(technology.id, session.selectedDifficulty)
                 }
-                ).shuffled().take(10)
+                ).shuffled().take(BATTLE_TOTAL_QUESTIONS)
             if (questionIds.isEmpty()) return@launch
 
             val questions = questionIds.mapNotNull { repository.getQuestionById(it) }
@@ -54,19 +58,15 @@ class BattleResultViewModel(
                 ?.shuffled()
                 .orEmpty()
 
-            sessionStore.startBattle(
-                session.copy(
-                    phase = BattlePhase.BATTLE,
-                    mode = session.mode,
-                    questions = questions,
-                    currentAnswers = firstAnswers,
-                    currentQuestionIndex = 0,
-                    selectedAnswerId = null,
-                    hasAnswered = false,
-                    score = 0,
-                    xpGained = 0,
-                    remainingTimeSeconds = if (session.selectedTimeControl.totalSeconds < 0) null else session.selectedTimeControl.totalSeconds
-                )
+            sessionStore.restartOfflineBattle(
+                technology = technology,
+                subscribedTechnologies = session.subscribedTechnologies,
+                playerName = session.playerName,
+                playerAvatarKey = session.playerAvatarKey,
+                timeControl = session.selectedTimeControl,
+                difficulty = session.selectedDifficulty,
+                questions = questions,
+                currentAnswers = firstAnswers
             )
         }
     }
@@ -82,5 +82,6 @@ private fun BattleState.toResultUiState(): BattleResultUiState = BattleResultUiS
     technologyName = selectedTechnology?.name.orEmpty(),
     xpGained = xpGained,
     playerName = playerName,
-    playerAvatarKey = playerAvatarKey
+    playerAvatarKey = playerAvatarKey,
+    canTryAgain = mode == BattleMode.OFFLINE
 )

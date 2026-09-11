@@ -14,10 +14,8 @@ import com.elkrrai.techtalk.presentation.battle.online.mapper.mapOnlineFailureTo
 import com.elkrrai.techtalk.presentation.battle.online.mapper.toBattleAnswerOptionUi
 import com.elkrrai.techtalk.presentation.battle.online.state.OnlineBattleUiState
 import com.elkrrai.techtalk.presentation.battle.online.state.OnlineConnectionStatus
-import com.elkrrai.techtalk.presentation.battle.state.BattlePhase
 import com.elkrrai.techtalk.presentation.battle.state.BattleSessionStore
 import com.elkrrai.techtalk.presentation.battle.state.BattleState
-import com.elkrrai.techtalk.presentation.battle.state.OnlineBattlePhase
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -259,14 +257,7 @@ class OnlineBattleViewModel(
 
         persistResult(session, playerScore, totalQuestions, status, xpGained)
 
-        sessionStore.update {
-            it.copy(
-                phase = BattlePhase.RESULT,
-                onlinePhase = OnlineBattlePhase.LOBBY,
-                score = playerScore,
-                xpGained = xpGained
-            )
-        }
+        sessionStore.finalizeOnlineBattle(playerScore, xpGained)
     }
 
     /** Persistence is skipped when no technology is selected, and both repository

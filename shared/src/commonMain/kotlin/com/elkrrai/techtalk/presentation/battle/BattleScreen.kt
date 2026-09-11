@@ -60,13 +60,10 @@ fun BattleScreen(modifier: Modifier = Modifier) {
             OnlineBattleScreen(viewModel = koinViewModel<OnlineBattleViewModel>())
         }
         composable<BattleResultRoute> {
-            BattleResultScreen(
-                viewModel = koinViewModel<BattleResultViewModel>(),
-                onClose = {
-                    if (sessionStore.state.value.phase != BattlePhase.BATTLE)
-                        sessionStore.reset()
-                }
-            )
+            // onClose only fires from BattleResultScreen's explicit "Pick another tech"
+            // tap (not from disposal), so a plain reset is safe here — see
+            // BattleResultScreen.kt for why that distinction matters.
+            BattleResultScreen(viewModel = koinViewModel<BattleResultViewModel>(), onClose = sessionStore::reset)
         }
     }
 }

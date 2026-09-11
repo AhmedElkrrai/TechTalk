@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -29,10 +28,11 @@ fun BattleResultScreen(
 ) {
     val state by viewModel.state.collectAsState()
 
-    DisposableEffect(Unit) {
-        onDispose { onClose() }
-    }
-
+    // onClose fires only from the explicit "Pick another tech" tap below — NOT from a
+    // DisposableEffect(Unit) { onDispose { onClose() } } like an earlier version had.
+    // That pattern fired on ANY disposal, including the one "Try again" itself causes by
+    // succeeding (phase -> BATTLE routes away from this screen), which wiped the battle
+    // that was just started. See BattleSessionStore's plan doc for the full story.
     Column(
         modifier = modifier.fillMaxSize().padding(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -60,14 +60,17 @@ fun BattleResultScreen(
             color = MaterialTheme.colorScheme.primary
         )
 
-        AppButton(
-            text = "Try again",
-            onClick = viewModel::onTryAgain,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 32.dp)
-                .semantics { contentDescription = "Try again" }
-        )
+        // Online results never offer a rematch — see BattleResultUiState.canTryAgain.
+        if (state.canTryAgain) {
+            AppButton(
+                text = "Try again",
+                onClick = viewModel::onTryAgain,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 32.dp)
+                    .semantics { contentDescription = "Try again" }
+            )
+        }
         AppOutlinedButton(
             text = "Pick another tech",
             onClick = {
@@ -76,7 +79,7 @@ fun BattleResultScreen(
             },
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 8.dp)
+                .padding(top = if (state.canTryAgain) 8.dp else 32.dp)
                 .semantics { contentDescription = "Pick another tech" }
         )
     }

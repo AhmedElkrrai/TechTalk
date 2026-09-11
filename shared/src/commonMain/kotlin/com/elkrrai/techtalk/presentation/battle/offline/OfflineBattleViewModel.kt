@@ -64,11 +64,11 @@ class OfflineBattleViewModel(
                 if (current.mode != BattleMode.OFFLINE || current.phase != BattlePhase.BATTLE) return@launch
                 val remaining = (current.remainingTimeSeconds ?: 0) - 1
                 if (remaining <= 0) {
-                    sessionStore.update { it.copy(remainingTimeSeconds = 0) }
+                    sessionStore.tickOfflineTimer(0)
                     finalizeBattle(isResigned = false)
                     return@launch
                 }
-                sessionStore.update { it.copy(remainingTimeSeconds = remaining) }
+                sessionStore.tickOfflineTimer(remaining)
             }
         }
     }
@@ -77,13 +77,7 @@ class OfflineBattleViewModel(
         val current = sessionStore.state.value
         if (current.mode != BattleMode.OFFLINE || current.hasAnswered) return
         val isCorrect = current.currentAnswers.any { it.id == answerId && it.isCorrect }
-        sessionStore.update {
-            it.copy(
-                selectedAnswerId = answerId,
-                hasAnswered = true,
-                score = if (isCorrect) it.score + 1 else it.score
-            )
-        }
+        sessionStore.recordOfflineAnswer(answerId, isCorrect)
     }
 
     fun onNextQuestion() {
@@ -97,14 +91,7 @@ class OfflineBattleViewModel(
             }
             val nextQuestion = current.questions[nextIndex]
             val nextAnswers = repository.getAnswersByQuestionId(nextQuestion.id).shuffled()
-            sessionStore.update {
-                it.copy(
-                    currentQuestionIndex = nextIndex,
-                    currentAnswers = nextAnswers,
-                    selectedAnswerId = null,
-                    hasAnswered = false
-                )
-            }
+            sessionStore.advanceOfflineQuestion(nextIndex, nextAnswers)
         }
     }
 
@@ -139,7 +126,7 @@ class OfflineBattleViewModel(
                     xpGained = xpGained
                 )
             }
-            sessionStore.update { it.copy(phase = BattlePhase.RESULT, xpGained = xpGained) }
+            sessionStore.finalizeOfflineBattle(xpGained)
         }
     }
 }

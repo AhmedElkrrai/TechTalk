@@ -7,6 +7,7 @@ import com.elkrrai.techtalk.domain.model.online.BattleTimeControl
 import com.elkrrai.techtalk.domain.repository.TechTalkRepository
 import com.elkrrai.techtalk.presentation.battle.home.state.BattleHomeUiState
 import com.elkrrai.techtalk.presentation.battle.home.state.BattleMode
+import com.elkrrai.techtalk.presentation.battle.state.BATTLE_TOTAL_QUESTIONS
 import com.elkrrai.techtalk.presentation.battle.state.BattlePhase
 import com.elkrrai.techtalk.presentation.battle.state.BattleSessionStore
 import com.elkrrai.techtalk.presentation.battle.state.BattleState
@@ -123,7 +124,7 @@ class BattleHomeViewModel(
                 } else {
                     repository.getQuestionIdsByTechnologyAndDifficulty(technologyId, current.selectedDifficulty)
                 }
-                ).shuffled().take(10)
+                ).shuffled().take(BATTLE_TOTAL_QUESTIONS)
 
             if (questionIds.isEmpty()) {
                 _state.update {

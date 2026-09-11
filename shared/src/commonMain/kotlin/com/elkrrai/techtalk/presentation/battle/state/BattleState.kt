@@ -8,6 +8,14 @@ import com.elkrrai.techtalk.domain.model.user.AvatarCatalog
 import com.elkrrai.techtalk.presentation.battle.home.state.BattleMode
 import com.elkrrai.techtalk.presentation.technologylist.state.TechnologyUiItem
 
+/** Single source of truth for how many questions a battle runs — read by [BattleState],
+ * [com.elkrrai.techtalk.presentation.battle.offline.state.OfflineBattleUiState],
+ * [com.elkrrai.techtalk.presentation.battle.online.state.OnlineBattleUiState],
+ * [com.elkrrai.techtalk.presentation.battle.result.state.BattleResultUiState], and the
+ * question-loading code in [com.elkrrai.techtalk.presentation.battle.home.BattleHomeViewModel]
+ * and [com.elkrrai.techtalk.presentation.battle.result.BattleResultViewModel]. */
+const val BATTLE_TOTAL_QUESTIONS = 10
+
 /** Shared session model — the only channel between home -> battle -> result, held by
  * the [BattleSessionStore] singleton. */
 data class BattleState(
@@ -39,9 +47,7 @@ data class BattleState(
     // through the shared session store is the natural fix given this architecture.
     val currentPlayerId: String? = null
 ) {
-    // Hardcoded in three places across the battle feature — keep consistent if ever
-    // changed: here, OfflineBattleUiState, and OnlineBattleUiState.
-    val totalQuestions: Int get() = 10
+    val totalQuestions: Int get() = BATTLE_TOTAL_QUESTIONS
 
     val currentQuestion: BattleQuestion? get() = questions.getOrNull(currentQuestionIndex)
 

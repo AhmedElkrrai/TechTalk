@@ -12,7 +12,6 @@ import com.elkrrai.techtalk.domain.usecase.online.DisconnectOnlineBattleUseCase
 import com.elkrrai.techtalk.domain.usecase.online.JoinOnlineRoomUseCase
 import com.elkrrai.techtalk.domain.usecase.online.ObserveOnlineBattleEventsUseCase
 import com.elkrrai.techtalk.presentation.battle.online.mapper.applyOnlineEvent
-import com.elkrrai.techtalk.presentation.battle.online.mapper.toOnlineBattleState
 import com.elkrrai.techtalk.presentation.battle.online.state.BattleLobbyUiState
 import com.elkrrai.techtalk.presentation.battle.online.state.OnlineConnectionStatus
 import com.elkrrai.techtalk.presentation.battle.online.state.OnlineMatchRole
@@ -56,13 +55,13 @@ class BattleLobbyViewModel(
     private fun handleEvent(event: OnlineBattleEvent) {
         if (event is OnlineBattleEvent.Connected) {
             currentPlayerId = event.playerId
-            sessionStore.update { it.copy(currentPlayerId = event.playerId) }
+            sessionStore.setCurrentPlayerId(event.playerId)
         }
 
         if (event is OnlineBattleEvent.MatchStarted) {
             val session = sessionStore.state.value
             if (event.matchId.isBlank() || session.selectedTechnology == null) return
-            sessionStore.update { it.toOnlineBattleState(event.totalDurationSeconds) }
+            sessionStore.transitionToOnlineMatch(event.totalDurationSeconds)
             _state.update { it.copy(stage = OnlineMatchStage.CONNECTED, isBusy = false) }
             return
         }

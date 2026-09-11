@@ -3,6 +3,7 @@ package com.elkrrai.techtalk.presentation.battle.online.state
 import com.elkrrai.techtalk.domain.model.common.Difficulty
 import com.elkrrai.techtalk.domain.model.user.AvatarCatalog
 import com.elkrrai.techtalk.presentation.battle.component.BattleAnswerOptionUi
+import com.elkrrai.techtalk.presentation.battle.state.BATTLE_TOTAL_QUESTIONS
 
 data class OnlineBattleUiState(
     val matchId: String? = null,
@@ -14,8 +15,7 @@ data class OnlineBattleUiState(
     val selectedAnswerId: Long? = null,
     val hasAnswered: Boolean = false,
     val currentQuestionIndex: Int = 0,
-    // Hardcoded to 10, matching BattleState — see its comment.
-    val totalQuestions: Int = 10,
+    val totalQuestions: Int = BATTLE_TOTAL_QUESTIONS,
     val remainingTimeSeconds: Int? = null,
     val playerName: String = "",
     val playerAvatarKey: String = AvatarCatalog.defaultAvatarKey,

@@ -2,6 +2,7 @@ package com.elkrrai.techtalk.presentation.battle.offline.state
 
 import com.elkrrai.techtalk.domain.model.common.Difficulty
 import com.elkrrai.techtalk.presentation.battle.component.BattleAnswerOptionUi
+import com.elkrrai.techtalk.presentation.battle.state.BATTLE_TOTAL_QUESTIONS
 
 data class OfflineBattleUiState(
     val title: String = "",
@@ -12,8 +13,7 @@ data class OfflineBattleUiState(
     val selectedAnswerId: Long? = null,
     val hasAnswered: Boolean = false,
     val currentQuestionIndex: Int = 0,
-    // Hardcoded to 10, matching BattleState — see its comment.
-    val totalQuestions: Int = 10,
+    val totalQuestions: Int = BATTLE_TOTAL_QUESTIONS,
     val score: Int = 0,
     val remainingTimeSeconds: Int? = null,
     val isLastQuestion: Boolean = false
