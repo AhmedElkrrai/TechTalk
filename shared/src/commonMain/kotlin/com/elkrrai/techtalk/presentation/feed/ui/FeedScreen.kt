@@ -36,13 +36,11 @@ fun FeedScreen(
             TopAppBar(
                 title = { Text("Feed") },
                 actions = {
-                    if (state.showTipsCounter) {
-                        Text(
-                            text = "${state.currentPage + 1}/${state.filteredTips.size}",
-                            modifier = Modifier.padding(end = 8.dp),
-                            style = MaterialTheme.typography.labelLarge
-                        )
-                    }
+                    Text(
+                        text = "${state.currentPage + 1}/${state.filteredTips.size}",
+                        modifier = Modifier.padding(end = 8.dp),
+                        style = MaterialTheme.typography.labelLarge
+                    )
                     IconButton(onClick = viewModel::onOpenFilterSheet) {
                         Text("⚙️")
                     }
@@ -56,6 +54,7 @@ fun FeedScreen(
                 !state.hasSubscriptions -> SubscribeFirstPrompt(onBrowseTechnologies = onBrowseTechnologies)
                 state.filteredTips.isEmpty() && state.filter != com.elkrrai.techtalk.presentation.feed.state.FeedFilter() ->
                     FilterEmptyState(onClearFilters = viewModel::onClearFilters)
+
                 state.filteredTips.isEmpty() -> AllCaughtUp(onReload = viewModel::onReloadTips)
                 else -> TipFeed(
                     tips = state.filteredTips,

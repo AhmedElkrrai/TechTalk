@@ -1,6 +1,7 @@
 package com.elkrrai.techtalk.presentation.feed.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -11,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -21,10 +23,14 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.elkrrai.techtalk.domain.model.tip.FeedTip
 import com.elkrrai.techtalk.presentation.component.DifficultyBadge
+import com.elkrrai.techtalk.presentation.component.TechnologyBadge
+import com.elkrrai.techtalk.presentation.component.getDifficultyTitleAndColor
 import com.elkrrai.techtalk.presentation.theme.CodeBodyBackground
 import com.elkrrai.techtalk.presentation.theme.CodeHeaderBackground
 import com.elkrrai.techtalk.presentation.theme.CodeTextColor
@@ -48,47 +54,51 @@ fun TipCard(
                 .verticalScroll(rememberScrollState())
                 .padding(20.dp)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = tip.technologyName,
-                        style = MaterialTheme.typography.labelLarge,
-                        color = parseHexColor(tip.technologyTagColor)
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text(
-                        text = "· ${tip.topicName}",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                TechnologyBadge(
+                    title =tip.technologyName,
+                    color = parseHexColor(tip.technologyTagColor)
+                )
+                FilledPill(text = tip.topicName)
                 DifficultyBadge(tip.difficulty)
             }
 
             Spacer(Modifier.height(16.dp))
 
-            Text(text = tip.title, style = MaterialTheme.typography.headlineSmall)
+            Text(
+                text = tip.title,
+                style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold)
+            )
 
             Spacer(Modifier.height(12.dp))
 
-            Text(text = tip.content, style = MaterialTheme.typography.bodyLarge)
+            Text(
+                text = tip.content,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.85f)
+            )
 
             val snippet = tip.codeSnippet
             if (!snippet.isNullOrBlank()) {
                 Spacer(Modifier.height(16.dp))
-                Column(modifier = Modifier.fillMaxWidth().background(CodeHeaderBackground, RoundedCornerShape(12.dp))) {
-                    Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp)) {
+                Column(
+                    modifier = Modifier.fillMaxWidth()
+                        .background(CodeHeaderBackground, RoundedCornerShape(12.dp))
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 8.dp)
+                    ) {
                         Text(
-                            text = tip.codeLang ?: "code",
+                            text = tip.codeLang ?: "",
                             style = MaterialTheme.typography.labelSmall,
                             color = CodeTextColor
                         )
                     }
-                    Column(modifier = Modifier.fillMaxWidth().background(CodeBodyBackground).padding(12.dp)) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth().background(CodeBodyBackground)
+                            .padding(12.dp)
+                    ) {
                         Text(
                             text = snippet,
                             style = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
@@ -114,4 +124,32 @@ fun TipCard(
             }
         }
     }
+}
+
+/** Colored-outline pill — used for technology and difficulty badges. */
+@Composable
+private fun OutlinedPill(text: String, color: Color, modifier: Modifier = Modifier) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelLarge,
+        color = color,
+        modifier = modifier
+            .wrapContentWidth()
+            .border(width = 1.dp, color = color, shape = RoundedCornerShape(50))
+            .padding(horizontal = 12.dp, vertical = 6.dp)
+    )
+}
+
+/** Neutral filled pill — used for the topic badge. */
+@Composable
+private fun FilledPill(text: String, modifier: Modifier = Modifier) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelLarge,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = modifier
+            .wrapContentWidth()
+            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(50))
+            .padding(horizontal = 12.dp, vertical = 6.dp)
+    )
 }

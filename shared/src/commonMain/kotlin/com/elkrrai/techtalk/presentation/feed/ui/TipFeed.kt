@@ -19,7 +19,8 @@ fun TipFeed(
     onToggleInterested: (Long) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val pagerState = rememberPagerState(initialPage = currentPage) { tips.size }
+    val totalPages = tips.size + 1
+    val pagerState = rememberPagerState(initialPage = currentPage.coerceIn(0,  tips.size)) { totalPages }
 
     LaunchedEffect(pagerState.settledPage, tips) {
         val tip = tips.getOrNull(pagerState.settledPage) ?: return@LaunchedEffect

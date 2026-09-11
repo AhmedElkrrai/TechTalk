@@ -6,15 +6,17 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.ui.graphics.Color
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.elkrrai.techtalk.domain.model.common.Difficulty
 
 @Composable
-fun DifficultyBadge(difficulty: Difficulty, modifier: Modifier = Modifier) {
-    val (title, color) = getDifficultyTitleAndColor(difficulty)
+fun TechnologyBadge(
+    title: String,
+    color: Color
+) {
     Surface(
         color = color.copy(alpha = 0.15f),
         shape = RoundedCornerShape(8.dp)
@@ -22,11 +24,11 @@ fun DifficultyBadge(difficulty: Difficulty, modifier: Modifier = Modifier) {
         Text(
             text = title,
             style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Bold,
             color = color,
-            fontWeight = FontWeight.SemiBold,
-            modifier = modifier
+            modifier = Modifier
                 .border(width = 1.dp, color = color, shape = RoundedCornerShape(50))
-                .padding(horizontal = 12.dp, vertical = 5.dp)
+                .padding(horizontal = 10.dp, vertical = 5.dp)
         )
     }
 }
