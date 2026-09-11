@@ -94,12 +94,6 @@ fun UserProfileScreen(
                             style = MaterialTheme.typography.bodySmall
                         )
                     }
-                    Text(
-                        text = if (state.isSaving) "Saving…" else "Tap outside or press done to save",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.clickable { viewModel.onSaveName() }
-                    )
 
                     Spacer(Modifier.height(16.dp))
 

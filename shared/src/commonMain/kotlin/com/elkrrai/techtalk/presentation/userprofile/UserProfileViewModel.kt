@@ -54,23 +54,6 @@ class UserProfileViewModel(private val repository: TechTalkRepository) : ViewMod
         _state.update { it.copy(name = name) }
     }
 
-    fun onSaveName() {
-        val trimmed = pendingName.trim()
-        if (trimmed.length < MIN_NAME_LENGTH) {
-            _state.update { it.copy(message = "Name must be at least $MIN_NAME_LENGTH characters") }
-            return
-        }
-        if (trimmed.length > MAX_NAME_LENGTH) {
-            _state.update { it.copy(message = "Name must be at most $MAX_NAME_LENGTH characters") }
-            return
-        }
-        viewModelScope.launch {
-            _state.update { it.copy(isSaving = true) }
-            repository.updateUserName(trimmed)
-            _state.update { it.copy(isSaving = false) }
-        }
-    }
-
     fun onAvatarSelected(avatarKey: String) {
         if (avatarKey == _state.value.selectedAvatarKey) return
         viewModelScope.launch { repository.updateUserAvatar(avatarKey) }

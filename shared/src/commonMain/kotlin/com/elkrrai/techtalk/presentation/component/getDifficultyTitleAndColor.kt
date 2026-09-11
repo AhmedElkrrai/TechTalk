@@ -5,7 +5,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import com.elkrrai.techtalk.domain.model.common.Difficulty
 import com.elkrrai.techtalk.domain.model.common.getTitle
-import com.elkrrai.techtalk.presentation.theme.SunLight
+import com.elkrrai.techtalk.presentation.theme.NeonAccent
 
 @Composable
 fun getDifficultyTitleAndColor(difficulty: Difficulty): Pair<String, Color> {
@@ -13,7 +13,7 @@ fun getDifficultyTitleAndColor(difficulty: Difficulty): Pair<String, Color> {
         Difficulty.BEGINNER -> MaterialTheme.colorScheme.onPrimary
         Difficulty.INTERMEDIATE -> MaterialTheme.colorScheme.secondary
         Difficulty.ADVANCED -> MaterialTheme.colorScheme.error
-        Difficulty.RANDOM -> SunLight
+        Difficulty.RANDOM -> NeonAccent
     }
     return difficulty.getTitle() to color
 }

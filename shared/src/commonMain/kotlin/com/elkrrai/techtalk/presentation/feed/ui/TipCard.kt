@@ -107,7 +107,7 @@ fun TipCard(
             Icon(
                 imageVector = if (isInterested) Icons.Filled.Lightbulb else Icons.Outlined.Lightbulb,
                 modifier = Modifier.clickable(onClick = onToggleInterested),
-                tint = Color.Yellow,
+                tint = if (isInterested) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurfaceVariant,
                 contentDescription = "Interesting",
             )
         }
