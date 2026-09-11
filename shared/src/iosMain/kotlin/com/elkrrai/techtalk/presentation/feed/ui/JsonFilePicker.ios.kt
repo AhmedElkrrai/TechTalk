@@ -1,8 +1,12 @@
 package com.elkrrai.techtalk.presentation.feed.ui
 
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
-import com.elkrrai.techtalk.presentation.component.AppButton
+import androidx.compose.ui.Modifier
 import kotlinx.cinterop.ExperimentalForeignApi
 import platform.Foundation.NSURL
 import platform.Foundation.NSString
@@ -33,16 +37,19 @@ private class JsonDocumentPickerDelegate(
 
 @OptIn(ExperimentalForeignApi::class)
 @Composable
-actual fun JsonFilePicker(onFileSelected: (jsonContent: String?) -> Unit) {
+actual fun JsonFilePicker(label: String, onFileSelected: (jsonContent: String?) -> Unit) {
     val delegate = remember { JsonDocumentPickerDelegate(onFileSelected) }
-    AppButton(
-        text = "Import JSON file",
+    OutlinedButton(
         onClick = {
             val picker = UIDocumentPickerViewController(forOpeningContentTypes = listOf(UTTypeJSON))
             picker.delegate = delegate
             UIApplication.sharedApplication.keyWindow
                 ?.rootViewController
                 ?.presentViewController(picker, animated = true, completion = null)
-        }
-    )
+        },
+        shape = RoundedCornerShape(50),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Text(label)
+    }
 }

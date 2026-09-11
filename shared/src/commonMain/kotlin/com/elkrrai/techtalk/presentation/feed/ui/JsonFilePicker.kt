@@ -6,4 +6,4 @@ import androidx.compose.runtime.Composable
  * Invokes [onFileSelected] with the file's text content, or null if the user
  * cancelled / the file couldn't be read. */
 @Composable
-expect fun JsonFilePicker(onFileSelected: (jsonContent: String?) -> Unit)
+expect fun JsonFilePicker(label: String = "Import JSON file", onFileSelected: (jsonContent: String?) -> Unit)
