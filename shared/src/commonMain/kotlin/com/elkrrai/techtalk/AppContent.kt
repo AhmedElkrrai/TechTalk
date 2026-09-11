@@ -38,11 +38,6 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.elkrrai.techtalk.navigation.BattleRoute
-import com.elkrrai.techtalk.navigation.FeedRoute
-import com.elkrrai.techtalk.navigation.GetMoreContentRoute
-import com.elkrrai.techtalk.navigation.TechnologiesRoute
-import com.elkrrai.techtalk.navigation.UserProfileRoute
 import com.elkrrai.techtalk.presentation.battle.BattleScreen
 import com.elkrrai.techtalk.presentation.component.PlatformBackHandler
 import com.elkrrai.techtalk.presentation.feed.FeedViewModel
@@ -55,12 +50,22 @@ import com.elkrrai.techtalk.presentation.technologylist.ui.TechnologyListScreen
 import com.elkrrai.techtalk.presentation.theme.TechTalkTheme
 import com.elkrrai.techtalk.presentation.userprofile.UserProfileViewModel
 import com.elkrrai.techtalk.presentation.userprofile.ui.UserProfileScreen
+import com.elkrrai.techtalk.navigation.BattleRoute
+import com.elkrrai.techtalk.navigation.FeedRoute
 import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
 fun AppContent() {
     TechTalkTheme { AppContentInner() }
 }
+
+/**
+ * Full-screen destinations that sit *on top of* the persistent Feed/Battle chrome rather
+ * than replacing it inside [NavHost] — this keeps the outer top bar + bottom nav from ever
+ * changing when one of these opens/closes, so there's no frame where new chrome is paired
+ * with the previous screen's content (the "overlap" bug from mixing this into the tab NavHost).
+ */
+private enum class OverlayScreen { Profile, Technologies, GetMoreContent }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -73,13 +78,12 @@ private fun AppContentInner(
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val isBattleSelected = backStackEntry?.destination?.hasRoute<BattleRoute>() == true
-    // Only Feed/Battle get the persistent top bar + bottom nav chrome; overlay screens
-    // (Profile/Technologies/GetMoreContent) render their own full-screen Scaffold.
-    val isOnMainTab = isBattleSelected || backStackEntry?.destination?.hasRoute<FeedRoute>() == true
 
     var isDrawerOpen by remember { mutableStateOf(false) }
+    var activeOverlay by remember { mutableStateOf<OverlayScreen?>(null) }
 
     PlatformBackHandler(enabled = isDrawerOpen) { isDrawerOpen = false }
+    PlatformBackHandler(enabled = activeOverlay != null) { activeOverlay = null }
 
     fun navigateToTab(route: Any) {
         navController.navigate(route) {
@@ -96,49 +100,45 @@ private fun AppContentInner(
         Scaffold(
             contentWindowInsets = WindowInsets(0, 0, 0, 0),
             topBar = {
-                if (isOnMainTab) {
-                    TopAppBar(
-                        title = {
-                            Text(
-                                if (!isBattleSelected && feedState.showTipsCounter) {
-                                    "TechTalk  ${feedState.currentPage + 1} / ${feedState.filteredTips.size}"
-                                } else {
-                                    "TechTalk"
-                                }
-                            )
-                        },
-                        navigationIcon = {
-                            IconButton(
-                                onClick = { isDrawerOpen = true },
-                                modifier = Modifier.semantics { contentDescription = "Menu" }
-                            ) { Text("☰") }
-                        },
-                        actions = {
-                            if (!isBattleSelected) {
-                                IconButton(onClick = feedViewModel::onOpenFilterSheet) {
-                                    Icon(Icons.Filled.FilterList, contentDescription = "Filter")
-                                }
+                TopAppBar(
+                    title = {
+                        Text(
+                            if (!isBattleSelected && feedState.showTipsCounter) {
+                                "TechTalk  ${feedState.currentPage + 1} / ${feedState.filteredTips.size}"
+                            } else {
+                                "TechTalk"
+                            }
+                        )
+                    },
+                    navigationIcon = {
+                        IconButton(
+                            onClick = { isDrawerOpen = true },
+                            modifier = Modifier.semantics { contentDescription = "Menu" }
+                        ) { Text("☰") }
+                    },
+                    actions = {
+                        if (!isBattleSelected) {
+                            IconButton(onClick = feedViewModel::onOpenFilterSheet) {
+                                Icon(Icons.Filled.FilterList, contentDescription = "Filter")
                             }
                         }
-                    )
-                }
+                    }
+                )
             },
             bottomBar = {
-                if (isOnMainTab) {
-                    NavigationBar {
-                        NavigationBarItem(
-                            selected = !isBattleSelected,
-                            onClick = { navigateToTab(FeedRoute) },
-                            icon = { Text("📱") },
-                            label = { Text("Feed") }
-                        )
-                        NavigationBarItem(
-                            selected = isBattleSelected,
-                            onClick = { navigateToTab(BattleRoute) },
-                            icon = { Text("⚔️") },
-                            label = { Text("Battle") }
-                        )
-                    }
+                NavigationBar {
+                    NavigationBarItem(
+                        selected = !isBattleSelected,
+                        onClick = { navigateToTab(FeedRoute) },
+                        icon = { Text("📱") },
+                        label = { Text("Feed") }
+                    )
+                    NavigationBarItem(
+                        selected = isBattleSelected,
+                        onClick = { navigateToTab(BattleRoute) },
+                        icon = { Text("⚔️") },
+                        label = { Text("Battle") }
+                    )
                 }
             }
         ) { padding ->
@@ -150,7 +150,7 @@ private fun AppContentInner(
                 composable<FeedRoute> {
                     FeedScreen(
                         viewModel = feedViewModel,
-                        onBrowseTechnologies = { navController.navigate(TechnologiesRoute) },
+                        onBrowseTechnologies = { activeOverlay = OverlayScreen.Technologies },
                         modifier = Modifier.fillMaxSize()
                     )
                 }
@@ -158,31 +158,43 @@ private fun AppContentInner(
                 composable<BattleRoute> {
                     BattleScreen(modifier = Modifier.fillMaxSize())
                 }
-
-                composable<UserProfileRoute> {
-                    UserProfileScreen(
-                        viewModel = userProfileViewModel,
-                        onClose = { navController.popBackStack() },
-                        modifier = Modifier.fillMaxSize()
-                    )
-                }
-
-                composable<TechnologiesRoute> {
-                    TechnologyListScreen(
-                        viewModel = technologyListViewModel,
-                        onClose = { navController.popBackStack() },
-                        modifier = Modifier.fillMaxSize()
-                    )
-                }
-
-                composable<GetMoreContentRoute> {
-                    GetMoreContentScreen(
-                        viewModel = getMoreContentViewModel,
-                        onClose = { navController.popBackStack() },
-                        modifier = Modifier.fillMaxSize()
-                    )
-                }
             }
+        }
+
+        AnimatedVisibility(
+            visible = activeOverlay == OverlayScreen.Profile,
+            enter = fadeIn(tween(200)),
+            exit = fadeOut(tween(200))
+        ) {
+            UserProfileScreen(
+                viewModel = userProfileViewModel,
+                onClose = { activeOverlay = null },
+                modifier = Modifier.fillMaxSize()
+            )
+        }
+
+        AnimatedVisibility(
+            visible = activeOverlay == OverlayScreen.Technologies,
+            enter = fadeIn(tween(200)),
+            exit = fadeOut(tween(200))
+        ) {
+            TechnologyListScreen(
+                viewModel = technologyListViewModel,
+                onClose = { activeOverlay = null },
+                modifier = Modifier.fillMaxSize()
+            )
+        }
+
+        AnimatedVisibility(
+            visible = activeOverlay == OverlayScreen.GetMoreContent,
+            enter = fadeIn(tween(200)),
+            exit = fadeOut(tween(200))
+        ) {
+            GetMoreContentScreen(
+                viewModel = getMoreContentViewModel,
+                onClose = { activeOverlay = null },
+                modifier = Modifier.fillMaxSize()
+            )
         }
 
         AnimatedVisibility(
@@ -212,15 +224,15 @@ private fun AppContentInner(
                 userAvatarKey = profileState.selectedAvatarKey,
                 onProfileClick = {
                     isDrawerOpen = false
-                    navController.navigate(UserProfileRoute)
+                    activeOverlay = OverlayScreen.Profile
                 },
                 onTechnologiesClick = {
                     isDrawerOpen = false
-                    navController.navigate(TechnologiesRoute)
+                    activeOverlay = OverlayScreen.Technologies
                 },
                 onGetMoreContentClick = {
                     isDrawerOpen = false
-                    navController.navigate(GetMoreContentRoute)
+                    activeOverlay = OverlayScreen.GetMoreContent
                 }
             )
         }
