@@ -19,9 +19,12 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -52,6 +55,7 @@ import com.elkrrai.techtalk.domain.model.battle.BattleStatus
 import com.elkrrai.techtalk.domain.model.user.AvatarCatalog
 import com.elkrrai.techtalk.domain.model.user.AvatarOption
 import com.elkrrai.techtalk.presentation.component.AppProgressBar
+import com.elkrrai.techtalk.presentation.component.Close
 import com.elkrrai.techtalk.presentation.component.LoadingScreen
 import com.elkrrai.techtalk.presentation.theme.SuccessColor
 import com.elkrrai.techtalk.presentation.userprofile.UserProfileViewModel
@@ -85,10 +89,7 @@ fun UserProfileScreen(
             TopAppBar(
                 title = { Text("Profile") },
                 navigationIcon = {
-                    IconButton(
-                        onClick = onClose,
-                        modifier = Modifier.semantics { contentDescription = "Close" }
-                    ) { Text("✕") }
+                    Close(onClose)
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface
