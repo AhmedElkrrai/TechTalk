@@ -37,7 +37,7 @@ fun AppProgressBar(
         progress = { animatedProgress.value },
         modifier = modifier
             .fillMaxWidth()
-            .height(6.dp)
+            .height(12.dp)
             .clip(RoundedCornerShape(3.dp)),
         color = MaterialTheme.colorScheme.primary,
         trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),

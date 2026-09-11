@@ -11,7 +11,7 @@ object AvatarCatalog {
     val options: List<AvatarOption> = AvatarOption.entries
 
     fun emojiFor(key: String): String =
-        options.firstOrNull { it.key == key }?.emoji ?: "🙂" // 🙂
+        options.firstOrNull { it.key == key }?.emoji ?: "🙂"
 }
 
 enum class AvatarOption(val key: String, val emoji: String, val label: String) {
@@ -26,8 +26,11 @@ enum class AvatarOption(val key: String, val emoji: String, val label: String) {
     Tiger("avatar_tiger", "🐯", "Tiger"),
     Penguin("avatar_penguin", "🐧", "Penguin"),
     Cat("avatar_cat", "🐱", "Cat"),
+    Dove("avatar_dove", "🕊", "Dove"),
     Mule("avatar_mule", "🫏", "Mule"),
     Dog("avatar_dog", "🐶", "Dog"),
     Rat("avatar_rat", "🐀", "Rat"),
-    Snake("avatar_snake", "🐍", "Snake")
+    Snake("avatar_snake", "🐍", "Snake"),
+    Eagle("avatar_eagle", "🦅", "Eagle"),
+    Monkey("avatar_monkey", "🐵", "Monkey");
 }
