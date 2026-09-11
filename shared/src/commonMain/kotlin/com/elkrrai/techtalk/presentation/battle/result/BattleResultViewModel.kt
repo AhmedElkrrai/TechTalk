@@ -25,6 +25,8 @@ class BattleResultViewModel(
     init {
         viewModelScope.launch {
             sessionStore.state.collect { session ->
+                if (session.phase != BattlePhase.RESULT)
+                    return@collect
                 _state.value = session.toResultUiState()
             }
         }

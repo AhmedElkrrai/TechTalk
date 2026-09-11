@@ -31,6 +31,8 @@ fun OfflineBattleScreen(viewModel: OfflineBattleViewModel, modifier: Modifier = 
         if (state.hasAnswered) {
             delay(500L)
             scrollState.animateScrollTo(scrollState.maxValue)
+        } else {
+            scrollState.animateScrollTo(0)
         }
     }
 

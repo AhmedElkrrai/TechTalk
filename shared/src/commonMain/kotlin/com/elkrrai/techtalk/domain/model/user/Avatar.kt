@@ -7,11 +7,12 @@ package com.elkrrai.techtalk.domain.model.user
  * `user_profile.avatarKey` — never rename an existing one.
  */
 object AvatarCatalog {
-    val defaultAvatarKey: String get() = AvatarOption.Fox.key
+    val defaultAvatarKey: String
+        get() = "\uD83D\uDC80"
     val options: List<AvatarOption> = AvatarOption.entries
 
     fun emojiFor(key: String): String =
-        options.firstOrNull { it.key == key }?.emoji ?: "🙂"
+        options.firstOrNull { it.key == key }?.emoji ?: "\uD83D\uDC80"
 }
 
 enum class AvatarOption(val key: String, val emoji: String, val label: String) {
