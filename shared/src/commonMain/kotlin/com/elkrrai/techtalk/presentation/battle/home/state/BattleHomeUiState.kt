@@ -13,6 +13,10 @@ data class BattleHomeUiState(
     val selectedDifficulty: Difficulty = Difficulty.RANDOM,
     val playerName: String = "",
     val playerAvatarKey: String = AvatarCatalog.defaultAvatarKey,
+    // True until the real profile + subscribed-technologies data has loaded at least
+    // once — lets the screen show a spinner instead of a flash of default avatar/name
+    // and an empty technology list before the first real emission arrives.
+    val isLoading: Boolean = true,
     val isStartingBattle: Boolean = false,
     val errorMessage: String? = null
 )

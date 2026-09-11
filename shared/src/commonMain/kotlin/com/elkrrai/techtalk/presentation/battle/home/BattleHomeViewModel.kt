@@ -26,19 +26,36 @@ class BattleHomeViewModel(
     private val _state = MutableStateFlow(BattleHomeUiState())
     val state: StateFlow<BattleHomeUiState> = _state.asStateFlow()
 
+    // isLoading only ever needs to flip false once both flows below have emitted at
+    // least once — tracked separately since either can arrive first (or re-emit later).
+    private var hasLoadedTechnologies = false
+    private var hasLoadedProfile = false
+
     init {
         viewModelScope.launch {
             repository.observeSubscribedTechnologies().collect { technologies ->
                 val items = technologies.map { it.toTechnologyUiItem(isSubscribed = true) }
+                hasLoadedTechnologies = true
                 _state.update { current ->
                     val stillValid = current.selectedTechnology?.let { sel -> items.firstOrNull { it.id == sel.id } }
-                    current.copy(technologies = items, selectedTechnology = stillValid ?: items.firstOrNull())
+                    current.copy(
+                        technologies = items,
+                        selectedTechnology = stillValid ?: items.firstOrNull(),
+                        isLoading = !(hasLoadedTechnologies && hasLoadedProfile)
+                    )
                 }
             }
         }
         viewModelScope.launch {
             repository.observeUserProfile().collect { profile ->
-                _state.update { it.copy(playerName = profile.name, playerAvatarKey = profile.avatarKey) }
+                hasLoadedProfile = true
+                _state.update {
+                    it.copy(
+                        playerName = profile.name,
+                        playerAvatarKey = profile.avatarKey,
+                        isLoading = !(hasLoadedTechnologies && hasLoadedProfile)
+                    )
+                }
             }
         }
         observeSessionResets()

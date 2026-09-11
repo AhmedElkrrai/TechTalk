@@ -12,7 +12,7 @@ object AvatarCatalog {
     val options: List<AvatarOption> = AvatarOption.entries
 
     fun emojiFor(key: String): String =
-        options.firstOrNull { it.key == key }?.emoji ?: "\uD83D\uDC80"
+        options.firstOrNull { it.key == key }?.emoji ?: defaultAvatarKey
 }
 
 enum class AvatarOption(val key: String, val emoji: String, val label: String) {

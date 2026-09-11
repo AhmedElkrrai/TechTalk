@@ -28,6 +28,11 @@ import com.elkrrai.techtalk.presentation.component.LoadingScreen
 fun BattleHomeScreen(viewModel: BattleHomeViewModel, modifier: Modifier = Modifier) {
     val state by viewModel.state.collectAsState()
 
+    if (state.isLoading) {
+        LoadingScreen(modifier = modifier.fillMaxSize())
+        return
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -39,7 +44,11 @@ fun BattleHomeScreen(viewModel: BattleHomeViewModel, modifier: Modifier = Modifi
             style = MaterialTheme.typography.titleLarge
         )
 
-        Text("Mode", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 20.dp))
+        Text(
+            "Mode",
+            style = MaterialTheme.typography.titleSmall,
+            modifier = Modifier.padding(top = 20.dp)
+        )
         SectionRow {
             BattleMode.entries.forEach { mode ->
                 FilterChip(
@@ -50,7 +59,11 @@ fun BattleHomeScreen(viewModel: BattleHomeViewModel, modifier: Modifier = Modifi
             }
         }
 
-        Text("Technology", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 20.dp))
+        Text(
+            "Technology",
+            style = MaterialTheme.typography.titleSmall,
+            modifier = Modifier.padding(top = 20.dp)
+        )
         if (state.technologies.isEmpty()) {
             Text(
                 text = "Subscribe to a technology first to start a battle.",
@@ -70,7 +83,11 @@ fun BattleHomeScreen(viewModel: BattleHomeViewModel, modifier: Modifier = Modifi
             }
         }
 
-        Text("Time control", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 20.dp))
+        Text(
+            "Time control",
+            style = MaterialTheme.typography.titleSmall,
+            modifier = Modifier.padding(top = 20.dp)
+        )
         SectionRow {
             BattleTimeControl.entries.forEach { timeControl ->
                 FilterChip(
@@ -81,7 +98,11 @@ fun BattleHomeScreen(viewModel: BattleHomeViewModel, modifier: Modifier = Modifi
             }
         }
 
-        Text("Difficulty", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 20.dp))
+        Text(
+            "Difficulty",
+            style = MaterialTheme.typography.titleSmall,
+            modifier = Modifier.padding(top = 20.dp)
+        )
         SectionRow {
             Difficulty.entries.forEach { difficulty ->
                 FilterChip(
@@ -101,16 +122,12 @@ fun BattleHomeScreen(viewModel: BattleHomeViewModel, modifier: Modifier = Modifi
             )
         }
 
-        if (state.isStartingBattle) {
-            LoadingScreen(modifier = Modifier.padding(top = 24.dp))
-        } else {
-            AppButton(
-                text = "Start battle",
-                enabled = state.selectedTechnology != null,
-                onClick = viewModel::onStartBattle,
-                modifier = Modifier.fillMaxWidth().padding(top = 32.dp)
-            )
-        }
+        AppButton(
+            text = "Start battle",
+            enabled = state.selectedTechnology != null,
+            onClick = viewModel::onStartBattle,
+            modifier = Modifier.fillMaxWidth().padding(top = 32.dp)
+        )
     }
 }
 
