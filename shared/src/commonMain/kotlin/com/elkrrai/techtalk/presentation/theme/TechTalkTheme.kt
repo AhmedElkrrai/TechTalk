@@ -16,9 +16,13 @@ private val DarkBackground = Color(0xFF121212)
 private val DarkSurface = Color(0xFF1E1E1E)
 private val DarkSurfaceContainer = Color(0xFF252525)
 private val DarkSurfaceContainerHigh = Color(0xFF2D2D2D)
+
+val CodeHeaderBackground = DarkSurfaceContainerHigh
+val CodeBodyBackground = DarkSurface
 val CodeTextColor = Color(0xFFD4D4D4)
 val CodeMutedColor = Color(0xFF9E9E9E)
 val SuccessColor = Color(0xFF27C93F)
+val SunLight = Color(0xFFEED50B)
 
 private val LightColorScheme = lightColorScheme(
     primary = Primary,
@@ -49,7 +53,7 @@ private val DarkColorScheme = darkColorScheme(
     onSecondary = Color(0xFF003731),
     secondaryContainer = TealDark,
     onSecondaryContainer = Color(0xFFCEFAF5),
-    tertiary = Color(0x3E1F8E5),
+    tertiary = Color(0x3E1AF8E5),
     background = DarkBackground,
     onBackground = Color(0xFFE0E0E0),
     surface = DarkSurface,

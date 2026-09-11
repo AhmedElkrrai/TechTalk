@@ -16,6 +16,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.elkrrai.techtalk.domain.model.user.AvatarCatalog
 import com.elkrrai.techtalk.presentation.component.AppButton
+import com.elkrrai.techtalk.presentation.component.AppOutlinedButton
 
 @Composable
 fun BattleResultScreen(
@@ -52,8 +53,8 @@ fun BattleResultScreen(
             onClick = viewModel::onTryAgain,
             modifier = Modifier.fillMaxWidth().padding(top = 32.dp)
         )
-        AppButton(
-            text = "Pick another",
+        AppOutlinedButton(
+            text = "Pick another tech",
             onClick = {
                 viewModel.onPickAnother()
                 onClose()
