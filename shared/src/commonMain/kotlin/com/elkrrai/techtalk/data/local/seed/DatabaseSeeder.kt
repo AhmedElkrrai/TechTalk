@@ -23,11 +23,36 @@ class DatabaseSeeder(
 
         technologyDao.upsertAll(
             listOf(
-                TechnologyEntity(id = 1, name = Technology.KOTLIN.title, tagColor = "#7F52FF"),
-                TechnologyEntity(id = 2, name = Technology.ANDROID.title, tagColor = "#3DDC84"),
-                TechnologyEntity(id = 3, name = Technology.SWIFT.title, tagColor = "#F05138"),
-                TechnologyEntity(id = 4, name = Technology.IOS.title, tagColor = "#147EFB"),
-                TechnologyEntity(id = 5, name = Technology.GO_LANG.title, tagColor = "#00ADD8")
+                TechnologyEntity(
+                    id = 1,
+                    name = Technology.KOTLIN.title,
+                    tagColor = "#7F52FF",
+                    description = "A modern, and safe programming language for Android, and multiplatform development."
+                ),
+                TechnologyEntity(
+                    id = 2,
+                    name = Technology.ANDROID.title,
+                    tagColor = "#3DDC84",
+                    description = "Google's mobile platform for building apps with Kotlin, and Compose."
+                ),
+                TechnologyEntity(
+                    id = 3,
+                    name = Technology.SWIFT.title,
+                    tagColor = "#F05138",
+                    description = "Apple's powerful and intuitive programming language for iOS, macOS, and beyond."
+                ),
+                TechnologyEntity(
+                    id = 4,
+                    name = Technology.IOS.title,
+                    tagColor = "#147EFB",
+                    description = "Apple's mobile operating system powering the iPhone and iPad app ecosystem."
+                ),
+                TechnologyEntity(
+                    id = 5,
+                    name = Technology.GO_LANG.title,
+                    tagColor = "#00ADD8",
+                    description = "A fast, statically typed language designed for simplicity and scalable concurrency."
+                )
             )
         )
 

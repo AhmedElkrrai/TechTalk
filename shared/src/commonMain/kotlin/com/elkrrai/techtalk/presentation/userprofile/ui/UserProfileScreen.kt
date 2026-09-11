@@ -278,6 +278,9 @@ private fun StatColumn(label: String, value: String) {
 
 @Composable
 private fun RecentBattles(state: UserProfileState) {
+    if (state.recentBattles.isEmpty())
+        return
+
     Title("Recent battles")
 
     ContentSection {
