@@ -13,7 +13,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
 @Composable
-fun TechnologyBadge(
+fun Badge(
     title: String,
     color: Color
 ) {

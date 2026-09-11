@@ -1,32 +1,10 @@
 package com.elkrrai.techtalk.presentation.component
 
-import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
 import com.elkrrai.techtalk.domain.model.common.Difficulty
 
 @Composable
-fun DifficultyBadge(difficulty: Difficulty, modifier: Modifier = Modifier) {
+fun DifficultyBadge(difficulty: Difficulty) {
     val (title, color) = getDifficultyTitleAndColor(difficulty)
-    Surface(
-        color = color.copy(alpha = 0.15f),
-        shape = RoundedCornerShape(8.dp)
-    ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.labelSmall,
-            color = color,
-            fontWeight = FontWeight.SemiBold,
-            modifier = modifier
-                .border(width = 1.dp, color = color, shape = RoundedCornerShape(50))
-                .padding(horizontal = 12.dp, vertical = 5.dp)
-        )
-    }
+    Badge(title, color)
 }

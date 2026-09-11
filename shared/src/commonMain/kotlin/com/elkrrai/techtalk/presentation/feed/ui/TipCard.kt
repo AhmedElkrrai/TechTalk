@@ -1,7 +1,6 @@
 package com.elkrrai.techtalk.presentation.feed.ui
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -11,8 +10,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -23,14 +20,12 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.elkrrai.techtalk.domain.model.tip.FeedTip
+import com.elkrrai.techtalk.presentation.component.Badge
 import com.elkrrai.techtalk.presentation.component.DifficultyBadge
-import com.elkrrai.techtalk.presentation.component.TechnologyBadge
-import com.elkrrai.techtalk.presentation.component.getDifficultyTitleAndColor
 import com.elkrrai.techtalk.presentation.theme.CodeBodyBackground
 import com.elkrrai.techtalk.presentation.theme.CodeHeaderBackground
 import com.elkrrai.techtalk.presentation.theme.CodeTextColor
@@ -55,11 +50,14 @@ fun TipCard(
                 .padding(20.dp)
         ) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                TechnologyBadge(
-                    title =tip.technologyName,
+                Badge(
+                    title = tip.technologyName,
                     color = parseHexColor(tip.technologyTagColor)
                 )
-                FilledPill(text = tip.topicName)
+                Badge(
+                    title = tip.topicName,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
                 DifficultyBadge(tip.difficulty)
             }
 
@@ -124,32 +122,4 @@ fun TipCard(
             }
         }
     }
-}
-
-/** Colored-outline pill — used for technology and difficulty badges. */
-@Composable
-private fun OutlinedPill(text: String, color: Color, modifier: Modifier = Modifier) {
-    Text(
-        text = text,
-        style = MaterialTheme.typography.labelLarge,
-        color = color,
-        modifier = modifier
-            .wrapContentWidth()
-            .border(width = 1.dp, color = color, shape = RoundedCornerShape(50))
-            .padding(horizontal = 12.dp, vertical = 6.dp)
-    )
-}
-
-/** Neutral filled pill — used for the topic badge. */
-@Composable
-private fun FilledPill(text: String, modifier: Modifier = Modifier) {
-    Text(
-        text = text,
-        style = MaterialTheme.typography.labelLarge,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = modifier
-            .wrapContentWidth()
-            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(50))
-            .padding(horizontal = 12.dp, vertical = 6.dp)
-    )
 }
