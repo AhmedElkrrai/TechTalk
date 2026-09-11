@@ -10,9 +10,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-private const val MIN_NAME_LENGTH = 2
-private const val MAX_NAME_LENGTH = 24
-
 class UserProfileViewModel(private val repository: TechTalkRepository) : ViewModel() {
 
     private val _state = MutableStateFlow(UserProfileState())
@@ -61,5 +58,11 @@ class UserProfileViewModel(private val repository: TechTalkRepository) : ViewMod
 
     fun onMessageShown() {
         _state.update { it.copy(message = null) }
+    }
+
+    fun saveName() {
+        val trimmed = pendingName.trim()
+        if (trimmed.isBlank()) return
+        viewModelScope.launch { repository.updateUserName(trimmed) }
     }
 }
