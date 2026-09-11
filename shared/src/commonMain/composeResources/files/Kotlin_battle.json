@@ -32,6 +32,255 @@
                     ]
                 }
             ]
+        },
+        {
+            "technologyName": "Kotlin",
+            "topicName": "Coroutines",
+            "topicDescription": "Structured concurrency with suspend functions, builders, and dispatchers.",
+            "questions": [
+                {
+                    "questionText": "What does the 'suspend' keyword indicate on a Kotlin function?",
+                    "difficulty": "BEGINNER",
+                    "explanation": "'suspend' marks a function that can pause and resume execution at certain points without blocking the underlying thread. It doesn't by itself decide which thread the function runs on — that's the dispatcher's job.",
+                    "answers": [
+                        {
+                            "answerText": "That the function can be paused and resumed without blocking the thread",
+                            "isCorrect": true
+                        },
+                        {
+                            "answerText": "That the function runs on a background thread automatically",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "That the function is asynchronous like JavaScript's async/await",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "That the function can only be called from a coroutine builder",
+                            "isCorrect": false
+                        }
+                    ]
+                },
+                {
+                    "questionText": "What is the key difference between the 'launch' and 'async' coroutine builders?",
+                    "difficulty": "INTERMEDIATE",
+                    "explanation": "'launch' is fire-and-forget and returns a Job with no result. 'async' is used when you need a return value — it returns a Deferred<T> that you call .await() on.",
+                    "answers": [
+                        {
+                            "answerText": "'launch' returns a Job with no result; 'async' returns a Deferred you can await",
+                            "isCorrect": true
+                        },
+                        {
+                            "answerText": "'launch' always runs on Dispatchers.IO; 'async' always runs on Dispatchers.Main",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "'launch' is for suspend functions only; 'async' is for regular functions",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "'async' blocks the calling thread while 'launch' never does",
+                            "isCorrect": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "technologyName": "Kotlin",
+            "topicName": "Collections",
+            "topicDescription": "Transforming and querying Kotlin's List, Set, and Map types.",
+            "questions": [
+                {
+                    "questionText": "What is the key difference between 'map' and 'flatMap' on a Kotlin collection?",
+                    "difficulty": "BEGINNER",
+                    "explanation": "'map' transforms each element one-to-one. 'flatMap' transforms each element into its own collection, then flattens all of those collections into a single list.",
+                    "answers": [
+                        {
+                            "answerText": "'flatMap' flattens the nested collections produced by the transform into one list",
+                            "isCorrect": true
+                        },
+                        {
+                            "answerText": "'map' is lazy while 'flatMap' is always eager",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "'flatMap' only works on Sequences, never on Lists",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "'map' mutates the original collection but 'flatMap' doesn't",
+                            "isCorrect": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "technologyName": "Kotlin",
+            "topicName": "Scope Functions",
+            "topicDescription": "Choosing between let, run, with, apply, and also.",
+            "questions": [
+                {
+                    "questionText": "Which scope function is typically used to configure an object, returning the object itself rather than the lambda's result?",
+                    "difficulty": "BEGINNER",
+                    "explanation": "'apply' runs its lambda with the object as the receiver ('this') and returns that same object — ideal for configuration or builder-style chains. 'let' and 'run' return the lambda's result instead.",
+                    "answers": [
+                        {
+                            "answerText": "apply",
+                            "isCorrect": true
+                        },
+                        {
+                            "answerText": "let",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "run",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "with",
+                            "isCorrect": false
+                        }
+                    ]
+                },
+                {
+                    "questionText": "Inside a 'let' block, how do you refer to the receiver by default?",
+                    "difficulty": "INTERMEDIATE",
+                    "explanation": "'let' passes the receiver into the lambda as the argument 'it' (unless you rename it), whereas 'run', 'with', and 'apply' expose it as 'this'.",
+                    "answers": [
+                        {
+                            "answerText": "it",
+                            "isCorrect": true
+                        },
+                        {
+                            "answerText": "this",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "self",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "receiver",
+                            "isCorrect": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "technologyName": "Kotlin",
+            "topicName": "Data & Sealed Classes",
+            "topicDescription": "Modeling data and fixed-state hierarchies idiomatically.",
+            "questions": [
+                {
+                    "questionText": "What does Kotlin automatically generate for a 'data class'?",
+                    "difficulty": "BEGINNER",
+                    "explanation": "Declaring 'data class' has the compiler generate equals()/hashCode() from the primary constructor properties, a readable toString(), copy(), and componentN() functions for destructuring.",
+                    "answers": [
+                        {
+                            "answerText": "equals(), hashCode(), toString(), and copy()",
+                            "isCorrect": true
+                        },
+                        {
+                            "answerText": "Only a no-argument constructor",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "A companion object with a builder function",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "Getters and setters, but not equals() or hashCode()",
+                            "isCorrect": false
+                        }
+                    ]
+                },
+                {
+                    "questionText": "Why use a 'sealed class' instead of a plain open class to represent a fixed set of states?",
+                    "difficulty": "ADVANCED",
+                    "explanation": "All direct subclasses of a sealed class must be known at compile time (same module/package), so the compiler can verify a 'when' over it is exhaustive — catching missing cases as compile errors instead of runtime bugs.",
+                    "answers": [
+                        {
+                            "answerText": "The compiler can exhaustively check 'when' expressions over it without needing an 'else' branch",
+                            "isCorrect": true
+                        },
+                        {
+                            "answerText": "Sealed classes are faster at runtime than open classes",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "Sealed classes can be freely subclassed from any module",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "Sealed classes automatically implement Parcelable",
+                            "isCorrect": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "technologyName": "Kotlin",
+            "topicName": "Extension Functions",
+            "topicDescription": "Adding behavior to existing types without inheritance.",
+            "questions": [
+                {
+                    "questionText": "Are Kotlin extension functions resolved statically or dynamically?",
+                    "difficulty": "INTERMEDIATE",
+                    "explanation": "Extension functions are resolved statically — which one gets called is decided by the declared (compile-time) type of the expression, not its actual runtime type. That's also why they can't truly override member functions.",
+                    "answers": [
+                        {
+                            "answerText": "Statically, based on the declared type of the expression at compile time",
+                            "isCorrect": true
+                        },
+                        {
+                            "answerText": "Dynamically, based on the runtime type, just like member functions",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "Statically for classes but dynamically for interfaces",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "It depends on whether the extension is declared 'open'",
+                            "isCorrect": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "technologyName": "Kotlin",
+            "topicName": "Generics",
+            "topicDescription": "Variance, bounds, and type-safe generic APIs.",
+            "questions": [
+                {
+                    "questionText": "What does the 'out' variance modifier mean on a Kotlin generic type parameter?",
+                    "difficulty": "ADVANCED",
+                    "explanation": "'out T' declares T covariant: the class can only produce/return T (e.g. in return positions), which is what lets a List<Cat> be used where a List<Animal> is expected. 'in T' is the contravariant counterpart, restricting T to consumer/parameter positions.",
+                    "answers": [
+                        {
+                            "answerText": "The type parameter is covariant — only produced (returned), never consumed as a parameter",
+                            "isCorrect": true
+                        },
+                        {
+                            "answerText": "The type parameter is contravariant — only consumed, never produced",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "The type parameter must be an open class",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "The type parameter is erased at runtime, unlike other generics",
+                            "isCorrect": false
+                        }
+                    ]
+                }
+            ]
         }
     ]
 }

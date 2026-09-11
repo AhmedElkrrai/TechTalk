@@ -18,5 +18,10 @@ data class OfflineBattleUiState(
     val remainingTimeSeconds: Int? = null,
     val isLastQuestion: Boolean = false
 ) {
-    val progress: Float get() = currentQuestionIndex.toFloat() / totalQuestions.toFloat()
+    /** Counts the current question as "done" the moment it's answered, rather than only
+     * after advancing to the next one — so the bar visibly moves on every answer tap. */
+    val progress: Float get() {
+        val completed = if (hasAnswered) currentQuestionIndex + 1 else currentQuestionIndex
+        return completed.toFloat() / totalQuestions.toFloat()
+    }
 }

@@ -92,14 +92,30 @@ fun BattleAnswersList(
     onAnswerSelected: (Long) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    // Online battles never carry per-answer correctness client-side — every
+    // BattleAnswerOptionUi.isCorrect is hardcoded false there (only the server knows).
+    // Only treat hasAnswered as "reveal right/wrong" when correctness is actually known
+    // (offline always has exactly one correct answer); otherwise just highlight what was
+    // submitted, instead of every online pick painting itself red as if it were wrong.
+    val correctnessKnown = answers.any { it.isCorrect }
+
     Column(modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
         answers.forEach { answer ->
             val isSelected = answer.id == selectedAnswerId
+            val isWrongSelected = hasAnswered && correctnessKnown && isSelected && !answer.isCorrect
+            val isRevealedCorrect = hasAnswered && correctnessKnown && answer.isCorrect
+            val isSubmittedUnknown = hasAnswered && !correctnessKnown && isSelected
             val backgroundColor = when {
-                !hasAnswered -> MaterialTheme.colorScheme.surfaceVariant
-                answer.isCorrect -> SuccessColor.copy(alpha = 0.25f)
-                isSelected && !answer.isCorrect -> MaterialTheme.colorScheme.error.copy(alpha = 0.25f)
+                isRevealedCorrect -> SuccessColor.copy(alpha = 0.25f)
+                isWrongSelected -> MaterialTheme.colorScheme.error.copy(alpha = 0.25f)
+                isSubmittedUnknown -> MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
                 else -> MaterialTheme.colorScheme.surfaceVariant
+            }
+            val borderColor = when {
+                isWrongSelected -> MaterialTheme.colorScheme.error
+                isRevealedCorrect -> SuccessColor
+                isSelected -> MaterialTheme.colorScheme.primary
+                else -> backgroundColor
             }
             Card(
                 modifier = Modifier
@@ -107,8 +123,8 @@ fun BattleAnswersList(
                     .padding(vertical = 4.dp)
                     .clickable(enabled = !hasAnswered) { onAnswerSelected(answer.id) }
                     .border(
-                        width = if (isSelected) 1.5.dp else 0.dp,
-                        color = if (isSelected) MaterialTheme.colorScheme.primary else backgroundColor,
+                        width = if (isSelected || isRevealedCorrect) 1.5.dp else 0.dp,
+                        color = borderColor,
                         shape = RoundedCornerShape(12.dp)
                     ),
             ) {
