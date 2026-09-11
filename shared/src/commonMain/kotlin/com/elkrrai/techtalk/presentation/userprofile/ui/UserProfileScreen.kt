@@ -1,6 +1,5 @@
 package com.elkrrai.techtalk.presentation.userprofile.ui
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -35,7 +34,7 @@ import com.elkrrai.techtalk.domain.model.battle.BattleHistoryItem
 import com.elkrrai.techtalk.domain.model.battle.BattleStatus
 import com.elkrrai.techtalk.domain.model.user.AvatarCatalog
 import com.elkrrai.techtalk.domain.model.user.AvatarOption
-import com.elkrrai.techtalk.presentation.component.LinearProgress
+import com.elkrrai.techtalk.presentation.component.AppProgressBar
 import com.elkrrai.techtalk.presentation.component.LoadingScreen
 import com.elkrrai.techtalk.presentation.userprofile.UserProfileViewModel
 import com.elkrrai.techtalk.utils.formatRelativeTime
@@ -98,7 +97,7 @@ fun UserProfileScreen(
                     Spacer(Modifier.height(16.dp))
 
                     Text("Level ${state.level}", style = MaterialTheme.typography.titleMedium)
-                    LinearProgress(progress = state.xpProgressFraction, modifier = Modifier.padding(vertical = 8.dp))
+                    AppProgressBar(progress = state.xpProgressFraction, modifier = Modifier.padding(vertical = 8.dp))
                     Text(
                         text = "${state.currentXp} / ${state.xpToNextLevel} XP",
                         style = MaterialTheme.typography.bodySmall,

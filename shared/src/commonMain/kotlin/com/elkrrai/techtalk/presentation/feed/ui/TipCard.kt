@@ -47,6 +47,7 @@ import com.elkrrai.techtalk.presentation.component.DifficultyBadge
 import com.elkrrai.techtalk.presentation.theme.CodeBodyBackground
 import com.elkrrai.techtalk.presentation.theme.CodeHeaderBackground
 import com.elkrrai.techtalk.presentation.theme.CodeTextColor
+import com.elkrrai.techtalk.presentation.theme.SunLight
 import com.elkrrai.techtalk.utils.parseHexColor
 import kotlinx.coroutines.delay
 
@@ -107,7 +108,8 @@ fun TipCard(
             Icon(
                 imageVector = if (isInterested) Icons.Filled.Lightbulb else Icons.Outlined.Lightbulb,
                 modifier = Modifier.clickable(onClick = onToggleInterested),
-                tint = if (isInterested) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurfaceVariant,
+                tint = if (isInterested) SunLight
+                else MaterialTheme.colorScheme.onSurfaceVariant,
                 contentDescription = "Interesting",
             )
         }

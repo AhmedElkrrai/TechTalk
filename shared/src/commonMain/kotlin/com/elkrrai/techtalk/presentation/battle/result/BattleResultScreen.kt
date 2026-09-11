@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -26,24 +27,33 @@ fun BattleResultScreen(
 ) {
     val state by viewModel.state.collectAsState()
 
+    DisposableEffect(Unit) {
+        onDispose { onClose() }
+    }
+
     Column(
         modifier = modifier.fillMaxSize().padding(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Text(AvatarCatalog.emojiFor(state.playerAvatarKey), style = MaterialTheme.typography.displayLarge)
+        Text(
+            AvatarCatalog.emojiFor(state.playerAvatarKey),
+            style = MaterialTheme.typography.displayLarge
+        )
         Text(
             text = "${state.score} / ${state.totalQuestions}",
             style = MaterialTheme.typography.displayMedium,
-            textAlign = TextAlign.Center
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(top = 6.dp)
         )
         Text(
             text = state.technologyName,
             style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(vertical = 6.dp)
         )
         Text(
-            text = "+${state.xpGained} XP",
+            text = "+ ${state.xpGained} XP",
             style = MaterialTheme.typography.titleLarge,
             color = MaterialTheme.colorScheme.primary
         )

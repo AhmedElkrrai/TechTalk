@@ -20,7 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.elkrrai.techtalk.domain.model.common.Difficulty
 import com.elkrrai.techtalk.presentation.component.DifficultyBadge
-import com.elkrrai.techtalk.presentation.component.LinearProgress
+import com.elkrrai.techtalk.presentation.component.AppProgressBar
 import com.elkrrai.techtalk.presentation.theme.SuccessColor
 
 /** Answer option shown in-battle. [isCorrect] is only ever true for offline battles —
@@ -71,7 +71,7 @@ fun BattleProgressSection(
                 )
             }
         }
-        LinearProgress(progress = progress, modifier = Modifier.padding(top = 4.dp))
+        AppProgressBar(progress = progress, modifier = Modifier.padding(top = 4.dp))
     }
 }
 

@@ -17,7 +17,6 @@ import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
@@ -43,7 +42,6 @@ import com.elkrrai.techtalk.navigation.UserProfileRoute
 import com.elkrrai.techtalk.presentation.battle.BattleScreen
 import com.elkrrai.techtalk.presentation.component.PlatformBackHandler
 import com.elkrrai.techtalk.presentation.feed.FeedViewModel
-import com.elkrrai.techtalk.presentation.feed.state.FeedState
 import com.elkrrai.techtalk.presentation.feed.ui.FeedScreen
 import com.elkrrai.techtalk.presentation.getmorecontent.GetMoreContentViewModel
 import com.elkrrai.techtalk.presentation.getmorecontent.ui.GetMoreContentScreen
@@ -60,6 +58,7 @@ fun AppContent() {
     TechTalkTheme { AppContentInner() }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AppContentInner(
     feedViewModel: FeedViewModel = koinViewModel(),
@@ -69,13 +68,14 @@ private fun AppContentInner(
 ) {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
-    val isBattleSelected = backStackEntry?.destination?.route == BattleRoute::class.qualifiedName
+    val currentRoute = backStackEntry?.destination?.route
+    val isBattleSelected = currentRoute == BattleRoute::class.qualifiedName
+    // Only Feed/Battle get the persistent top bar + bottom nav chrome; overlay screens
+    // (Profile/Technologies/GetMoreContent) render their own full-screen Scaffold.
+    val isOnMainTab = isBattleSelected || currentRoute == FeedRoute::class.qualifiedName
 
     var isDrawerOpen by remember { mutableStateOf(false) }
 
-    // The nav graph's own back handling covers screen-to-screen navigation (pressing
-    // back on an overlay screen or a non-start tab pops it automatically); this only
-    // needs to own closing the drawer, since that's local UI state, not a destination.
     PlatformBackHandler(enabled = isDrawerOpen) { isDrawerOpen = false }
 
     fun navigateToTab(route: Any) {
@@ -86,66 +86,97 @@ private fun AppContentInner(
         }
     }
 
+    val feedState by feedViewModel.state.collectAsState()
+    val profileState by userProfileViewModel.state.collectAsState()
+
     Box(modifier = Modifier.fillMaxSize()) {
-        NavHost(navController = navController, startDestination = FeedRoute) {
-            composable<FeedRoute> {
-                val feedState by feedViewModel.state.collectAsState()
-                MainScaffold(
-                    isBattleSelected = false,
-                    feedState = feedState,
-                    onFeedTabClick = { navigateToTab(FeedRoute) },
-                    onBattleTabClick = { navigateToTab(BattleRoute) },
-                    onFilterClick = feedViewModel::onOpenFilterSheet,
-                    onMenuClick = { isDrawerOpen = true }
-                ) {
+        Scaffold(
+            topBar = {
+                if (isOnMainTab) {
+                    TopAppBar(
+                        title = {
+                            Text(
+                                if (!isBattleSelected && feedState.showTipsCounter) {
+                                    "TechTalk  ${feedState.currentPage + 1} / ${feedState.filteredTips.size}"
+                                } else {
+                                    "TechTalk"
+                                }
+                            )
+                        },
+                        navigationIcon = {
+                            IconButton(onClick = { isDrawerOpen = true }) { Text("☰") }
+                        },
+                        actions = {
+                            if (!isBattleSelected) {
+                                IconButton(onClick = feedViewModel::onOpenFilterSheet) {
+                                    Icon(Icons.Filled.FilterList, contentDescription = "Filter")
+                                }
+                            }
+                        }
+                    )
+                }
+            },
+            bottomBar = {
+                if (isOnMainTab) {
+                    NavigationBar {
+                        NavigationBarItem(
+                            selected = !isBattleSelected,
+                            onClick = { navigateToTab(FeedRoute) },
+                            icon = { Text("📱") },
+                            label = { Text("Feed") }
+                        )
+                        NavigationBarItem(
+                            selected = isBattleSelected,
+                            onClick = { navigateToTab(BattleRoute) },
+                            icon = { Text("⚔️") },
+                            label = { Text("Battle") }
+                        )
+                    }
+                }
+            }
+        ) { padding ->
+            NavHost(
+                navController = navController,
+                startDestination = FeedRoute,
+                modifier = Modifier.fillMaxSize().padding(padding)
+            ) {
+                composable<FeedRoute> {
                     FeedScreen(
                         viewModel = feedViewModel,
                         onBrowseTechnologies = { navController.navigate(TechnologiesRoute) },
                         modifier = Modifier.fillMaxSize()
                     )
                 }
-            }
 
-            composable<BattleRoute> {
-                val feedState by feedViewModel.state.collectAsState()
-                MainScaffold(
-                    isBattleSelected = true,
-                    feedState = feedState,
-                    onFeedTabClick = { navigateToTab(FeedRoute) },
-                    onBattleTabClick = { navigateToTab(BattleRoute) },
-                    onFilterClick = feedViewModel::onOpenFilterSheet,
-                    onMenuClick = { isDrawerOpen = true }
-                ) {
+                composable<BattleRoute> {
                     BattleScreen(modifier = Modifier.fillMaxSize())
                 }
-            }
 
-            composable<UserProfileRoute> {
-                UserProfileScreen(
-                    viewModel = userProfileViewModel,
-                    onClose = { navController.popBackStack() },
-                    modifier = Modifier.fillMaxSize()
-                )
-            }
+                composable<UserProfileRoute> {
+                    UserProfileScreen(
+                        viewModel = userProfileViewModel,
+                        onClose = { navController.popBackStack() },
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
 
-            composable<TechnologiesRoute> {
-                TechnologyListScreen(
-                    viewModel = technologyListViewModel,
-                    onClose = { navController.popBackStack() },
-                    modifier = Modifier.fillMaxSize()
-                )
-            }
+                composable<TechnologiesRoute> {
+                    TechnologyListScreen(
+                        viewModel = technologyListViewModel,
+                        onClose = { navController.popBackStack() },
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
 
-            composable<GetMoreContentRoute> {
-                GetMoreContentScreen(
-                    viewModel = getMoreContentViewModel,
-                    onClose = { navController.popBackStack() },
-                    modifier = Modifier.fillMaxSize()
-                )
+                composable<GetMoreContentRoute> {
+                    GetMoreContentScreen(
+                        viewModel = getMoreContentViewModel,
+                        onClose = { navController.popBackStack() },
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
             }
         }
-
-        val profileState by userProfileViewModel.state.collectAsState()
 
         AnimatedVisibility(
             visible = isDrawerOpen,
@@ -185,64 +216,6 @@ private fun AppContentInner(
                     navController.navigate(GetMoreContentRoute)
                 }
             )
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun MainScaffold(
-    isBattleSelected: Boolean,
-    feedState: FeedState,
-    onFeedTabClick: () -> Unit,
-    onBattleTabClick: () -> Unit,
-    onFilterClick: () -> Unit,
-    onMenuClick: () -> Unit,
-    content: @Composable () -> Unit
-) {
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        if (!isBattleSelected && feedState.showTipsCounter) {
-                            "TechTalk  ${feedState.currentPage + 1} / ${feedState.filteredTips.size}"
-                        } else {
-                            "TechTalk"
-                        }
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onMenuClick) { Text("☰") }
-                },
-                actions = {
-                    if (!isBattleSelected) {
-                        IconButton(onClick = onFilterClick) {
-                            Icon(Icons.Filled.FilterList, contentDescription = "Filter")
-                        }
-                    }
-                }
-            )
-        },
-        bottomBar = {
-            NavigationBar {
-                NavigationBarItem(
-                    selected = !isBattleSelected,
-                    onClick = onFeedTabClick,
-                    icon = { Text("📱") },
-                    label = { Text("Feed") }
-                )
-                NavigationBarItem(
-                    selected = isBattleSelected,
-                    onClick = onBattleTabClick,
-                    icon = { Text("⚔️") },
-                    label = { Text("Battle") }
-                )
-            }
-        }
-    ) { padding ->
-        Box(modifier = Modifier.fillMaxSize().padding(padding)) {
-            content()
         }
     }
 }
