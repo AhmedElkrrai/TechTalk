@@ -13,6 +13,8 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.elkrrai.techtalk.domain.model.user.AvatarCatalog
@@ -61,7 +63,10 @@ fun BattleResultScreen(
         AppButton(
             text = "Try again",
             onClick = viewModel::onTryAgain,
-            modifier = Modifier.fillMaxWidth().padding(top = 32.dp)
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 32.dp)
+                .semantics { contentDescription = "Try again" }
         )
         AppOutlinedButton(
             text = "Pick another tech",
@@ -69,7 +74,10 @@ fun BattleResultScreen(
                 viewModel.onPickAnother()
                 onClose()
             },
-            modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 8.dp)
+                .semantics { contentDescription = "Pick another tech" }
         )
     }
 }

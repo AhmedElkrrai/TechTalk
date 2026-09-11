@@ -18,7 +18,7 @@ fun SubscribeFirstPrompt(onBrowseTechnologies: () -> Unit, modifier: Modifier = 
     Column(
         modifier = modifier.fillMaxSize().padding(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+        verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically)
     ) {
         Text(text = "🧩", style = MaterialTheme.typography.displayMedium)
         Text(
@@ -27,7 +27,7 @@ fun SubscribeFirstPrompt(onBrowseTechnologies: () -> Unit, modifier: Modifier = 
             textAlign = TextAlign.Center
         )
         Text(
-            text = "Pick the technologies you want tips about — you can change this anytime.",
+            text = "Pick the technologies you want tips about, you can change this anytime.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center

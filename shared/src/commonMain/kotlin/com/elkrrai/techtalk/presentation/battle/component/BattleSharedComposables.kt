@@ -17,6 +17,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.elkrrai.techtalk.domain.model.common.Difficulty
 import com.elkrrai.techtalk.presentation.component.DifficultyBadge
@@ -43,7 +45,9 @@ fun BattleTopBar(title: String, onResign: () -> Unit, modifier: Modifier = Modif
             text = "Resign",
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.error,
-            modifier = Modifier.clickable(onClick = onResign)
+            modifier = Modifier
+                .clickable(onClick = onResign)
+                .semantics { contentDescription = "Resign" }
         )
     }
 }
@@ -59,7 +63,7 @@ fun BattleProgressSection(
     Column(modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(
-                text = "Question ${(questionIndex + 1).coerceAtMost(totalQuestions)}/$totalQuestions",
+                text = "Question ${(questionIndex).coerceAtMost(totalQuestions)}/$totalQuestions",
                 style = MaterialTheme.typography.labelLarge
             )
             if (remainingTimeSeconds != null) {

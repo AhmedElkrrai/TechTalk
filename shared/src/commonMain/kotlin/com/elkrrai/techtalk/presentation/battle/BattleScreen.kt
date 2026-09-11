@@ -60,7 +60,13 @@ fun BattleScreen(modifier: Modifier = Modifier) {
             OnlineBattleScreen(viewModel = koinViewModel<OnlineBattleViewModel>())
         }
         composable<BattleResultRoute> {
-            BattleResultScreen(viewModel = koinViewModel<BattleResultViewModel>(), onClose = sessionStore::reset)
+            BattleResultScreen(
+                viewModel = koinViewModel<BattleResultViewModel>(),
+                onClose = {
+                    if (sessionStore.state.value.phase != BattlePhase.BATTLE)
+                        sessionStore.reset()
+                }
+            )
         }
     }
 }
