@@ -38,6 +38,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.elkrrai.techtalk.navigation.BattleRoute
+import com.elkrrai.techtalk.navigation.FeedRoute
 import com.elkrrai.techtalk.presentation.battle.BattleScreen
 import com.elkrrai.techtalk.presentation.component.PlatformBackHandler
 import com.elkrrai.techtalk.presentation.feed.FeedViewModel
@@ -50,8 +52,6 @@ import com.elkrrai.techtalk.presentation.technologylist.ui.TechnologyListScreen
 import com.elkrrai.techtalk.presentation.theme.TechTalkTheme
 import com.elkrrai.techtalk.presentation.userprofile.UserProfileViewModel
 import com.elkrrai.techtalk.presentation.userprofile.ui.UserProfileScreen
-import com.elkrrai.techtalk.navigation.BattleRoute
-import com.elkrrai.techtalk.navigation.FeedRoute
 import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
@@ -60,12 +60,15 @@ fun AppContent() {
 }
 
 /**
- * Full-screen destinations that sit *on top of* the persistent Feed/Battle chrome rather
- * than replacing it inside [NavHost] — this keeps the outer top bar + bottom nav from ever
- * changing when one of these opens/closes, so there's no frame where new chrome is paired
- * with the previous screen's content (the "overlap" bug from mixing this into the tab NavHost).
+ * Everything that can appear as a full-screen (or scrim) layer on top of the persistent
+ * Feed/Battle chrome — the hand-rolled nav drawer plus the three overlay screens it opens.
+ * A single [Overlay]? keeps these mutually exclusive by construction: only one can be
+ * visible at a time, switching between them is one atomic assignment, and there is one
+ * back-press target regardless of which layer is showing. They render on top of (not
+ * inside) the tab [NavHost] so the outer Scaffold's chrome never has to change when one
+ * opens/closes — that decoupling is what fixes the "new chrome + old content" frame bug.
  */
-private enum class OverlayScreen { Profile, Technologies, GetMoreContent }
+private enum class Overlay { Drawer, Profile, Technologies, GetMoreContent }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -79,11 +82,9 @@ private fun AppContentInner(
     val backStackEntry by navController.currentBackStackEntryAsState()
     val isBattleSelected = backStackEntry?.destination?.hasRoute<BattleRoute>() == true
 
-    var isDrawerOpen by remember { mutableStateOf(false) }
-    var activeOverlay by remember { mutableStateOf<OverlayScreen?>(null) }
+    var overlay by remember { mutableStateOf<Overlay?>(null) }
 
-    PlatformBackHandler(enabled = isDrawerOpen) { isDrawerOpen = false }
-    PlatformBackHandler(enabled = activeOverlay != null) { activeOverlay = null }
+    PlatformBackHandler(enabled = overlay != null) { overlay = null }
 
     fun navigateToTab(route: Any) {
         navController.navigate(route) {
@@ -112,7 +113,7 @@ private fun AppContentInner(
                     },
                     navigationIcon = {
                         IconButton(
-                            onClick = { isDrawerOpen = true },
+                            onClick = { overlay = Overlay.Drawer },
                             modifier = Modifier.semantics { contentDescription = "Menu" }
                         ) { Text("☰") }
                     },
@@ -150,7 +151,7 @@ private fun AppContentInner(
                 composable<FeedRoute> {
                     FeedScreen(
                         viewModel = feedViewModel,
-                        onBrowseTechnologies = { activeOverlay = OverlayScreen.Technologies },
+                        onBrowseTechnologies = { overlay = Overlay.Technologies },
                         modifier = Modifier.fillMaxSize()
                     )
                 }
@@ -161,47 +162,31 @@ private fun AppContentInner(
             }
         }
 
-        AnimatedVisibility(
-            visible = activeOverlay == OverlayScreen.Profile,
-            enter = fadeIn(tween(200)),
-            exit = fadeOut(tween(200))
-        ) {
+        FadeOverlay(visible = overlay == Overlay.Profile) {
             UserProfileScreen(
                 viewModel = userProfileViewModel,
-                onClose = { activeOverlay = null },
+                onClose = { overlay = null },
                 modifier = Modifier.fillMaxSize()
             )
         }
 
-        AnimatedVisibility(
-            visible = activeOverlay == OverlayScreen.Technologies,
-            enter = fadeIn(tween(200)),
-            exit = fadeOut(tween(200))
-        ) {
+        FadeOverlay(visible = overlay == Overlay.Technologies) {
             TechnologyListScreen(
                 viewModel = technologyListViewModel,
-                onClose = { activeOverlay = null },
+                onClose = { overlay = null },
                 modifier = Modifier.fillMaxSize()
             )
         }
 
-        AnimatedVisibility(
-            visible = activeOverlay == OverlayScreen.GetMoreContent,
-            enter = fadeIn(tween(200)),
-            exit = fadeOut(tween(200))
-        ) {
+        FadeOverlay(visible = overlay == Overlay.GetMoreContent) {
             GetMoreContentScreen(
                 viewModel = getMoreContentViewModel,
-                onClose = { activeOverlay = null },
+                onClose = { overlay = null },
                 modifier = Modifier.fillMaxSize()
             )
         }
 
-        AnimatedVisibility(
-            visible = isDrawerOpen,
-            enter = fadeIn(tween(200)),
-            exit = fadeOut(tween(200))
-        ) {
+        FadeOverlay(visible = overlay == Overlay.Drawer) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -209,32 +194,34 @@ private fun AppContentInner(
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null,
-                        onClick = { isDrawerOpen = false }
+                        onClick = { overlay = null }
                     )
             )
         }
 
         AnimatedVisibility(
-            visible = isDrawerOpen,
+            visible = overlay == Overlay.Drawer,
             enter = slideInHorizontally(tween(220)) { -it },
             exit = slideOutHorizontally(tween(220)) { -it }
         ) {
             MenuDrawer(
                 userName = profileState.name,
                 userAvatarKey = profileState.selectedAvatarKey,
-                onProfileClick = {
-                    isDrawerOpen = false
-                    activeOverlay = OverlayScreen.Profile
-                },
-                onTechnologiesClick = {
-                    isDrawerOpen = false
-                    activeOverlay = OverlayScreen.Technologies
-                },
-                onGetMoreContentClick = {
-                    isDrawerOpen = false
-                    activeOverlay = OverlayScreen.GetMoreContent
-                }
+                onProfileClick = { overlay = Overlay.Profile },
+                onTechnologiesClick = { overlay = Overlay.Technologies },
+                onGetMoreContentClick = { overlay = Overlay.GetMoreContent }
             )
         }
+    }
+}
+
+@Composable
+private fun FadeOverlay(visible: Boolean, content: @Composable () -> Unit) {
+    AnimatedVisibility(
+        visible = visible,
+        enter = fadeIn(tween(200)),
+        exit = fadeOut(tween(200))
+    ) {
+        content()
     }
 }
