@@ -31,6 +31,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -69,11 +70,10 @@ private fun AppContentInner(
 ) {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
-    val currentRoute = backStackEntry?.destination?.route
-    val isBattleSelected = currentRoute == BattleRoute::class.qualifiedName
+    val isBattleSelected = backStackEntry?.destination?.hasRoute<BattleRoute>() == true
     // Only Feed/Battle get the persistent top bar + bottom nav chrome; overlay screens
     // (Profile/Technologies/GetMoreContent) render their own full-screen Scaffold.
-    val isOnMainTab = isBattleSelected || currentRoute == FeedRoute::class.qualifiedName
+    val isOnMainTab = isBattleSelected || backStackEntry?.destination?.hasRoute<FeedRoute>() == true
 
     var isDrawerOpen by remember { mutableStateOf(false) }
 

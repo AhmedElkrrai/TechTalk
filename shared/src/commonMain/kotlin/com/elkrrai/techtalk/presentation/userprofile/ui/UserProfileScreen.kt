@@ -162,11 +162,7 @@ private fun LevelCard(
     xpToNextLevel: Int
 ) {
     ContentSection {
-        Text(
-            text = "Level $level",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold
-        )
+        Title("Level $level")
 
         Text(
             text = "$currentXp / $xpToNextLevel XP",
@@ -183,14 +179,13 @@ private fun AvatarSection(
     selectedAvatarKey: String,
     onAvatarSelected: (String) -> Unit
 ) {
-    Text(
-        text = "Avatar",
-        style = MaterialTheme.typography.titleMedium,
-        fontWeight = FontWeight.SemiBold
-    )
+    Title("Avatar")
 
     ContentSection {
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)
+        ) {
             avatars.forEach { avatar ->
                 AvatarOptionChip(
                     avatar = avatar,
@@ -221,11 +216,7 @@ private fun AvatarOptionChip(avatar: AvatarOption, isSelected: Boolean, onClick:
 
 @Composable
 private fun BattleSummaryCard(battlesPlayed: Int, winRate: Int, bestStreak: Int) {
-    Text(
-        text = "Battle summary",
-        style = MaterialTheme.typography.titleMedium,
-        fontWeight = FontWeight.SemiBold
-    )
+    Title("Battle summary")
 
     ContentSection {
         Row(
