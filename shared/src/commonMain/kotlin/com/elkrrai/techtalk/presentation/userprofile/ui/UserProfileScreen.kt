@@ -3,26 +3,22 @@ package com.elkrrai.techtalk.presentation.userprofile.ui
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -37,6 +33,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.elkrrai.techtalk.domain.model.battle.BattleHistoryItem
 import com.elkrrai.techtalk.domain.model.battle.BattleStatus
@@ -46,6 +43,7 @@ import com.elkrrai.techtalk.presentation.component.AppProgressBar
 import com.elkrrai.techtalk.presentation.component.LoadingScreen
 import com.elkrrai.techtalk.presentation.theme.SuccessColor
 import com.elkrrai.techtalk.presentation.userprofile.UserProfileViewModel
+import com.elkrrai.techtalk.presentation.userprofile.state.UserProfileState
 import com.elkrrai.techtalk.utils.formatRelativeTime
 import kotlinx.coroutines.delay
 
@@ -94,11 +92,25 @@ fun UserProfileScreen(
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            HeaderCard()
+            HeaderCard(
+                selectedAvatarKey = state.selectedAvatarKey,
+                name = state.name,
+                onNameChanged = viewModel::onNameChanged,
+                message = state.message
+            )
 
-            LevelCard()
+            LevelCard(
+                level = state.level,
+                xpProgressFraction = state.xpProgressFraction,
+                currentXp = state.currentXp,
+                xpToNextLevel = state.xpToNextLevel
+            )
 
-            AvatarSection()
+            AvatarSection(
+                avatars = state.avatars,
+                selectedAvatarKey = state.selectedAvatarKey,
+                onAvatarSelected = viewModel::onAvatarSelected
+            )
 
             BattleSummaryCard(
                 battlesPlayed = state.battleSummary.battlesPlayed,
@@ -106,80 +118,85 @@ fun UserProfileScreen(
                 bestStreak = state.battleSummary.bestWinStreak
             )
 
-            Text("Recent battles", style = MaterialTheme.typography.titleSmall)
-
-            items(state.recentBattles, key = { it.id }) { battle ->
-                BattleHistoryItem(battle)
-            }
+            RecentBattles(state)
         }
     }
 }
 
 @Composable
-private fun HeaderCard() {
-    ElevatedCard {
-        Column(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)) {
-            Box(
-                modifier = Modifier.fillMaxWidth(),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = AvatarCatalog.emojiFor(state.selectedAvatarKey),
-                    style = MaterialTheme.typography.displayLarge,
-                    modifier = Modifier.padding(bottom = 8.dp)
-                )
-            }
+private fun HeaderCard(
+    selectedAvatarKey: String,
+    name: String,
+    onNameChanged: (String) -> Unit,
+    message: String?
+) {
+    ContentSection {
+        Text(
+            text = AvatarCatalog.emojiFor(selectedAvatarKey),
+            style = MaterialTheme.typography.displayLarge,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
 
-            OutlinedTextField(
-                value = state.name,
-                onValueChange = viewModel::onNameChanged,
-                label = { Text("Name") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true
-            )
-            if (state.message != null) {
-                Text(
-                    text = state.message.orEmpty(),
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun LevelCard() {
-    ElevatedCard {
-        Column(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)) {
-            Text("Level ${state.level}", style = MaterialTheme.typography.titleMedium)
-            AppProgressBar(
-                progress = state.xpProgressFraction,
-                modifier = Modifier.padding(vertical = 8.dp)
-            )
+        OutlinedTextField(
+            value = name,
+            onValueChange = onNameChanged,
+            label = { Text("Name") },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true
+        )
+        if (message != null) {
             Text(
-                text = "${state.currentXp} / ${state.xpToNextLevel} XP",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                text = message,
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodySmall
             )
         }
     }
 }
 
 @Composable
-private fun AvatarSection() {
-    ElevatedCard {
-        Column(modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp)) {
-            Text("Avatar", style = MaterialTheme.typography.titleSmall)
-            Spacer(Modifier.height(8.dp))
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                state.avatars.forEach { avatar ->
-                    AvatarOptionChip(
-                        avatar = avatar,
-                        isSelected = avatar.key == state.selectedAvatarKey,
-                        onClick = { viewModel.onAvatarSelected(avatar.key) }
-                    )
-                }
+private fun LevelCard(
+    level: Int,
+    xpProgressFraction: Float,
+    currentXp: Int,
+    xpToNextLevel: Int
+) {
+    ContentSection {
+        Text(
+            text = "Level $level",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold
+        )
+
+        Text(
+            text = "$currentXp / $xpToNextLevel XP",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        AppProgressBar(progress = xpProgressFraction)
+    }
+}
+
+@Composable
+private fun AvatarSection(
+    avatars: List<AvatarOption>,
+    selectedAvatarKey: String,
+    onAvatarSelected: (String) -> Unit
+) {
+    Text(
+        text = "Avatar",
+        style = MaterialTheme.typography.titleMedium,
+        fontWeight = FontWeight.SemiBold
+    )
+
+    ContentSection {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            avatars.forEach { avatar ->
+                AvatarOptionChip(
+                    avatar = avatar,
+                    isSelected = avatar.key == selectedAvatarKey,
+                    onClick = { onAvatarSelected(avatar.key) }
+                )
             }
         }
     }
@@ -204,9 +221,15 @@ private fun AvatarOptionChip(avatar: AvatarOption, isSelected: Boolean, onClick:
 
 @Composable
 private fun BattleSummaryCard(battlesPlayed: Int, winRate: Int, bestStreak: Int) {
-    ElevatedCard {
+    Text(
+        text = "Battle summary",
+        style = MaterialTheme.typography.titleMedium,
+        fontWeight = FontWeight.SemiBold
+    )
+
+    ContentSection {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+            modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             StatColumn(label = "Battles", value = battlesPlayed.toString())
@@ -221,7 +244,7 @@ private fun StatColumn(label: String, value: String) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(value, style = MaterialTheme.typography.titleLarge)
         Text(
-            label,
+            text = label,
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -229,52 +252,82 @@ private fun StatColumn(label: String, value: String) {
 }
 
 @Composable
-private fun BattleHistoryItem(battle: BattleHistoryItem) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(IntrinsicSize.Min)
-                .padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Column(
-                modifier = Modifier.fillMaxHeight(),
-                verticalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(battle.technologyName, style = MaterialTheme.typography.titleSmall)
-                Text(
-                    text = formatRelativeTime(battle.playedAt),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+private fun RecentBattles(state: UserProfileState) {
+    Title("Recent battles")
 
-            Column(horizontalAlignment = Alignment.End) {
-                Text(
-                    text = "${battle.score}/${battle.totalQuestions}",
-                    style = MaterialTheme.typography.titleSmall
-                )
-                Text(
-                    text = battle.title(),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = battle.color(),
-                    modifier = Modifier.padding(vertical = 4.dp)
-                )
-                Text(
-                    text = "+ ${battle.xpGained} XP",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary
-                )
+    ContentSection {
+        state.recentBattles.forEachIndexed { index, battle ->
+            BattleHistoryItem(battle)
+            if (index != state.recentBattles.size - 1) {
+                HorizontalDivider()
             }
         }
     }
+}
+
+@Composable
+private fun BattleHistoryItem(battle: BattleHistoryItem) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(IntrinsicSize.Min),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Column(
+            modifier = Modifier.fillMaxHeight(),
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(battle.technologyName, style = MaterialTheme.typography.titleSmall)
+            Text(
+                text = formatRelativeTime(battle.playedAt),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
+        Column(horizontalAlignment = Alignment.End) {
+            Text(
+                text = "${battle.score}/${battle.totalQuestions}",
+                style = MaterialTheme.typography.titleSmall
+            )
+            Text(
+                text = battle.title(),
+                style = MaterialTheme.typography.labelSmall,
+                color = battle.color(),
+                modifier = Modifier.padding(vertical = 4.dp)
+            )
+            Text(
+                text = "+ ${battle.xpGained} XP",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.primary
+            )
+        }
+    }
+}
+
+@Composable
+private fun ContentSection(
+    content: @Composable () -> Unit
+) {
+    ElevatedCard(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            content()
+        }
+    }
+}
+
+@Composable
+private fun Title(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.titleMedium,
+        fontWeight = FontWeight.SemiBold
+    )
 }
 
 private fun BattleHistoryItem.title() = when (this.status) {
