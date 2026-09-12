@@ -1,0 +1,13 @@
+{
+  "artboards": [
+    { "file": "Main.dc.html", "x": 0, "y": 0, "w": 320, "h": 320 },
+    { "file": "DirectionB.dc.html", "x": 400, "y": 0, "w": 320, "h": 320 },
+    { "file": "DirectionC.dc.html", "x": 800, "y": 0, "w": 320, "h": 320 }
+  ],
+  "annotations": [
+    { "id": "label-main", "x": 0, "y": -60, "w": 320, "text": "Option 1 — Cyan Signal (leading candidate)" },
+    { "id": "label-b", "x": 400, "y": -60, "w": 320, "text": "Option 2 — Multi-Tech Ring" },
+    { "id": "label-c", "x": 800, "y": -60, "w": 320, "text": "Option 3 — Flat Duotone" }
+  ],
+  "launch": { "view": "canvas" }
+}

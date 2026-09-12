@@ -28,7 +28,7 @@ fun buildTipsPrompt(): String = """
     }
 
     Rules:
-    - "technologyName" must be one of: Kotlin, Android, Swift, iOS, Go.
+    - "technologyName" must be one of: Kotlin, Android, Swift, iOS, Java.
     - "difficulty" must be one of: BEGINNER, INTERMEDIATE, ADVANCED.
     - Each tip should teach exactly one focused idea.
     - Keep "content" concise — this renders as a single feed card.
@@ -66,7 +66,7 @@ fun buildBattlePrompt(): String = """
     }
 
     Rules:
-    - "technologyName" must be one of: Kotlin, Android, Swift, iOS, Go.
+    - "technologyName" must be one of: Kotlin, Android, Swift, iOS, Java.
     - "difficulty" must be one of: BEGINNER, INTERMEDIATE, ADVANCED.
     - Each question needs exactly 4 answers, with exactly one "isCorrect": true.
     - "technologyName" and "topicName" should match an existing tip pack's topic where possible.

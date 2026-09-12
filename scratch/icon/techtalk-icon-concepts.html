@@ -1,0 +1,403 @@
+<title>TechTalk Icon Concepts</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Manrope:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  :root {
+    --bg: #0a0b0d;
+    --surface: #16181c;
+    --surface-raised: #1d2025;
+    --border: #2a2d33;
+    --text: #edeef0;
+    --text-muted: #8b909a;
+    --text-faint: #565a62;
+    --cyan: #00f0ff;
+    --teal: #03dac6;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Manrope', system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 72px 32px 96px;
+  }
+
+  header {
+    max-width: 680px;
+    margin-bottom: 64px;
+  }
+
+  .eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--teal);
+    margin-bottom: 18px;
+  }
+
+  h1 {
+    font-family: 'Space Grotesk', system-ui, sans-serif;
+    font-weight: 600;
+    font-size: clamp(32px, 4.2vw, 46px);
+    line-height: 1.12;
+    letter-spacing: -0.01em;
+    margin: 0 0 20px;
+    text-wrap: balance;
+  }
+
+  header p {
+    font-size: 16px;
+    line-height: 1.65;
+    color: var(--text-muted);
+    margin: 0;
+  }
+
+  header p strong {
+    color: var(--text);
+    font-weight: 600;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 28px;
+  }
+
+  @media (max-width: 900px) {
+    .grid { grid-template-columns: 1fr; max-width: 420px; }
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+  }
+
+  .icon-stage {
+    background: var(--surface-raised);
+    border-radius: 16px;
+    padding: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .icon-stage svg {
+    width: 176px;
+    height: 176px;
+    display: block;
+  }
+
+  .card-heading {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .card-heading h2 {
+    font-family: 'Space Grotesk', system-ui, sans-serif;
+    font-size: 19px;
+    font-weight: 600;
+    margin: 0;
+  }
+
+  .tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-faint);
+    white-space: nowrap;
+  }
+
+  .rationale {
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--text-muted);
+    margin: -8px 0 0;
+  }
+
+  .homerow-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    margin: 0 0 10px;
+  }
+
+  .homerow {
+    display: flex;
+    gap: 14px;
+    padding: 18px 16px;
+    border-radius: 14px;
+    background: linear-gradient(155deg, #1b1420, #0e1a22 55%, #0a0b0d);
+  }
+
+  .homerow .slot {
+    width: 44px;
+    height: 44px;
+    border-radius: 11px;
+    background: #3a3d44;
+    opacity: 0.55;
+    flex-shrink: 0;
+  }
+
+  .homerow .slot svg {
+    width: 44px;
+    height: 44px;
+    display: block;
+    opacity: 1;
+  }
+
+  .specs {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+  }
+
+  .swatch {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  .swatch .dot {
+    width: 11px;
+    height: 11px;
+    border-radius: 3px;
+    border: 1px solid rgba(255,255,255,0.15);
+  }
+
+  footer {
+    max-width: 680px;
+    margin-top: 64px;
+    padding-top: 28px;
+    border-top: 1px solid var(--border);
+    font-size: 14px;
+    line-height: 1.65;
+    color: var(--text-faint);
+  }
+
+  footer code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12.5px;
+    color: var(--text-muted);
+    background: var(--surface);
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Icon exploration — 01</div>
+    <h1>Three directions for the TechTalk mark</h1>
+    <p>
+      Same idea in every version — a code bracket <strong>&lt;/&gt;</strong> inside a chat
+      bubble, reading "Tech" through "Talk" — built from the colors already living in
+      <strong>TechTalkTheme.kt</strong>, not invented ones. What changes across the three is
+      how much of that theme the icon carries: a bold two-tone signal, a nod to every
+      subscribed language, or the quietest possible mark.
+    </p>
+  </header>
+
+  <div class="grid">
+
+    <div class="card">
+      <div class="icon-stage">
+        <svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="g1" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#00F0FF"/>
+              <stop offset="100%" stop-color="#03DAC6"/>
+            </linearGradient>
+          </defs>
+          <rect x="0" y="0" width="1024" height="1024" rx="224" fill="url(#g1)"/>
+          <path d="M 232 332 Q 232 232 332 232 L 692 232 Q 792 232 792 332 L 792 532 Q 792 632 692 632 L 366 632 C 350 680 310 704 270 712 C 300 690 310 660 310 630 L 332 632 Q 232 632 232 532 Z" fill="#0a0a0a"/>
+          <g stroke="#00F0FF" stroke-width="46" stroke-linecap="round" stroke-linejoin="round" fill="none">
+            <path d="M 452 372 L 392 432 L 452 492"/>
+            <path d="M 552 362 L 472 502"/>
+            <path d="M 572 372 L 632 432 L 572 492"/>
+          </g>
+        </svg>
+      </div>
+
+      <div>
+        <div class="card-heading">
+          <h2>Cyan Signal</h2>
+          <span class="tag">leading pick</span>
+        </div>
+        <p class="rationale">
+          A full cyan-to-teal field with the mark knocked out in near-black. Reads instantly
+          at any size and is the most competitive next to typical home-screen icons.
+        </p>
+      </div>
+
+      <div>
+        <p class="homerow-label">On a home screen</p>
+        <div class="homerow">
+          <div class="slot"></div>
+          <div class="slot"></div>
+          <svg class="slot" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+            <rect x="0" y="0" width="1024" height="1024" rx="224" fill="url(#g1)"/>
+            <path d="M 232 332 Q 232 232 332 232 L 692 232 Q 792 232 792 332 L 792 532 Q 792 632 692 632 L 366 632 C 350 680 310 704 270 712 C 300 690 310 660 310 630 L 332 632 Q 232 632 232 532 Z" fill="#0a0a0a"/>
+            <g stroke="#00F0FF" stroke-width="46" stroke-linecap="round" stroke-linejoin="round" fill="none">
+              <path d="M 452 372 L 392 432 L 452 492"/>
+              <path d="M 552 362 L 472 502"/>
+              <path d="M 572 372 L 632 432 L 572 492"/>
+            </g>
+          </svg>
+          <div class="slot"></div>
+          <div class="slot"></div>
+        </div>
+      </div>
+
+      <div class="specs">
+        <span class="swatch"><span class="dot" style="background:#00F0FF"></span>#00F0FF</span>
+        <span class="swatch"><span class="dot" style="background:#03DAC6"></span>#03DAC6</span>
+        <span class="swatch"><span class="dot" style="background:#0a0a0a"></span>#0A0A0A</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="icon-stage">
+        <svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="g2" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#7F52FF"/>
+              <stop offset="25%" stop-color="#3DDC84"/>
+              <stop offset="50%" stop-color="#F05138"/>
+              <stop offset="75%" stop-color="#147EFB"/>
+              <stop offset="100%" stop-color="#ED8B00"/>
+            </linearGradient>
+          </defs>
+          <rect x="0" y="0" width="1024" height="1024" rx="224" fill="#121212"/>
+          <path d="M 232 332 Q 232 232 332 232 L 692 232 Q 792 232 792 332 L 792 532 Q 792 632 692 632 L 366 632 C 350 680 310 704 270 712 C 300 690 310 660 310 630 L 332 632 Q 232 632 232 532 Z" fill="none" stroke="url(#g2)" stroke-width="26"/>
+          <g stroke="#00F0FF" stroke-width="46" stroke-linecap="round" stroke-linejoin="round" fill="none">
+            <path d="M 452 372 L 392 432 L 452 492"/>
+            <path d="M 552 362 L 472 502"/>
+            <path d="M 572 372 L 632 432 L 572 492"/>
+          </g>
+        </svg>
+      </div>
+
+      <div>
+        <div class="card-heading">
+          <h2>Multi-Tech Ring</h2>
+          <span class="tag">option 2</span>
+        </div>
+        <p class="rationale">
+          The app's real dark surface, with the bubble outlined in the five subscribed
+          languages' own tag colors. Says "every language, one conversation" — at the cost
+          of some legibility once the icon is small.
+        </p>
+      </div>
+
+      <div>
+        <p class="homerow-label">On a home screen</p>
+        <div class="homerow">
+          <div class="slot"></div>
+          <div class="slot"></div>
+          <svg class="slot" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+            <rect x="0" y="0" width="1024" height="1024" rx="224" fill="#121212"/>
+            <path d="M 232 332 Q 232 232 332 232 L 692 232 Q 792 232 792 332 L 792 532 Q 792 632 692 632 L 366 632 C 350 680 310 704 270 712 C 300 690 310 660 310 630 L 332 632 Q 232 632 232 532 Z" fill="none" stroke="url(#g2)" stroke-width="26"/>
+            <g stroke="#00F0FF" stroke-width="46" stroke-linecap="round" stroke-linejoin="round" fill="none">
+              <path d="M 452 372 L 392 432 L 452 492"/>
+              <path d="M 552 362 L 472 502"/>
+              <path d="M 572 372 L 632 432 L 572 492"/>
+            </g>
+          </svg>
+          <div class="slot"></div>
+          <div class="slot"></div>
+        </div>
+      </div>
+
+      <div class="specs">
+        <span class="swatch"><span class="dot" style="background:#121212"></span>#121212</span>
+        <span class="swatch"><span class="dot" style="background:#7F52FF"></span>#7F52FF</span>
+        <span class="swatch"><span class="dot" style="background:#3DDC84"></span>#3DDC84</span>
+        <span class="swatch"><span class="dot" style="background:#F05138"></span>#F05138</span>
+        <span class="swatch"><span class="dot" style="background:#147EFB"></span>#147EFB</span>
+        <span class="swatch"><span class="dot" style="background:#ED8B00"></span>#ED8B00</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="icon-stage">
+        <svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+          <rect x="0" y="0" width="1024" height="1024" rx="224" fill="#03DAC6"/>
+          <path d="M 232 332 Q 232 232 332 232 L 692 232 Q 792 232 792 332 L 792 532 Q 792 632 692 632 L 366 632 C 350 680 310 704 270 712 C 300 690 310 660 310 630 L 332 632 Q 232 632 232 532 Z" fill="#121212"/>
+          <g stroke="#03DAC6" stroke-width="46" stroke-linecap="round" stroke-linejoin="round" fill="none">
+            <path d="M 452 372 L 392 432 L 452 492"/>
+            <path d="M 552 362 L 472 502"/>
+            <path d="M 572 372 L 632 432 L 572 492"/>
+          </g>
+        </svg>
+      </div>
+
+      <div>
+        <div class="card-heading">
+          <h2>Flat Duotone</h2>
+          <span class="tag">option 3</span>
+        </div>
+        <p class="rationale">
+          Just the app's secondary teal and its own dark surface, flat, no gradient. The
+          safest choice for legibility at a 40px home-screen size — quietest of the three.
+        </p>
+      </div>
+
+      <div>
+        <p class="homerow-label">On a home screen</p>
+        <div class="homerow">
+          <div class="slot"></div>
+          <div class="slot"></div>
+          <svg class="slot" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+            <rect x="0" y="0" width="1024" height="1024" rx="224" fill="#03DAC6"/>
+            <path d="M 232 332 Q 232 232 332 232 L 692 232 Q 792 232 792 332 L 792 532 Q 792 632 692 632 L 366 632 C 350 680 310 704 270 712 C 300 690 310 660 310 630 L 332 632 Q 232 632 232 532 Z" fill="#121212"/>
+            <g stroke="#03DAC6" stroke-width="46" stroke-linecap="round" stroke-linejoin="round" fill="none">
+              <path d="M 452 372 L 392 432 L 452 492"/>
+              <path d="M 552 362 L 472 502"/>
+              <path d="M 572 372 L 632 432 L 572 492"/>
+            </g>
+          </svg>
+          <div class="slot"></div>
+          <div class="slot"></div>
+        </div>
+      </div>
+
+      <div class="specs">
+        <span class="swatch"><span class="dot" style="background:#03DAC6"></span>#03DAC6</span>
+        <span class="swatch"><span class="dot" style="background:#121212"></span>#121212</span>
+      </div>
+    </div>
+
+  </div>
+
+  <footer>
+    All three pull their cyan/teal directly from <code>TechTalkTheme.kt</code>'s
+    <code>Primary</code> and <code>Teal</code> tokens rather than introducing new brand
+    color. Tell me which direction to take forward — or mix elements across them (e.g.
+    Cyan Signal's field with Multi-Tech Ring's outline treatment) — and I'll build the
+    production-ready export set (iOS/Android sizes, adaptive-icon layers if needed).
+  </footer>
+</div>

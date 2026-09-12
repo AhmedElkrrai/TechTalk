@@ -1,0 +1,22 @@
+<svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <!-- TechTalk app icon — "Multi-Tech Ring" — 1024x1024 master source.
+       Colors match TechTalkTheme.kt (Primary #00F0FF) and the five subscribed
+       languages' tag colors (Kotlin, Android, Swift, iOS, Java). -->
+  <defs>
+    <linearGradient id="ring" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#7F52FF"/>
+      <stop offset="25%" stop-color="#3DDC84"/>
+      <stop offset="50%" stop-color="#F05138"/>
+      <stop offset="75%" stop-color="#147EFB"/>
+      <stop offset="100%" stop-color="#ED8B00"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="1024" height="1024" rx="224" fill="#121212"/>
+  <path d="M 232 332 Q 232 232 332 232 L 692 232 Q 792 232 792 332 L 792 532 Q 792 632 692 632 L 366 632 C 350 680 310 704 270 712 C 300 690 310 660 310 630 L 332 632 Q 232 632 232 532 Z"
+        fill="none" stroke="url(#ring)" stroke-width="26"/>
+  <g stroke="#00F0FF" stroke-width="46" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <path d="M 452 372 L 392 432 L 452 492"/>
+    <path d="M 552 362 L 472 502"/>
+    <path d="M 572 372 L 632 432 L 572 492"/>
+  </g>
+</svg>
