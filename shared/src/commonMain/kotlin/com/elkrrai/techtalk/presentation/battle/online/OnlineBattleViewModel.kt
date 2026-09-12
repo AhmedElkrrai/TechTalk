@@ -115,7 +115,7 @@ class OnlineBattleViewModel(
             }
 
             is OnlineBattleEvent.Failure -> _state.update {
-                it.copy(errorMessage = mapOnlineFailureToUserMessage(event.code, event.message))
+                it.copy(errorMessage = mapOnlineFailureToUserMessage(event.code))
             }
 
             is OnlineBattleEvent.RoomExpired -> _state.update {

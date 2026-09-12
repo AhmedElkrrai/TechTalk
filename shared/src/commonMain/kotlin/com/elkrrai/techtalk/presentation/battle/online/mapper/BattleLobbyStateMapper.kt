@@ -51,7 +51,7 @@ fun BattleLobbyUiState.applyOnlineEvent(event: OnlineBattleEvent, currentPlayerI
         )
 
         is OnlineBattleEvent.Failure -> copy(
-            errorMessage = mapOnlineFailureToUserMessage(event.code, event.message),
+            errorMessage = mapOnlineFailureToUserMessage(event.code),
             isBusy = false
         )
 

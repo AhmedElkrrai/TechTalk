@@ -60,6 +60,9 @@ fun BattleScreen(modifier: Modifier = Modifier) {
             LaunchedEffect(Unit) {
                 viewModel.navigateToMatch.collect { navController.replaceStackWith(it) }
             }
+            LaunchedEffect(Unit) {
+                viewModel.navigateToHome.collect { navController.replaceStackWith(BattleHomeRoute) }
+            }
             BattleLobbyScreen(viewModel = viewModel)
         }
         composable<OnlineBattleRoute> { backStackEntry ->

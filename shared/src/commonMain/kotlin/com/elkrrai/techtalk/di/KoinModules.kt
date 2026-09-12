@@ -12,7 +12,7 @@ import com.elkrrai.techtalk.data.local.dao.UserSubscriptionDao
 import com.elkrrai.techtalk.data.local.dao.UserTipHistoryDao
 import com.elkrrai.techtalk.data.local.db.AppDatabase
 import com.elkrrai.techtalk.data.local.seed.DatabaseSeeder
-import com.elkrrai.techtalk.data.remote.KtorOnlineBattleRepository
+import com.elkrrai.techtalk.data.remote.FirebaseOnlineBattleRepository
 import com.elkrrai.techtalk.data.repository.TechTalkRepositoryImpl
 import com.elkrrai.techtalk.domain.repository.OnlineBattleRepository
 import com.elkrrai.techtalk.domain.repository.TechTalkRepository
@@ -78,7 +78,7 @@ fun repositoryModule(): Module = module {
             fileHandler = get()
         )
     }
-    single<OnlineBattleRepository> { KtorOnlineBattleRepository(httpClient = get()) }
+    single<OnlineBattleRepository> { FirebaseOnlineBattleRepository(repository = get()) }
 }
 
 /** All 10 online use cases are registered (harmless, matches the domain layer's own

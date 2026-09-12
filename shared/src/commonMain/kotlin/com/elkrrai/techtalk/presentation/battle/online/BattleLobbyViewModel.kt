@@ -49,6 +49,9 @@ class BattleLobbyViewModel(
     private val _navigateToMatch = Channel<OnlineBattleRoute>(Channel.BUFFERED)
     val navigateToMatch: Flow<OnlineBattleRoute> = _navigateToMatch.receiveAsFlow()
 
+    private val _navigateToHome = Channel<Unit>(Channel.BUFFERED)
+    val navigateToHome: Flow<Unit> = _navigateToHome.receiveAsFlow()
+
     private var currentPlayerId: String? = null
 
     init {
@@ -134,9 +137,13 @@ class BattleLobbyViewModel(
     }
 
     /** Calls [disconnect] directly, not a `LeaveOnlineRoom` use case — matches the
-     * original app's behavior (that use case has no UI caller). */
+     * original app's behavior (that use case has no UI caller). Cancelling out of the
+     * lobby (waiting-for-opponent or role-selection) leaves the online flow entirely
+     * and returns to Battle Home, rather than resetting back to this same screen. */
     fun onLeaveRoom() {
-        viewModelScope.launch { disconnect() }
-        _state.value = BattleLobbyUiState()
+        viewModelScope.launch {
+            disconnect()
+            _navigateToHome.send(Unit)
+        }
     }
 }

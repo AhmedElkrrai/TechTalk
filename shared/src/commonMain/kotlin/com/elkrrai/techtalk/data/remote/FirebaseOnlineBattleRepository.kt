@@ -26,6 +26,7 @@ import dev.gitlive.firebase.Firebase
 import dev.gitlive.firebase.auth.auth
 import dev.gitlive.firebase.database.DatabaseReference
 import dev.gitlive.firebase.database.database
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -256,7 +257,7 @@ class FirebaseOnlineBattleRepository(
         if (answeredCount < questionIds.size) {
             emitNextQuestion(matchId, questionIds, answeredCount)
         } else {
-            maybeFinishMatch(matchId, matchRef, current, isHostFinished = isHost, finishedCount = answeredCount)
+            maybeFinishMatch(matchRef, current, isHostFinished = isHost)
         }
     }
 
@@ -350,7 +351,7 @@ class FirebaseOnlineBattleRepository(
                     startMatch(roomCode, room, settings)
                 }
                 if (isHost && room.rematchRequestedByHost && room.rematchRequestedByGuest) {
-                    rebuildRoomForRematch(roomCode, room)
+                    rebuildRoomForRematch(roomCode)
                 }
                 // Both host and guest pick up a fresh match the same way — off the room
                 // doc's own status flip, not off whoever wrote it — so a rematch (which
@@ -429,7 +430,7 @@ class FirebaseOnlineBattleRepository(
         // attaches to the match from there, the same way the guest does.
     }
 
-    private suspend fun rebuildRoomForRematch(roomCode: String, room: FirebaseRoomDoc) {
+    private suspend fun rebuildRoomForRematch(roomCode: String) {
         val freshMatchId = newId("match")
         runCatching {
             Firebase.database.reference("${FirebasePath.ROOMS}/$roomCode").updateChildren(
@@ -462,11 +463,9 @@ class FirebaseOnlineBattleRepository(
      * `status = "ended"` guarded by the read-then-write pattern already used elsewhere
      * here — a real backend would arbitrate this instead of trusting either client. */
     private suspend fun maybeFinishMatch(
-        matchId: String,
         matchRef: DatabaseReference,
         current: FirebaseMatchDoc?,
-        isHostFinished: Boolean,
-        finishedCount: Int
+        isHostFinished: Boolean
     ) {
         val total = current?.questionIds?.size ?: return
         val opponentCount = if (isHostFinished) current.guestAnsweredCount else current.hostAnsweredCount
@@ -509,13 +508,25 @@ class FirebaseOnlineBattleRepository(
     private fun newId(prefix: String): String =
         "${prefix}_" + currentEpochMillis().toString(36) + Random.nextLong().toString(36)
 
+    /** A cancelled job (e.g. [leaveRoom]/[disconnect], or [listenToRoom]/[listenToMatch]
+     * replacing a still-running listener) throws [CancellationException] through this
+     * `collect` — that's normal, cooperative cancellation, not a connection problem, so
+     * it's rethrown rather than reported as an [OnlineBattleEvent.Failure]. Swallowing it
+     * here previously surfaced raw coroutine-internal text ("StandaloneCoroutine was
+     * cancelled") to the player as a bogus "Connection error". */
     private suspend inline fun <T> Flow<T>.collectCatching(crossinline action: suspend (T) -> Unit) {
         try {
             collect { value ->
-                runCatching { action(value) }.onFailure {
-                    _events.emit(OnlineBattleEvent.Failure(FailureCode.ProtocolDecodeError, it.message ?: "Listener error"))
+                try {
+                    action(value)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    _events.emit(OnlineBattleEvent.Failure(FailureCode.ProtocolDecodeError, e.message ?: "Listener error"))
                 }
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             _events.emit(OnlineBattleEvent.Failure(FailureCode.SocketReceiveError, e.message ?: "Listener closed"))
         }
