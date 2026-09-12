@@ -25,7 +25,9 @@ kotlin {
 
     androidTarget {
         compilerOptions {
-            jvmTarget.set(JvmTarget.JVM_11)
+            // Bumped from 11: dev.gitlive:firebase-* ships JVM 17 bytecode for its
+            // inline functions, which JVM 11 compilation can't inline against.
+            jvmTarget.set(JvmTarget.JVM_17)
         }
     }
 
@@ -67,6 +69,8 @@ kotlin {
             implementation(libs.ktor.client.websockets)
             implementation(libs.kotlinx.serialization.json)
             implementation(libs.navigation.compose)
+            implementation(libs.firebase.database)
+            implementation(libs.firebase.auth)
         }
         iosMain.dependencies {
             implementation(libs.ktor.client.darwin)
@@ -86,8 +90,8 @@ android {
     }
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 }
 
