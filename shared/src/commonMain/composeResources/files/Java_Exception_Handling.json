@@ -1,0 +1,35 @@
+{
+    "version": 1,
+    "author": "TechTalk",
+    "description": "Java — Exception Handling",
+    "entries": [
+        {
+            "technologyName": "Java",
+            "topicName": "Exception Handling",
+            "topicDescription": "Checked vs unchecked exceptions, try-with-resources, and designing exception hierarchies.",
+            "tips": [
+                {
+                    "title": "Checked exceptions must be declared or caught — unchecked ones don't",
+                    "content": "Java splits exceptions into two families. Checked exceptions\n(anything extending Exception but not RuntimeException, like\nIOException) are part of a method's contract — the compiler\nforces every caller to either catch them or declare them with\n'throws'.\n\nUnchecked exceptions (extending RuntimeException, like\nNullPointerException or IllegalArgumentException) need no\ndeclaration — they represent programming errors or unrecoverable\nsituations that shouldn't force every caller up the stack to\nhandle them explicitly.\n\nErrors (like OutOfMemoryError) are a third, separate branch —\nserious problems an application generally shouldn't try to\ncatch at all.\n\nThe checked-exception design was meant to make failure modes\nvisible in APIs, but overuse of checked exceptions for things\nthat are really programmer errors is a common critique of\nolder Java APIs.",
+                    "codeSnippet": "// Checked — caller MUST handle or declare it\nvoid readFile(String path) throws IOException {\n    Files.readString(Path.of(path));\n}\n\nvoid caller() {\n    try {\n        readFile(\"config.txt\");\n    } catch (IOException e) {\n        // compiler-enforced: this can't be skipped\n    }\n}\n\n// Unchecked — no declaration required, callers opt in to catching\nvoid divide(int a, int b) {\n    if (b == 0) throw new IllegalArgumentException(\"b must not be 0\");\n}\n\ndivide(1, 0); // compiles fine with no try/catch at all",
+                    "codeLang": "java",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "try-with-resources closes resources automatically, in reverse order",
+                    "content": "Any object implementing AutoCloseable — streams, readers,\ndatabase connections — can be declared inside try(...)\nparentheses. Its close() method is called automatically when\nthe block exits, whether normally or via an exception,\nwithout needing an explicit finally block.\n\nMultiple resources declared in one try-with-resources are\nclosed in the reverse of their declaration order — mirroring\nhow you'd unwind nested finally blocks by hand.\n\nIf both the try block and a resource's close() throw, the\ntry block's exception is the one propagated; close()'s\nexception is attached to it as a \"suppressed\" exception,\nretrievable via getSuppressed() — so no failure information\nis silently lost.",
+                    "codeSnippet": "// Old style — easy to get wrong, especially with 2+ resources\nBufferedReader reader = null;\ntry {\n    reader = new BufferedReader(new FileReader(\"data.txt\"));\n    System.out.println(reader.readLine());\n} finally {\n    if (reader != null) reader.close();\n}\n\n// try-with-resources — both closed automatically, in reverse order\ntry (var in = new FileReader(\"data.txt\");\n     var reader = new BufferedReader(in)) {\n    System.out.println(reader.readLine());\n} // reader.close() runs, then in.close()\ncatch (IOException e) {\n    System.err.println(\"Failed: \" + e.getMessage());\n}",
+                    "codeLang": "java",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Multi-catch and exception chaining keep root causes visible",
+                    "content": "A single catch clause can handle several unrelated exception\ntypes with catch (IOException | SQLException e) when the\nhandling logic is identical — avoiding duplicated catch blocks\nthat differ only in the exception type.\n\nWhen you catch a low-level exception and need to throw a\nhigher-level one instead (translating a database error into a\ndomain-specific one, say), always pass the original as the\n'cause' constructor argument rather than discarding it. This\npreserves the full chain in the stack trace via\nThrowable.getCause() — critical for debugging, since a\nre-thrown exception with no cause loses exactly the\ninformation you need to find the real problem.",
+                    "codeSnippet": "// Multi-catch — one handler for either failure mode\ntry {\n    riskyIo();\n    riskyDb();\n} catch (IOException | SQLException e) {\n    log.error(\"Operation failed\", e);\n}\n\n// Exception chaining — the original cause is preserved\nclass RepositoryException extends RuntimeException {\n    RepositoryException(String message, Throwable cause) {\n        super(message, cause); // cause wired through, not dropped\n    }\n}\n\ntry {\n    connection.query(sql);\n} catch (SQLException e) {\n    throw new RepositoryException(\"Failed to load user\", e);\n    // e.printStackTrace() on this later still shows the SQLException\n}",
+                    "codeLang": "java",
+                    "difficulty": "ADVANCED"
+                }
+            ]
+        }
+    ]
+}

@@ -1,0 +1,35 @@
+{
+    "version": 1,
+    "author": "TechTalk",
+    "description": "Java — Generics",
+    "entries": [
+        {
+            "technologyName": "Java",
+            "topicName": "Generics",
+            "topicDescription": "Type parameters, wildcards, and why generics are erased at runtime.",
+            "tips": [
+                {
+                    "title": "Generics exist only at compile time — type erasure removes them at runtime",
+                    "content": "The compiler uses a class's type parameters to catch mismatches\nat compile time, then erases them: List<String> and List<Integer>\ncompile down to the exact same List bytecode, with an\nautomatically-inserted cast wherever an element is read back out.\n\nThis is why you can't do 'new T[10]' or 'instanceof List<String>'\n— at runtime there is no T, and no way to distinguish a\nList<String> from a List<Integer> by type alone. It's also why\ntwo overloaded methods differing only by generic type parameter\n(process(List<String>) vs process(List<Integer>)) don't compile\n— they'd erase to an identical signature.\n\nErasure exists for backward compatibility: generics were added\nin Java 5, and erasure let generic code interoperate with\npre-generics bytecode compiled years earlier.",
+                    "codeSnippet": "List<String> strings = new ArrayList<>();\nList<Integer> ints = new ArrayList<>();\n\n// Both are the exact same class at runtime — erasure\nSystem.out.println(strings.getClass() == ints.getClass()); // true\n\n// Doesn't compile: can't check a parameterized type at runtime\n// if (strings instanceof List<String>) {}\n\n// Compiles, but only checks the raw type\nif (strings instanceof List<?>) {\n    System.out.println(\"it's some kind of List\");\n}",
+                    "codeLang": "java",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "PECS: Producer Extends, Consumer Extends — reading wildcards",
+                    "content": "'? extends T' (an upper-bounded wildcard) means the collection\nPRODUCES T values you can read, but you can't add to it — the\ncompiler can't know the exact runtime subtype, so any add()\ncould violate it. 'List<? extends Number>' could actually be a\nList<Integer> at runtime; adding a Double to it would be unsafe.\n\n'? super T' (a lower-bounded wildcard) means the collection\nCONSUMES T values you can write into, but reads only come back\nas Object, since the exact supertype is unknown. This is the\nshape you want for an output parameter that just needs to accept\nT and its subtypes.\n\nThe mnemonic is PECS — Producer Extends, Consumer Extends...\nno: Producer Extends, Consumer Super. If a parameter only ever\ngives you values, use extends; if it only ever receives values\nfrom you, use super.",
+                    "codeSnippet": "// Producer: reading works, adding doesn't (except null)\nvoid printAll(List<? extends Number> producer) {\n    for (Number n : producer) System.out.println(n);\n    // producer.add(1); // doesn't compile — unsafe\n}\nprintAll(List.of(1, 2, 3));       // List<Integer> accepted\nprintAll(List.of(1.5, 2.5));      // List<Double> accepted too\n\n// Consumer: writing works, reading only gives Object\nvoid addIntegers(List<? super Integer> consumer) {\n    consumer.add(1);\n    consumer.add(2);\n}\nList<Number> numbers = new ArrayList<>();\naddIntegers(numbers); // List<Number> accepts Integers written into it",
+                    "codeLang": "java",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Bounded type parameters let you call methods on T itself",
+                    "content": "A plain <T> gives you no information about T beyond \"it's some\nreference type\" — you can't call any method on a T value except\nthe ones every Object has. A bounded type parameter, <T extends\nComparable<T>>, adds a constraint the compiler enforces at every\ncall site, and in exchange lets the method body call\ncompareTo() directly on a T.\n\nMultiple bounds are allowed with '&' (T extends Comparable<T> &\nSerializable), but at most one of them may be a class — the rest\nmust be interfaces, since Java has no multiple inheritance of\nimplementation.\n\nThis is the mechanism behind generic algorithms like\nCollections.max(), which requires its element type to be\nComparable precisely so it can compare elements without knowing\ntheir concrete type in advance.",
+                    "codeSnippet": "// Unbounded — can't compare T values, only use Object methods\nstatic <T> T firstOf(List<T> list) { return list.get(0); }\n\n// Bounded — the compiler now knows T is Comparable<T>\nstatic <T extends Comparable<T>> T max(List<T> list) {\n    T best = list.get(0);\n    for (T item : list) {\n        if (item.compareTo(best) > 0) best = item; // compareTo available!\n    }\n    return best;\n}\n\nmax(List.of(3, 1, 4, 1, 5)); // 5 — Integer implements Comparable<Integer>",
+                    "codeLang": "java",
+                    "difficulty": "ADVANCED"
+                }
+            ]
+        }
+    ]
+}

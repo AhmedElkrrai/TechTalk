@@ -31,18 +31,18 @@ object SeedManifest {
         "Android_Testing.json",
         "Android_ViewModel.json",
         "Android_WorkManager.json",
-        // Go
-        "Go_Error_Handling.json",
-        "Go_Goroutines___Channels.json",
-        "Go_Interfaces.json",
-        "Go_Packages___Modules.json",
-        "Go_Slices___Maps.json",
         // iOS
         "iOS_App_Lifecycle.json",
         "iOS_Core_Data___SwiftData.json",
         "iOS_Networking.json",
         "iOS_SwiftUI.json",
         "iOS_UIKit_Essentials.json",
+        // Java
+        "Java_Collections_Framework.json",
+        "Java_Concurrency___Threads.json",
+        "Java_Exception_Handling.json",
+        "Java_Generics.json",
+        "Java_Streams___Lambdas.json",
         // Kotlin
         "Kotlin_Channels___Actors.json",
         "Kotlin_Collections.json",

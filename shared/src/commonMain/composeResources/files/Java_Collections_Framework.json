@@ -1,0 +1,35 @@
+{
+    "version": 1,
+    "author": "TechTalk",
+    "description": "Java — Collections Framework",
+    "entries": [
+        {
+            "technologyName": "Java",
+            "topicName": "Collections Framework",
+            "topicDescription": "Choosing the right List, Set, and Map implementation and using them correctly.",
+            "tips": [
+                {
+                    "title": "ArrayList vs LinkedList — the default should almost always be ArrayList",
+                    "content": "ArrayList is backed by a resizable array: O(1) random access,\namortized O(1) append, but O(n) insertion/removal in the\nmiddle since later elements have to shift.\n\nLinkedList is a doubly-linked list: O(1) insertion/removal\nonce you already hold a position, but O(n) random access\nsince reaching index i means walking i nodes from an end.\n\nIn practice, ArrayList wins almost every benchmark that isn't\na pathological \"insert 100,000 times at the front\" case — its\ncontiguous memory layout is far more cache-friendly than\nLinkedList's scattered nodes, which usually dominates the\nalgorithmic difference. Default to ArrayList; reach for\nLinkedList (or better, ArrayDeque) only when profiling says so.",
+                    "codeSnippet": "List<Integer> arr = new ArrayList<>();\nList<Integer> linked = new LinkedList<>();\n\nfor (int i = 0; i < 100_000; i++) {\n    arr.add(i);\n    linked.add(i);\n}\n\narr.get(50_000);     // O(1)\nlinked.get(50_000);  // O(n) — walks 50,000 nodes\n\n// ArrayDeque is almost always the better choice than\n// LinkedList when you specifically need a Deque/Queue\nDeque<Integer> stack = new ArrayDeque<>();\nstack.push(1);\nstack.push(2);\nstack.pop(); // 2",
+                    "codeLang": "java",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "HashMap needs a correct hashCode()/equals() pair to work at all",
+                    "content": "HashMap locates a key's bucket using hashCode(), then uses\nequals() to find the exact match within that bucket (in case\nof collisions). If a key type overrides equals() without also\noverriding hashCode() — or the two are inconsistent — lookups\nsilently fail: put() succeeds, but get() with an\nequals()-equal key can return null because it lands in a\ndifferent bucket.\n\nThe contract is strict: if a.equals(b) is true, then\na.hashCode() == b.hashCode() must also be true. The reverse\nisn't required (different objects can share a hash), but a\npoor hashCode() that returns the same value for everything\ndegrades a HashMap to a linked list — O(n) lookups instead of\nO(1).\n\nUse records or an IDE-generated hashCode()/equals() pair\nrather than hand-writing them; it's easy to get subtly wrong.",
+                    "codeSnippet": "// Broken: equals() without hashCode() — silent lookup failures\nclass BadKey {\n    final String id;\n    BadKey(String id) { this.id = id; }\n    @Override public boolean equals(Object o) {\n        return o instanceof BadKey bk && bk.id.equals(id);\n    }\n    // no hashCode() override — uses Object's identity hash\n}\n\nMap<BadKey, String> map = new HashMap<>();\nmap.put(new BadKey(\"a\"), \"value\");\nmap.get(new BadKey(\"a\")); // null! different identity hash\n\n// Fixed: a record generates both correctly\nrecord GoodKey(String id) {}\nMap<GoodKey, String> fixed = new HashMap<>();\nfixed.put(new GoodKey(\"a\"), \"value\");\nfixed.get(new GoodKey(\"a\")); // \"value\"",
+                    "codeLang": "java",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "List.of()/Map.of() return genuinely immutable collections, not just unmodifiable views",
+                    "content": "Collections.unmodifiableList(list) wraps a mutable list — the\nwrapper itself rejects modification, but the underlying list\ncan still change out from under you if something else holds a\nreference to it.\n\nList.of(), Set.of(), and Map.of() (Java 9+) instead create a\ntruly immutable collection with no mutable backing store at\nall. Any structural mutation — add, remove, set — throws\nUnsupportedOperationException, and there is no way for the\ncontents to change later.\n\nThey also reject null elements outright (NullPointerException\non construction), which catches a class of bug earlier than a\nregular ArrayList would. Prefer them for constants and method\nreturn values you don't want callers accidentally mutating.",
+                    "codeSnippet": "// Unmodifiable VIEW — can still change via the original reference\nList<String> mutable = new ArrayList<>(List.of(\"a\", \"b\"));\nList<String> view = Collections.unmodifiableList(mutable);\nmutable.add(\"c\");\nSystem.out.println(view); // [a, b, c] — view saw the change\n\n// Genuinely immutable — no backing store to mutate\nList<String> fixed = List.of(\"a\", \"b\");\n// fixed.add(\"c\"); // throws UnsupportedOperationException\n\n// List.of() rejects null immediately, not later at use-time\n// List.of(\"a\", null); // throws NullPointerException here",
+                    "codeLang": "java",
+                    "difficulty": "ADVANCED"
+                }
+            ]
+        }
+    ]
+}

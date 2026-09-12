@@ -5,76 +5,134 @@
     "entries": [
         {
             "technologyName": "Swift",
-            "topicName": "Structured Concurrency",
-            "topicDescription": "Modern async/await and task-based concurrency in Swift.",
+            "topicName": "Closures",
+            "topicDescription": "Trailing closures, capture semantics, and escaping vs non-escaping closures.",
             "questions": [
                 {
                     "questionText": "What is a trailing closure in Swift?",
-                    "difficulty": "INTERMEDIATE",
+                    "difficulty": "BEGINNER",
                     "explanation": "When a closure is the last argument to a function, it can be written outside the parentheses for cleaner syntax.",
                     "answers": [
-                        {
-                            "answerText": "A closure written outside the parentheses when it's the last argument",
-                            "isCorrect": true
-                        },
-                        {
-                            "answerText": "A closure that runs after the function returns",
-                            "isCorrect": false
-                        },
-                        {
-                            "answerText": "A closure with no parameters",
-                            "isCorrect": false
-                        },
-                        {
-                            "answerText": "A closure stored as a global variable",
-                            "isCorrect": false
-                        }
+                        { "answerText": "A closure written outside the parentheses when it's the last argument", "isCorrect": true },
+                        { "answerText": "A closure that runs after the function returns", "isCorrect": false },
+                        { "answerText": "A closure with no parameters", "isCorrect": false },
+                        { "answerText": "A closure stored as a global variable", "isCorrect": false }
                     ]
                 },
+                {
+                    "questionText": "What does marking a closure parameter '@escaping' mean?",
+                    "difficulty": "INTERMEDIATE",
+                    "explanation": "An escaping closure can outlive the function call it was passed to — e.g. stored in a property or called later on a background queue — instead of being used only within the function's own execution.",
+                    "answers": [
+                        { "answerText": "The closure may be called after the function it was passed to has returned", "isCorrect": true },
+                        { "answerText": "The closure cannot capture any external variables", "isCorrect": false },
+                        { "answerText": "The closure runs on a background thread automatically", "isCorrect": false },
+                        { "answerText": "The closure is guaranteed to run exactly once", "isCorrect": false }
+                    ]
+                }
+            ]
+        },
+        {
+            "technologyName": "Swift",
+            "topicName": "Enums & Pattern Matching",
+            "topicDescription": "Associated values, switch exhaustiveness, and if/guard-case pattern matching.",
+            "questions": [
+                {
+                    "questionText": "What are 'associated values' on a Swift enum case?",
+                    "difficulty": "BEGINNER",
+                    "explanation": "A case can carry extra data of its own type, distinct from other cases — e.g. 'case success(String)' vs 'case failure(Error)' — letting an enum model a value plus the data relevant to that specific state.",
+                    "answers": [
+                        { "answerText": "Extra data a specific enum case carries along with it", "isCorrect": true },
+                        { "answerText": "A default value assigned to every case", "isCorrect": false },
+                        { "answerText": "A computed property shared by all cases", "isCorrect": false },
+                        { "answerText": "A protocol every case must conform to", "isCorrect": false }
+                    ]
+                },
+                {
+                    "questionText": "Why must a 'switch' statement over a Swift enum be exhaustive?",
+                    "difficulty": "INTERMEDIATE",
+                    "explanation": "The compiler requires every case to be handled (or a 'default') so that adding a new enum case later causes a compile error everywhere it isn't handled, instead of a silent runtime gap.",
+                    "answers": [
+                        { "answerText": "So the compiler catches unhandled cases at compile time, not runtime", "isCorrect": true },
+                        { "answerText": "Because Swift enums cannot have a default case", "isCorrect": false },
+                        { "answerText": "Because switch statements run faster when exhaustive", "isCorrect": false },
+                        { "answerText": "It's only a style convention, not enforced by the compiler", "isCorrect": false }
+                    ]
+                }
+            ]
+        },
+        {
+            "technologyName": "Swift",
+            "topicName": "Optionals",
+            "topicDescription": "Representing the absence of a value safely, without null-pointer crashes.",
+            "questions": [
+                {
+                    "questionText": "What does the '??' nil-coalescing operator do?",
+                    "difficulty": "BEGINNER",
+                    "explanation": "'a ?? b' returns a if it's non-nil, otherwise evaluates and returns b — a concise way to supply a default value for an optional.",
+                    "answers": [
+                        { "answerText": "Returns the left value if non-nil, otherwise the right value", "isCorrect": true },
+                        { "answerText": "Force-unwraps an optional, crashing if it's nil", "isCorrect": false },
+                        { "answerText": "Compares two optionals for equality", "isCorrect": false },
+                        { "answerText": "Converts a non-optional value into an optional", "isCorrect": false }
+                    ]
+                },
+                {
+                    "questionText": "What is 'optional chaining' in Swift?",
+                    "difficulty": "INTERMEDIATE",
+                    "explanation": "Writing a?.b?.c safely accesses a chain of optional properties/methods — if any link in the chain is nil, the whole expression short-circuits to nil instead of crashing.",
+                    "answers": [
+                        { "answerText": "Safely accessing a chain of optional properties, short-circuiting to nil if any link is nil", "isCorrect": true },
+                        { "answerText": "Force-unwrapping every optional in an expression at once", "isCorrect": false },
+                        { "answerText": "Linking multiple optionals into a single array", "isCorrect": false },
+                        { "answerText": "A way to declare multiple optional variables in one line", "isCorrect": false }
+                    ]
+                }
+            ]
+        },
+        {
+            "technologyName": "Swift",
+            "topicName": "Protocols",
+            "topicDescription": "Protocol-oriented programming, conformance, and protocol extensions.",
+            "questions": [
                 {
                     "questionText": "What is a protocol in Swift?",
                     "difficulty": "BEGINNER",
                     "explanation": "A protocol defines a blueprint of methods, properties, and requirements that a conforming type must implement.",
                     "answers": [
-                        {
-                            "answerText": "A blueprint of methods and properties a type must implement",
-                            "isCorrect": true
-                        },
-                        {
-                            "answerText": "A concrete base class for inheritance",
-                            "isCorrect": false
-                        },
-                        {
-                            "answerText": "A networking layer specification",
-                            "isCorrect": false
-                        },
-                        {
-                            "answerText": "An enum with associated values",
-                            "isCorrect": false
-                        }
+                        { "answerText": "A blueprint of methods and properties a type must implement", "isCorrect": true },
+                        { "answerText": "A concrete base class for inheritance", "isCorrect": false },
+                        { "answerText": "A networking layer specification", "isCorrect": false },
+                        { "answerText": "An enum with associated values", "isCorrect": false }
                     ]
                 },
+                {
+                    "questionText": "What does a protocol extension with a default implementation let you do?",
+                    "difficulty": "ADVANCED",
+                    "explanation": "A protocol extension can provide a default method body, so conforming types get that behavior for free and only need to override it if they need different behavior — the core of Swift's protocol-oriented programming style.",
+                    "answers": [
+                        { "answerText": "Give conforming types a default behavior they don't have to implement themselves", "isCorrect": true },
+                        { "answerText": "Force every conforming type to override every method", "isCorrect": false },
+                        { "answerText": "Turn the protocol into a concrete class", "isCorrect": false },
+                        { "answerText": "Restrict conformance to reference types only", "isCorrect": false }
+                    ]
+                }
+            ]
+        },
+        {
+            "technologyName": "Swift",
+            "topicName": "Structured Concurrency",
+            "topicDescription": "Modern async/await and task-based concurrency in Swift.",
+            "questions": [
                 {
                     "questionText": "What keyword marks a function as asynchronous in Swift?",
                     "difficulty": "INTERMEDIATE",
                     "explanation": "The 'async' keyword marks a function as asynchronous, and 'await' is used at the call site to suspend until the result is ready.",
                     "answers": [
-                        {
-                            "answerText": "async",
-                            "isCorrect": true
-                        },
-                        {
-                            "answerText": "await",
-                            "isCorrect": false
-                        },
-                        {
-                            "answerText": "suspend",
-                            "isCorrect": false
-                        },
-                        {
-                            "answerText": "concurrent",
-                            "isCorrect": false
-                        }
+                        { "answerText": "async", "isCorrect": true },
+                        { "answerText": "await", "isCorrect": false },
+                        { "answerText": "suspend", "isCorrect": false },
+                        { "answerText": "concurrent", "isCorrect": false }
                     ]
                 },
                 {
@@ -82,22 +140,10 @@
                     "difficulty": "ADVANCED",
                     "explanation": "An actor is a reference type that protects its mutable state from data races by ensuring only one task accesses its state at a time.",
                     "answers": [
-                        {
-                            "answerText": "A type that isolates mutable state to prevent data races",
-                            "isCorrect": true
-                        },
-                        {
-                            "answerText": "A class that runs on the main thread only",
-                            "isCorrect": false
-                        },
-                        {
-                            "answerText": "A protocol for networking",
-                            "isCorrect": false
-                        },
-                        {
-                            "answerText": "A design pattern for dependency injection",
-                            "isCorrect": false
-                        }
+                        { "answerText": "A type that isolates mutable state to prevent data races", "isCorrect": true },
+                        { "answerText": "A class that runs on the main thread only", "isCorrect": false },
+                        { "answerText": "A protocol for networking", "isCorrect": false },
+                        { "answerText": "A design pattern for dependency injection", "isCorrect": false }
                     ]
                 }
             ]

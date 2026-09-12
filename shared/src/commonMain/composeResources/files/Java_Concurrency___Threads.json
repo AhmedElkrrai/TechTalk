@@ -1,0 +1,35 @@
+{
+    "version": 1,
+    "author": "TechTalk",
+    "description": "Java — Concurrency & Threads",
+    "entries": [
+        {
+            "technologyName": "Java",
+            "topicName": "Concurrency & Threads",
+            "topicDescription": "Threads, the executor framework, and the memory-visibility rules that make concurrent code correct.",
+            "tips": [
+                {
+                    "title": "Prefer ExecutorService over creating raw Threads",
+                    "content": "Creating a new Thread per task is expensive (each one owns a\nfull OS-level stack, typically ~1MB by default) and gives you\nno control over how many run concurrently — nothing stops a\nburst of work from spawning thousands of threads and starving\nthe system.\n\nExecutorService decouples \"submitting work\" from \"how it runs\":\na fixed thread pool reuses a bounded set of worker threads,\nqueuing tasks past that limit instead of creating new OS\nthreads. Executors.newFixedThreadPool(n) or (since Java 21)\nExecutors.newVirtualThreadPerTaskExecutor() for lightweight\nvirtual threads are the standard starting points.\n\nAlways shut an ExecutorService down (shutdown() or, better,\ntry-with-resources on the AutoCloseable ExecutorService\ninterface added in Java 19+) — a leaked pool keeps its threads\nalive and the JVM from exiting.",
+                    "codeSnippet": "// Avoid: unbounded raw threads\nfor (int i = 0; i < 10_000; i++) {\n    new Thread(() -> process(i)).start(); // 10,000 OS threads!\n}\n\n// Better: a bounded pool reuses a fixed set of workers\ntry (ExecutorService pool = Executors.newFixedThreadPool(8)) {\n    for (int i = 0; i < 10_000; i++) {\n        int taskId = i;\n        pool.submit(() -> process(taskId));\n    }\n} // pool.close() waits for tasks and shuts the pool down",
+                    "codeLang": "java",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "synchronized guarantees both mutual exclusion AND visibility",
+                    "content": "It's easy to think of 'synchronized' as only preventing two\nthreads from running a block at the same time, but it also\nsolves a separate, subtler problem: memory visibility. Without\nsynchronization, one thread's write to a shared variable is\nnot guaranteed to ever become visible to another thread — each\nCPU core may cache the value locally.\n\nEntering a synchronized block establishes a \"happens-before\"\nrelationship: every write made before releasing a lock is\nguaranteed visible to any thread that subsequently acquires\nthat same lock. Two threads synchronizing on different objects\nget no such guarantee between each other.\n\nThe 'volatile' keyword provides the visibility guarantee alone,\nwithout mutual exclusion — appropriate for a simple flag\nwritten by one thread and read by others, but not for\ncompound operations like incrementing a counter (read-then-write\nisn't atomic even if the field is volatile).",
+                    "codeSnippet": "class Counter {\n    private int count = 0;\n\n    // synchronized: mutual exclusion AND visibility\n    public synchronized void increment() {\n        count++;\n    }\n    public synchronized int get() {\n        return count;\n    }\n}\n\nclass Flag {\n    // volatile: visibility only — fine for a simple flag,\n    // NOT enough for a compound operation like count++\n    private volatile boolean stopRequested = false;\n\n    void requestStop() { stopRequested = true; }\n    boolean shouldStop() { return stopRequested; }\n}",
+                    "codeLang": "java",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "java.util.concurrent's atomic classes avoid locking for simple counters",
+                    "content": "AtomicInteger, AtomicLong, and AtomicReference use hardware\ncompare-and-swap (CAS) instructions instead of locks to make\nsingle-variable read-modify-write operations atomic —\nincrementAndGet(), compareAndSet(), updateAndGet() — without\nthe overhead of acquiring a monitor.\n\nCAS works by reading the current value, computing a new one,\nthen atomically swapping only if the value hasn't changed\nsince the read; if another thread beat it to the update, it\nretries. This is typically faster than synchronized under\nmoderate contention because it never blocks a thread — it\njust spins and retries.\n\nAtomics only make a SINGLE variable's updates atomic — they\ndon't help coordinate multiple related fields that need to\nchange together consistently; that still needs a lock or a\nhigher-level structure like ConcurrentHashMap's atomic compute\nmethods.",
+                    "codeSnippet": "class Counter {\n    private final AtomicInteger count = new AtomicInteger(0);\n\n    void increment() {\n        count.incrementAndGet(); // lock-free, CAS-based\n    }\n    int get() {\n        return count.get();\n    }\n}\n\n// compareAndSet: only updates if the value matches what you expect\nAtomicInteger state = new AtomicInteger(0);\nboolean updated = state.compareAndSet(0, 1); // true, was 0\nboolean failed  = state.compareAndSet(0, 2); // false, now 1 not 0",
+                    "codeLang": "java",
+                    "difficulty": "ADVANCED"
+                }
+            ]
+        }
+    ]
+}

@@ -5,6 +5,7 @@ import com.elkrrai.techtalk.data.local.content.tip.TipPackManager
 import com.elkrrai.techtalk.data.local.dao.TechnologyDao
 import com.elkrrai.techtalk.data.local.entity.TechnologyEntity
 import com.elkrrai.techtalk.domain.model.tech.Technology
+import com.elkrrai.techtalk.utils.inspect
 import org.jetbrains.compose.resources.ExperimentalResourceApi
 import techtalk.shared.generated.resources.Res
 
@@ -49,9 +50,9 @@ class DatabaseSeeder(
                 ),
                 TechnologyEntity(
                     id = 5,
-                    name = Technology.GO_LANG.title,
-                    tagColor = "#00ADD8",
-                    description = "A fast, statically typed language designed for simplicity and scalable concurrency."
+                    name = Technology.JAVA.title,
+                    tagColor = "#ED8B00",
+                    description = "A mature, platform-independent language powering enterprise systems and Android app development worldwide."
                 )
             )
         )
@@ -61,7 +62,7 @@ class DatabaseSeeder(
                 val bytes = Res.readBytes("files/$fileName")
                 tipPackManager.importFromJson(bytes.decodeToString())
             }.onFailure {
-                println("DatabaseSeeder: failed to import tip pack '$fileName': ${it.message}")
+                inspect("DatabaseSeeder: failed to import tip pack '$fileName': ${it.message}")
             }
         }
 

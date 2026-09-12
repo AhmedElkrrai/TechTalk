@@ -1,0 +1,35 @@
+{
+    "version": 1,
+    "author": "TechTalk",
+    "description": "Java — Streams & Lambdas",
+    "entries": [
+        {
+            "technologyName": "Java",
+            "topicName": "Streams & Lambdas",
+            "topicDescription": "Functional-style operations over collections with the Stream API and lambda expressions.",
+            "tips": [
+                {
+                    "title": "Streams are lazy — nothing runs until a terminal operation",
+                    "content": "Calling .filter() or .map() on a stream doesn't actually\nprocess any elements. It just builds up a pipeline description.\nNothing happens until a terminal operation — collect(),\nforEach(), count(), reduce() — is called.\n\nThis matters for two reasons. First, an intermediate stage\nlike filter() only ever sees the elements that survive the\nstages before it, processed one at a time end-to-end, not in\nseparate passes. Second, a stream with no terminal operation\ndoes nothing at all — a common source of \"why didn't this run\"\nbugs.\n\nBecause streams are lazy and single-use, you cannot reuse a\nstream after a terminal operation has consumed it — calling\nany method on it again throws IllegalStateException.",
+                    "codeSnippet": "List<String> names = List.of(\"Ana\", \"Bo\", \"Cleo\", \"Dan\");\n\n// Nothing has run yet — this just describes a pipeline\nStream<String> pipeline = names.stream()\n    .filter(n -> n.length() > 2)\n    .map(String::toUpperCase);\n\n// Only now does the pipeline actually execute\nList<String> result = pipeline.collect(Collectors.toList());\nSystem.out.println(result); // [ANA, CLEO, DAN]\n\n// Reusing the same stream throws IllegalStateException\n// pipeline.forEach(System.out::println); // boom",
+                    "codeLang": "java",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "Method references are a shorthand for single-expression lambdas",
+                    "content": "When a lambda just forwards its argument to an existing method,\na method reference (Class::method) says the same thing with\nless noise and is usually easier to read at a glance.\n\nThere are four forms: a static method (Integer::parseInt), an\ninstance method on a particular object (System.out::println),\nan instance method on an arbitrary object of a type (that's\nwhat String::toUpperCase is above — the first stream element\nbecomes the receiver), and a constructor (ArrayList::new).\n\nMethod references aren't just cosmetic — the compiler resolves\nthem to the exact same functional-interface target as an\nequivalent lambda, so there's no performance difference, only\na readability one.",
+                    "codeSnippet": "List<String> raw = List.of(\"3\", \"1\", \"4\", \"1\", \"5\");\n\n// Lambda form\nList<Integer> a = raw.stream()\n    .map(s -> Integer.parseInt(s))\n    .collect(Collectors.toList());\n\n// Equivalent method-reference form — same bytecode target\nList<Integer> b = raw.stream()\n    .map(Integer::parseInt)\n    .collect(Collectors.toList());\n\nraw.forEach(System.out::println); // instance method on a fixed object",
+                    "codeLang": "java",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Collectors.groupingBy powers SQL-like aggregation",
+                    "content": "Collectors.groupingBy(classifier) partitions a stream into a\nMap<K, List<T>> keyed by whatever function you give it — the\nfunctional-programming equivalent of SQL's GROUP BY.\n\nPass a second, \"downstream\" collector to aggregate each group\ninstead of just collecting it into a list — counting(),\nsumming, averagingInt(), or even a nested groupingBy() for a\nmulti-level breakdown.\n\nThis single collector replaces what would otherwise be a\nhand-rolled loop building up a HashMap<K, List<V>> — correct,\nbut easy to get subtly wrong (forgetting computeIfAbsent, for\ninstance) compared to one declarative call.",
+                    "codeSnippet": "record Order(String customer, String category, double amount) {}\n\nList<Order> orders = List.of(\n    new Order(\"Ana\", \"books\", 20.0),\n    new Order(\"Ana\", \"tech\", 150.0),\n    new Order(\"Bo\", \"books\", 15.0)\n);\n\n// Total spend per customer\nMap<String, Double> totalsByCustomer = orders.stream()\n    .collect(Collectors.groupingBy(\n        Order::customer,\n        Collectors.summingDouble(Order::amount)\n    ));\n// {Ana=170.0, Bo=15.0}\n\n// Two-level breakdown: customer -> category -> count\nMap<String, Map<String, Long>> byCustomerAndCategory = orders.stream()\n    .collect(Collectors.groupingBy(\n        Order::customer,\n        Collectors.groupingBy(Order::category, Collectors.counting())\n    ));",
+                    "codeLang": "java",
+                    "difficulty": "ADVANCED"
+                }
+            ]
+        }
+    ]
+}

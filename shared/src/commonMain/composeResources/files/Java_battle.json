@@ -1,0 +1,152 @@
+{
+    "version": 1,
+    "author": "TechTalk",
+    "description": "Java battles",
+    "entries": [
+        {
+            "technologyName": "Java",
+            "topicName": "Streams & Lambdas",
+            "topicDescription": "Functional-style operations over collections with the Stream API and lambda expressions.",
+            "questions": [
+                {
+                    "questionText": "When does a Java Stream pipeline actually process its elements?",
+                    "difficulty": "BEGINNER",
+                    "explanation": "Stream operations like filter() and map() are lazy — they just describe a pipeline. Nothing runs until a terminal operation (collect(), forEach(), count(), etc.) is invoked.",
+                    "answers": [
+                        { "answerText": "Only when a terminal operation like collect() or forEach() is called", "isCorrect": true },
+                        { "answerText": "Immediately when filter() or map() is called", "isCorrect": false },
+                        { "answerText": "As soon as the stream is created from a collection", "isCorrect": false },
+                        { "answerText": "Only when the JVM garbage collector runs", "isCorrect": false }
+                    ]
+                },
+                {
+                    "questionText": "What does Collectors.groupingBy() do?",
+                    "difficulty": "INTERMEDIATE",
+                    "explanation": "groupingBy(classifier) partitions a stream into a Map<K, List<T>> keyed by the classifier function — the functional equivalent of SQL's GROUP BY, optionally paired with a downstream collector to aggregate each group.",
+                    "answers": [
+                        { "answerText": "Groups stream elements into a Map keyed by a classifier function", "isCorrect": true },
+                        { "answerText": "Sorts a stream's elements into ascending order", "isCorrect": false },
+                        { "answerText": "Removes duplicate elements from a stream", "isCorrect": false },
+                        { "answerText": "Splits a stream into parallel and sequential halves", "isCorrect": false }
+                    ]
+                }
+            ]
+        },
+        {
+            "technologyName": "Java",
+            "topicName": "Collections Framework",
+            "topicDescription": "Choosing the right List, Set, and Map implementation and using them correctly.",
+            "questions": [
+                {
+                    "questionText": "Why does ArrayList usually outperform LinkedList in practice, even for insertions?",
+                    "difficulty": "INTERMEDIATE",
+                    "explanation": "ArrayList's contiguous array layout is far more cache-friendly than LinkedList's scattered nodes, which usually outweighs LinkedList's theoretical O(1) mid-list insertion advantage in real-world benchmarks.",
+                    "answers": [
+                        { "answerText": "Its contiguous memory layout is much more cache-friendly", "isCorrect": true },
+                        { "answerText": "ArrayList never needs to resize its backing array", "isCorrect": false },
+                        { "answerText": "LinkedList cannot store more than 1000 elements", "isCorrect": false },
+                        { "answerText": "ArrayList insertions are O(1) in the middle of the list", "isCorrect": false }
+                    ]
+                },
+                {
+                    "questionText": "What happens if a class overrides equals() but not hashCode()?",
+                    "difficulty": "ADVANCED",
+                    "explanation": "HashMap uses hashCode() to find a key's bucket and equals() to confirm the match within it. Without a consistent hashCode(), two equals()-equal keys can land in different buckets, so put()/get() silently fail to find each other.",
+                    "answers": [
+                        { "answerText": "HashMap lookups can silently fail even for equals()-equal keys", "isCorrect": true },
+                        { "answerText": "The code fails to compile", "isCorrect": false },
+                        { "answerText": "equals() automatically generates a matching hashCode()", "isCorrect": false },
+                        { "answerText": "Nothing — hashCode() is never used by collections", "isCorrect": false }
+                    ]
+                }
+            ]
+        },
+        {
+            "technologyName": "Java",
+            "topicName": "Exception Handling",
+            "topicDescription": "Checked vs unchecked exceptions, try-with-resources, and designing exception hierarchies.",
+            "questions": [
+                {
+                    "questionText": "What's the key difference between checked and unchecked exceptions?",
+                    "difficulty": "BEGINNER",
+                    "explanation": "Checked exceptions (extending Exception, not RuntimeException) must be caught or declared with 'throws' — the compiler enforces it. Unchecked exceptions (extending RuntimeException) require no such declaration.",
+                    "answers": [
+                        { "answerText": "Checked exceptions must be caught or declared; unchecked ones don't", "isCorrect": true },
+                        { "answerText": "Unchecked exceptions can only be thrown from static methods", "isCorrect": false },
+                        { "answerText": "Checked exceptions are always fatal to the JVM", "isCorrect": false },
+                        { "answerText": "There is no real difference in modern Java", "isCorrect": false }
+                    ]
+                },
+                {
+                    "questionText": "In what order are multiple resources closed in a try-with-resources block?",
+                    "difficulty": "INTERMEDIATE",
+                    "explanation": "Resources are closed in the reverse of their declaration order — mirroring how nested finally blocks would unwind by hand.",
+                    "answers": [
+                        { "answerText": "In reverse of their declaration order", "isCorrect": true },
+                        { "answerText": "In the same order they were declared", "isCorrect": false },
+                        { "answerText": "In an unspecified, JVM-dependent order", "isCorrect": false },
+                        { "answerText": "All at once, in parallel", "isCorrect": false }
+                    ]
+                }
+            ]
+        },
+        {
+            "technologyName": "Java",
+            "topicName": "Concurrency & Threads",
+            "topicDescription": "Threads, the executor framework, and the memory-visibility rules that make concurrent code correct.",
+            "questions": [
+                {
+                    "questionText": "Why prefer an ExecutorService over creating raw Threads directly?",
+                    "difficulty": "BEGINNER",
+                    "explanation": "A raw Thread per task is expensive and uncapped — nothing stops a burst of work from creating thousands of OS threads. An ExecutorService reuses a bounded pool of worker threads instead.",
+                    "answers": [
+                        { "answerText": "It reuses a bounded pool instead of creating unlimited OS threads", "isCorrect": true },
+                        { "answerText": "Raw Threads cannot run more than once", "isCorrect": false },
+                        { "answerText": "ExecutorService is required for any I/O operation", "isCorrect": false },
+                        { "answerText": "Threads created directly cannot be interrupted", "isCorrect": false }
+                    ]
+                },
+                {
+                    "questionText": "Besides mutual exclusion, what else does a 'synchronized' block guarantee?",
+                    "difficulty": "ADVANCED",
+                    "explanation": "synchronized establishes a happens-before relationship: writes made before releasing a lock are guaranteed visible to any thread that later acquires the same lock — solving the memory-visibility problem, not just preventing concurrent execution.",
+                    "answers": [
+                        { "answerText": "Memory visibility of writes made before the lock was released", "isCorrect": true },
+                        { "answerText": "That the JVM will never garbage-collect the locked object", "isCorrect": false },
+                        { "answerText": "That the block will run on the main thread", "isCorrect": false },
+                        { "answerText": "That exceptions inside it are automatically retried", "isCorrect": false }
+                    ]
+                }
+            ]
+        },
+        {
+            "technologyName": "Java",
+            "topicName": "Generics",
+            "topicDescription": "Type parameters, wildcards, and why generics are erased at runtime.",
+            "questions": [
+                {
+                    "questionText": "What is type erasure in Java generics?",
+                    "difficulty": "INTERMEDIATE",
+                    "explanation": "Generic type parameters exist only at compile time for type checking; the compiler erases them afterward, so List<String> and List<Integer> compile to the identical bytecode at runtime.",
+                    "answers": [
+                        { "answerText": "Generic type information is removed by the compiler after type-checking", "isCorrect": true },
+                        { "answerText": "Generics are converted into reflection calls at runtime", "isCorrect": false },
+                        { "answerText": "Unused generic classes are deleted from the compiled jar", "isCorrect": false },
+                        { "answerText": "Type parameters are replaced with random unique class names", "isCorrect": false }
+                    ]
+                },
+                {
+                    "questionText": "Under the PECS mnemonic, when should you use a '? extends T' wildcard?",
+                    "difficulty": "ADVANCED",
+                    "explanation": "'Producer Extends' — use '? extends T' when the collection only ever produces values you read, since the compiler can't safely allow adding to it without knowing the exact runtime subtype.",
+                    "answers": [
+                        { "answerText": "When the parameter only produces values you read from it", "isCorrect": true },
+                        { "answerText": "When the parameter only consumes values you write into it", "isCorrect": false },
+                        { "answerText": "When T must be a primitive type", "isCorrect": false },
+                        { "answerText": "When the collection must be thread-safe", "isCorrect": false }
+                    ]
+                }
+            ]
+        }
+    ]
+}

@@ -9,49 +9,25 @@
             "topicDescription": "Understanding app states, scene delegates, and background execution.",
             "questions": [
                 {
-                    "questionText": "How does a type implement an interface in Go?",
+                    "questionText": "What method is called when an iOS app enters the background?",
                     "difficulty": "BEGINNER",
-                    "explanation": "In Go, a type implements an interface implicitly by implementing all of its methods. There's no 'implements' keyword.",
+                    "explanation": "applicationDidEnterBackground() (UIKit) or the .background scenePhase (SwiftUI) is triggered when the app is no longer visible to the user.",
                     "answers": [
-                        {
-                            "answerText": "Implicitly, by implementing all interface methods",
-                            "isCorrect": true
-                        },
-                        {
-                            "answerText": "With the 'implements' keyword",
-                            "isCorrect": false
-                        },
-                        {
-                            "answerText": "By inheriting from the interface",
-                            "isCorrect": false
-                        },
-                        {
-                            "answerText": "By registering with the runtime",
-                            "isCorrect": false
-                        }
+                        { "answerText": "applicationDidEnterBackground()", "isCorrect": true },
+                        { "answerText": "applicationWillTerminate()", "isCorrect": false },
+                        { "answerText": "viewDidDisappear()", "isCorrect": false },
+                        { "answerText": "sceneDidDisconnect()", "isCorrect": false }
                     ]
                 },
                 {
-                    "questionText": "What is the empty interface (interface{}) in Go?",
+                    "questionText": "What's the difference between the 'inactive' and 'background' app states?",
                     "difficulty": "INTERMEDIATE",
-                    "explanation": "interface{} (or 'any' in Go 1.18+) has zero methods, so every type satisfies it. It's used for values of unknown type.",
+                    "explanation": "Inactive means the app is still in the foreground but not receiving events (e.g. during a phone call or the app-switcher transition). Background means it's no longer visible at all.",
                     "answers": [
-                        {
-                            "answerText": "An interface with no methods — satisfied by every type",
-                            "isCorrect": true
-                        },
-                        {
-                            "answerText": "An interface that cannot be used",
-                            "isCorrect": false
-                        },
-                        {
-                            "answerText": "A special error type",
-                            "isCorrect": false
-                        },
-                        {
-                            "answerText": "An interface for empty structs only",
-                            "isCorrect": false
-                        }
+                        { "answerText": "Inactive is foreground without events; background is not visible", "isCorrect": true },
+                        { "answerText": "Inactive means paused; background means terminated", "isCorrect": false },
+                        { "answerText": "They are the same state under different names", "isCorrect": false },
+                        { "answerText": "Inactive is for iPad only; background is for iPhone only", "isCorrect": false }
                     ]
                 }
             ]
@@ -62,49 +38,25 @@
             "topicDescription": "Persistent storage and object-graph management on Apple platforms.",
             "questions": [
                 {
-                    "questionText": "How are errors typically returned in Go?",
-                    "difficulty": "BEGINNER",
-                    "explanation": "Go functions return errors as the last return value. Callers check 'if err != nil' to handle the error.",
+                    "questionText": "What is an NSManagedObjectContext in Core Data?",
+                    "difficulty": "INTERMEDIATE",
+                    "explanation": "It's the in-memory scratchpad for working with managed objects — changes are tracked here before being saved to the persistent store.",
                     "answers": [
-                        {
-                            "answerText": "As the last return value, checked with 'if err != nil'",
-                            "isCorrect": true
-                        },
-                        {
-                            "answerText": "By throwing exceptions",
-                            "isCorrect": false
-                        },
-                        {
-                            "answerText": "Via a global error variable",
-                            "isCorrect": false
-                        },
-                        {
-                            "answerText": "By logging to stderr automatically",
-                            "isCorrect": false
-                        }
+                        { "answerText": "An in-memory scratchpad for tracking object changes before saving", "isCorrect": true },
+                        { "answerText": "The database file stored on disk", "isCorrect": false },
+                        { "answerText": "A network caching layer", "isCorrect": false },
+                        { "answerText": "The visual data model editor", "isCorrect": false }
                     ]
                 },
                 {
-                    "questionText": "What does panic() do in Go?",
-                    "difficulty": "INTERMEDIATE",
-                    "explanation": "panic() stops normal execution, runs deferred functions, then crashes the program. It's for unrecoverable errors, not normal error handling.",
+                    "questionText": "What is the main advantage of SwiftData's @Model macro over Core Data's NSManagedObject subclassing?",
+                    "difficulty": "ADVANCED",
+                    "explanation": "@Model turns a plain Swift class into a persisted, observable model with no separate .xcdatamodeld editor or generated subclass boilerplate — persistence is expressed directly in Swift code.",
                     "answers": [
-                        {
-                            "answerText": "Stops execution, runs deferred functions, then crashes",
-                            "isCorrect": true
-                        },
-                        {
-                            "answerText": "Returns an error to the caller",
-                            "isCorrect": false
-                        },
-                        {
-                            "answerText": "Logs a warning and continues",
-                            "isCorrect": false
-                        },
-                        {
-                            "answerText": "Retries the failed operation",
-                            "isCorrect": false
-                        }
+                        { "answerText": "Persisted models are declared directly in Swift with no separate data-model file", "isCorrect": true },
+                        { "answerText": "It removes the need for any object identity at all", "isCorrect": false },
+                        { "answerText": "It only works with SQLite, never in-memory stores", "isCorrect": false },
+                        { "answerText": "It makes every property lazy by default", "isCorrect": false }
                     ]
                 }
             ]
@@ -115,49 +67,25 @@
             "topicDescription": "Making HTTP requests and handling APIs with URLSession and modern patterns.",
             "questions": [
                 {
-                    "questionText": "What is the difference between a slice and an array in Go?",
+                    "questionText": "What class is used for making HTTP requests in iOS?",
                     "difficulty": "BEGINNER",
-                    "explanation": "Arrays have a fixed size that's part of their type. Slices are dynamically-sized references to arrays, and are used far more often.",
+                    "explanation": "URLSession is Apple's networking API for making HTTP/HTTPS requests, handling downloads, uploads, and WebSocket connections.",
                     "answers": [
-                        {
-                            "answerText": "Arrays are fixed-size; slices are dynamic references to arrays",
-                            "isCorrect": true
-                        },
-                        {
-                            "answerText": "Slices are immutable; arrays are mutable",
-                            "isCorrect": false
-                        },
-                        {
-                            "answerText": "They are the same thing",
-                            "isCorrect": false
-                        },
-                        {
-                            "answerText": "Arrays can hold any type; slices are typed",
-                            "isCorrect": false
-                        }
+                        { "answerText": "URLSession", "isCorrect": true },
+                        { "answerText": "HttpClient", "isCorrect": false },
+                        { "answerText": "NetworkManager", "isCorrect": false },
+                        { "answerText": "AFNetworking", "isCorrect": false }
                     ]
                 },
                 {
-                    "questionText": "What function is used to add elements to a slice in Go?",
+                    "questionText": "What is App Transport Security (ATS) in iOS?",
                     "difficulty": "INTERMEDIATE",
-                    "explanation": "The built-in append() function adds elements to a slice, growing its underlying array if needed.",
+                    "explanation": "ATS enforces HTTPS for all network connections by default — plain HTTP requests are blocked unless you explicitly add exceptions in Info.plist.",
                     "answers": [
-                        {
-                            "answerText": "append()",
-                            "isCorrect": true
-                        },
-                        {
-                            "answerText": "add()",
-                            "isCorrect": false
-                        },
-                        {
-                            "answerText": "push()",
-                            "isCorrect": false
-                        },
-                        {
-                            "answerText": "insert()",
-                            "isCorrect": false
-                        }
+                        { "answerText": "Enforces HTTPS and blocks plain HTTP by default", "isCorrect": true },
+                        { "answerText": "Encrypts data stored on the device's disk", "isCorrect": false },
+                        { "answerText": "Manages user authentication tokens", "isCorrect": false },
+                        { "answerText": "Prevents screenshots from being taken in the app", "isCorrect": false }
                     ]
                 }
             ]
@@ -172,22 +100,10 @@
                     "difficulty": "BEGINNER",
                     "explanation": "The @main attribute on an App struct marks it as the entry point. The 'body' property returns a Scene containing your views.",
                     "answers": [
-                        {
-                            "answerText": "A struct with @main and a body returning a Scene",
-                            "isCorrect": true
-                        },
-                        {
-                            "answerText": "AppDelegate's didFinishLaunching method",
-                            "isCorrect": false
-                        },
-                        {
-                            "answerText": "The first View in the project",
-                            "isCorrect": false
-                        },
-                        {
-                            "answerText": "Main.storyboard",
-                            "isCorrect": false
-                        }
+                        { "answerText": "A struct with @main and a body returning a Scene", "isCorrect": true },
+                        { "answerText": "AppDelegate's didFinishLaunching method", "isCorrect": false },
+                        { "answerText": "The first View in the project", "isCorrect": false },
+                        { "answerText": "Main.storyboard", "isCorrect": false }
                     ]
                 },
                 {
@@ -195,68 +111,39 @@
                     "difficulty": "INTERMEDIATE",
                     "explanation": "@State creates a source of truth for value types. When the state changes, SwiftUI automatically re-renders the views that read it.",
                     "answers": [
-                        {
-                            "answerText": "@State",
-                            "isCorrect": true
-                        },
-                        {
-                            "answerText": "@Binding",
-                            "isCorrect": false
-                        },
-                        {
-                            "answerText": "@Published",
-                            "isCorrect": false
-                        },
-                        {
-                            "answerText": "@Observable",
-                            "isCorrect": false
-                        }
+                        { "answerText": "@State", "isCorrect": true },
+                        { "answerText": "@Binding", "isCorrect": false },
+                        { "answerText": "@Published", "isCorrect": false },
+                        { "answerText": "@Observable", "isCorrect": false }
                     ]
-                },
+                }
+            ]
+        },
+        {
+            "technologyName": "iOS",
+            "topicName": "UIKit Essentials",
+            "topicDescription": "View controllers, the responder chain, and Auto Layout in the imperative UI framework.",
+            "questions": [
                 {
-                    "questionText": "What does 'go mod init' do?",
+                    "questionText": "What is the UIKit equivalent of a SwiftUI View?",
                     "difficulty": "BEGINNER",
-                    "explanation": "It initializes a new Go module by creating a go.mod file that tracks the module path and its dependencies.",
+                    "explanation": "UIView is the base class for all visual elements in UIKit, similar to how the View protocol underlies every SwiftUI view.",
                     "answers": [
-                        {
-                            "answerText": "Creates a go.mod file to initialize a new module",
-                            "isCorrect": true
-                        },
-                        {
-                            "answerText": "Compiles all Go files in the directory",
-                            "isCorrect": false
-                        },
-                        {
-                            "answerText": "Downloads all dependencies",
-                            "isCorrect": false
-                        },
-                        {
-                            "answerText": "Runs all tests in the module",
-                            "isCorrect": false
-                        }
+                        { "answerText": "UIView", "isCorrect": true },
+                        { "answerText": "UIViewController", "isCorrect": false },
+                        { "answerText": "UIWindow", "isCorrect": false },
+                        { "answerText": "UIScene", "isCorrect": false }
                     ]
                 },
                 {
-                    "questionText": "What is the naming convention for exported identifiers in Go?",
+                    "questionText": "What is the purpose of UITableViewDataSource?",
                     "difficulty": "INTERMEDIATE",
-                    "explanation": "Identifiers starting with an uppercase letter are exported (public). Lowercase identifiers are unexported (package-private).",
+                    "explanation": "UITableViewDataSource supplies the data and cells for a UITableView — how many rows exist, and what each cell should display.",
                     "answers": [
-                        {
-                            "answerText": "Uppercase first letter = exported; lowercase = unexported",
-                            "isCorrect": true
-                        },
-                        {
-                            "answerText": "Use the 'public' and 'private' keywords",
-                            "isCorrect": false
-                        },
-                        {
-                            "answerText": "Prefix with underscore for private",
-                            "isCorrect": false
-                        },
-                        {
-                            "answerText": "All identifiers are public by default",
-                            "isCorrect": false
-                        }
+                        { "answerText": "Provides the data and cells for a UITableView", "isCorrect": true },
+                        { "answerText": "Handles tap gestures on table rows", "isCorrect": false },
+                        { "answerText": "Manages the table view's scroll position", "isCorrect": false },
+                        { "answerText": "Animates row insertions and deletions", "isCorrect": false }
                     ]
                 }
             ]
