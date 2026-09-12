@@ -26,17 +26,21 @@ import com.elkrrai.techtalk.domain.usecase.online.ReconnectOnlineBattleUseCase
 import com.elkrrai.techtalk.domain.usecase.online.RequestOnlineRematchUseCase
 import com.elkrrai.techtalk.domain.usecase.online.SetOnlinePlayerReadyUseCase
 import com.elkrrai.techtalk.domain.usecase.online.SubmitOnlineAnswerUseCase
+import com.elkrrai.techtalk.presentation.battle.BattleLobbyRoute
+import com.elkrrai.techtalk.presentation.battle.BattleResultRoute
+import com.elkrrai.techtalk.presentation.battle.OfflineBattleRoute
+import com.elkrrai.techtalk.presentation.battle.OnlineBattleRoute
 import com.elkrrai.techtalk.presentation.battle.home.BattleHomeViewModel
 import com.elkrrai.techtalk.presentation.battle.offline.OfflineBattleViewModel
 import com.elkrrai.techtalk.presentation.battle.online.BattleLobbyViewModel
 import com.elkrrai.techtalk.presentation.battle.online.OnlineBattleViewModel
 import com.elkrrai.techtalk.presentation.battle.result.BattleResultViewModel
-import com.elkrrai.techtalk.presentation.battle.state.BattleSessionStore
 import com.elkrrai.techtalk.presentation.feed.FeedViewModel
 import com.elkrrai.techtalk.presentation.getmorecontent.GetMoreContentViewModel
 import com.elkrrai.techtalk.presentation.technologylist.TechnologyListViewModel
 import com.elkrrai.techtalk.presentation.userprofile.UserProfileViewModel
 import org.koin.core.module.Module
+import org.koin.core.module.dsl.viewModel
 import org.koin.core.module.dsl.viewModelOf
 import org.koin.dsl.module
 
@@ -96,18 +100,21 @@ fun useCaseModule(): Module = module {
     single { ReconnectOnlineBattleUseCase(repository = get()) }
 }
 
+/** [BattleHomeViewModel] is parameterless (the flow's start destination); every other
+ * battle ViewModel is created from the typed nav-route it was navigated to — see
+ * `presentation/battle/BattleRoutes.kt` and `BattleScreen.kt`'s `parametersOf(route)`
+ * call sites. There's no shared battle session singleton anymore: each screen carries
+ * what it needs forward as route arguments instead. */
 fun viewModelModule(): Module = module {
-    // Singleton — the only channel between battle home -> battle -> result. Must not
-    // be registered per-ViewModel or each screen would see its own empty state.
-    single { BattleSessionStore() }
-
     viewModelOf(::FeedViewModel)
     viewModelOf(::TechnologyListViewModel)
     viewModelOf(::BattleHomeViewModel)
-    viewModelOf(::OfflineBattleViewModel)
-    viewModelOf(::BattleResultViewModel)
-    viewModelOf(::BattleLobbyViewModel)
-    viewModelOf(::OnlineBattleViewModel)
+
+    viewModel { (route: OfflineBattleRoute) -> OfflineBattleViewModel(route, get()) }
+    viewModel { (route: BattleLobbyRoute) -> BattleLobbyViewModel(route, get(), get(), get(), get(), get()) }
+    viewModel { (route: OnlineBattleRoute) -> OnlineBattleViewModel(route, get(), get(), get()) }
+    viewModel { (route: BattleResultRoute) -> BattleResultViewModel(route) }
+
     viewModelOf(::GetMoreContentViewModel)
     viewModelOf(::UserProfileViewModel)
 }

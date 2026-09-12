@@ -10,27 +10,34 @@ import com.elkrrai.techtalk.domain.model.online.SubmitOnlineAnswerRequest
 import com.elkrrai.techtalk.domain.repository.TechTalkRepository
 import com.elkrrai.techtalk.domain.usecase.online.ObserveOnlineBattleEventsUseCase
 import com.elkrrai.techtalk.domain.usecase.online.SubmitOnlineAnswerUseCase
+import com.elkrrai.techtalk.presentation.battle.BattleResultRoute
+import com.elkrrai.techtalk.presentation.battle.OnlineBattleRoute
 import com.elkrrai.techtalk.presentation.battle.online.mapper.mapOnlineFailureToUserMessage
 import com.elkrrai.techtalk.presentation.battle.online.mapper.toBattleAnswerOptionUi
 import com.elkrrai.techtalk.presentation.battle.online.state.OnlineBattleUiState
 import com.elkrrai.techtalk.presentation.battle.online.state.OnlineConnectionStatus
-import com.elkrrai.techtalk.presentation.battle.state.BattleSessionStore
-import com.elkrrai.techtalk.presentation.battle.state.BattleState
+import com.elkrrai.techtalk.presentation.battle.state.BATTLE_TOTAL_QUESTIONS
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 
-/** Four constructor args: [sessionStore], [repository], [observeOnlineBattleEvents],
- * [submitOnlineAnswer]. Ignores everything once [OnlineBattleUiState.isMatchEnded];
- * drops events whose matchId conflicts with the active one. */
+/** Created only once [OnlineBattleEvent.MatchStarted] has already fired — everything it
+ * needs from that event ([route]'s `matchId`/`startedAtEpochMillis`/`totalDurationSeconds`)
+ * arrives via nav args instead of being re-observed from the (non-replaying) events
+ * SharedFlow, which used to be a real, if minor, race. Ignores everything once
+ * [OnlineBattleUiState.isMatchEnded]; drops events whose matchId conflicts with the
+ * active one. */
 class OnlineBattleViewModel(
-    private val sessionStore: BattleSessionStore,
+    private val route: OnlineBattleRoute,
     private val repository: TechTalkRepository,
     observeOnlineBattleEvents: ObserveOnlineBattleEventsUseCase,
     private val submitOnlineAnswer: SubmitOnlineAnswerUseCase
@@ -38,6 +45,9 @@ class OnlineBattleViewModel(
 
     private val _state = MutableStateFlow(OnlineBattleUiState())
     val state: StateFlow<OnlineBattleUiState> = _state.asStateFlow()
+
+    private val _navigateToResult = Channel<BattleResultRoute>(Channel.BUFFERED)
+    val navigateToResult: Flow<BattleResultRoute> = _navigateToResult.receiveAsFlow()
 
     // Client-side dedupe on top of the transport's own eventId dedupe.
     private var lastQuestionEventKey: String? = null
@@ -51,14 +61,15 @@ class OnlineBattleViewModel(
     private var countdownJob: Job? = null
 
     init {
-        val session = sessionStore.state.value
         _state.update {
             it.copy(
-                playerName = session.playerName,
-                playerAvatarKey = session.playerAvatarKey,
-                connectionStatus = OnlineConnectionStatus.CONNECTED
+                playerName = route.playerName,
+                playerAvatarKey = route.playerAvatarKey,
+                connectionStatus = OnlineConnectionStatus.CONNECTED,
+                matchId = route.matchId
             )
         }
+        startLocalCountdown(route.totalDurationSeconds, route.startedAtEpochMillis)
         viewModelScope.launch {
             observeOnlineBattleEvents().collect { event -> handleEvent(event) }
         }
@@ -69,12 +80,6 @@ class OnlineBattleViewModel(
         if (hasMatchIdConflict(event)) return
 
         when (event) {
-            is OnlineBattleEvent.MatchStarted -> {
-                hasPersistedResult = false
-                _state.update { it.copy(matchId = event.matchId, isMatchEnded = false) }
-                startLocalCountdown(event.totalDurationSeconds, event.startedAtEpochMillis)
-            }
-
             is OnlineBattleEvent.QuestionPushed -> handleQuestionPushed(event)
 
             is OnlineBattleEvent.AnswerResult -> {
@@ -117,12 +122,15 @@ class OnlineBattleViewModel(
                 it.copy(errorMessage = "Room expired: ${event.reason}")
             }
 
-            // Lobby-only events, irrelevant once on the match screen.
+            // Lobby-only events (plus MatchStarted, which is what caused this ViewModel
+            // to be created in the first place — everything it carries already arrived
+            // via `route` — so re-observing it here would be redundant, not a fix).
             is OnlineBattleEvent.Connected,
             is OnlineBattleEvent.RoomCreated,
             is OnlineBattleEvent.RoomJoined,
             is OnlineBattleEvent.LobbyUpdated,
-            is OnlineBattleEvent.MatchStarting -> Unit
+            is OnlineBattleEvent.MatchStarting,
+            is OnlineBattleEvent.MatchStarted -> Unit
         }
     }
 
@@ -169,18 +177,16 @@ class OnlineBattleViewModel(
         else -> null
     }
 
-    /** Compares `currentPlayerId` to [OnlineScoreBoard.hostPlayerId] to decide which
-     * side is "player" vs "foe". If `currentPlayerId` was never set, this treats the
-     * user as the guest, silently swapping scores — matches the original app's known
-     * behavior; [com.elkrrai.techtalk.presentation.battle.online.BattleLobbyViewModel]
-     * is responsible for populating it on `Connected`. */
+    /** Compares [route]'s `currentPlayerId` to [OnlineScoreBoard.hostPlayerId] to decide
+     * which side is "player" vs "foe" — matches the original app's behavior;
+     * [com.elkrrai.techtalk.presentation.battle.online.BattleLobbyViewModel] is
+     * responsible for supplying it in [route]. */
     private fun withScoreBoard(scoreboard: OnlineScoreBoard) {
         val key = "${scoreboard.hostScore}:${scoreboard.guestScore}"
         if (key == lastScoreBoardKey) return
         lastScoreBoardKey = key
 
-        val currentPlayerId = sessionStore.state.value.currentPlayerId
-        val isHost = currentPlayerId != null && currentPlayerId == scoreboard.hostPlayerId
+        val isHost = route.currentPlayerId == scoreboard.hostPlayerId
         val playerScore = if (isHost) scoreboard.hostScore else scoreboard.guestScore
         val foeScore = if (isHost) scoreboard.guestScore else scoreboard.hostScore
 
@@ -235,51 +241,55 @@ class OnlineBattleViewModel(
         finalizeToResult(playerScore = _state.value.playerScore, isResigned = true)
     }
 
-    /** Computes XP with [BattleProgression.battleXpForScore] and pushes the session to
-     * RESULT with `onlinePhase = LOBBY`. Also persists via [persistResult] — unlike
-     * offline, [BattleStatus] is derived from the head-to-head result, not the 50%
-     * rule. [hasPersistedResult] guards against double-counting when a resign is
-     * followed by a server `MatchEnded`; it's reset on `MatchStarted`. */
+    /** Computes XP with [BattleProgression.battleXpForScore] and navigates to
+     * [BattleResultRoute] (`canTryAgain = false` — online never offers a rematch). Also
+     * persists via [persistResult] — unlike offline, [BattleStatus] is derived from the
+     * head-to-head result, not the 50% rule. [hasPersistedResult] guards against
+     * double-counting when a resign is followed by a server `MatchEnded`. */
     private fun finalizeToResult(playerScore: Int, isResigned: Boolean) {
         if (_state.value.isMatchEnded) return
         countdownJob?.cancel()
         _state.update { it.copy(isMatchEnded = true) }
 
-        val session = sessionStore.state.value
-        val totalQuestions = session.totalQuestions
         val foeScore = _state.value.foeScore
         val status = when {
             isResigned -> BattleStatus.RESIGNED
             playerScore > foeScore -> BattleStatus.WIN
             else -> BattleStatus.LOSS
         }
-        val xpGained = BattleProgression.battleXpForScore(playerScore, totalQuestions, isResigned)
+        val xpGained = BattleProgression.battleXpForScore(playerScore, BATTLE_TOTAL_QUESTIONS, isResigned)
 
-        persistResult(session, playerScore, totalQuestions, status, xpGained)
+        persistResult(playerScore, status, xpGained)
 
-        sessionStore.finalizeOnlineBattle(playerScore, xpGained)
+        viewModelScope.launch {
+            _navigateToResult.send(
+                BattleResultRoute(
+                    score = playerScore,
+                    totalQuestions = BATTLE_TOTAL_QUESTIONS,
+                    technologyId = route.technologyId,
+                    technologyName = route.technologyName,
+                    playerName = route.playerName,
+                    playerAvatarKey = route.playerAvatarKey,
+                    xpGained = xpGained,
+                    canTryAgain = false
+                )
+            )
+        }
     }
 
-    /** Persistence is skipped when no technology is selected, and both repository
-     * calls are wrapped in runCatching so a DB failure never blocks the result screen. */
-    private fun persistResult(
-        session: BattleState,
-        score: Int,
-        totalQuestions: Int,
-        status: BattleStatus,
-        xpGained: Int
-    ) {
+    /** Both repository calls are wrapped in runCatching so a DB failure never blocks the
+     * result screen. */
+    private fun persistResult(score: Int, status: BattleStatus, xpGained: Int) {
         if (hasPersistedResult) return
-        val technology = session.selectedTechnology ?: return
         hasPersistedResult = true
         viewModelScope.launch {
             runCatching { repository.awardBattleXp(xpGained) }
             runCatching {
                 repository.recordBattleResult(
-                    technologyId = technology.id,
-                    technologyName = technology.name,
+                    technologyId = route.technologyId,
+                    technologyName = route.technologyName,
                     score = score,
-                    totalQuestions = totalQuestions,
+                    totalQuestions = BATTLE_TOTAL_QUESTIONS,
                     status = status,
                     xpGained = xpGained
                 )

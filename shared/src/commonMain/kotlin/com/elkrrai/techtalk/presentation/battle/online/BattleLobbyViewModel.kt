@@ -11,21 +11,25 @@ import com.elkrrai.techtalk.domain.usecase.online.CreateOnlineRoomUseCase
 import com.elkrrai.techtalk.domain.usecase.online.DisconnectOnlineBattleUseCase
 import com.elkrrai.techtalk.domain.usecase.online.JoinOnlineRoomUseCase
 import com.elkrrai.techtalk.domain.usecase.online.ObserveOnlineBattleEventsUseCase
+import com.elkrrai.techtalk.presentation.battle.BattleLobbyRoute
+import com.elkrrai.techtalk.presentation.battle.OnlineBattleRoute
 import com.elkrrai.techtalk.presentation.battle.online.mapper.applyOnlineEvent
 import com.elkrrai.techtalk.presentation.battle.online.state.BattleLobbyUiState
 import com.elkrrai.techtalk.presentation.battle.online.state.OnlineConnectionStatus
 import com.elkrrai.techtalk.presentation.battle.online.state.OnlineMatchRole
 import com.elkrrai.techtalk.presentation.battle.online.state.OnlineMatchStage
-import com.elkrrai.techtalk.presentation.battle.state.BattleSessionStore
 import com.elkrrai.techtalk.presentation.battle.state.getLabel
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 class BattleLobbyViewModel(
-    private val sessionStore: BattleSessionStore,
+    private val route: BattleLobbyRoute,
     private val connect: ConnectOnlineBattleUseCase,
     private val disconnect: DisconnectOnlineBattleUseCase,
     private val createRoom: CreateOnlineRoomUseCase,
@@ -33,20 +37,21 @@ class BattleLobbyViewModel(
     private val observeEvents: ObserveOnlineBattleEventsUseCase
 ) : ViewModel() {
 
-    private val _state = MutableStateFlow(BattleLobbyUiState())
+    private val _state = MutableStateFlow(
+        BattleLobbyUiState(
+            selectedTimeLabel = route.timeControl.getLabel(),
+            selectedDifficultyLabel = route.difficulty.getTitle(),
+            selectedTech = route.technologyName
+        )
+    )
     val state: StateFlow<BattleLobbyUiState> = _state.asStateFlow()
+
+    private val _navigateToMatch = Channel<OnlineBattleRoute>(Channel.BUFFERED)
+    val navigateToMatch: Flow<OnlineBattleRoute> = _navigateToMatch.receiveAsFlow()
 
     private var currentPlayerId: String? = null
 
     init {
-        val session = sessionStore.state.value
-        _state.update {
-            it.copy(
-                selectedTimeLabel = session.selectedTimeControl.getLabel(),
-                selectedDifficultyLabel = session.selectedDifficulty.getTitle(),
-                selectedTech = session.selectedTechnology?.name.orEmpty()
-            )
-        }
         viewModelScope.launch {
             observeEvents().collect { event -> handleEvent(event) }
         }
@@ -55,13 +60,25 @@ class BattleLobbyViewModel(
     private fun handleEvent(event: OnlineBattleEvent) {
         if (event is OnlineBattleEvent.Connected) {
             currentPlayerId = event.playerId
-            sessionStore.setCurrentPlayerId(event.playerId)
         }
 
         if (event is OnlineBattleEvent.MatchStarted) {
-            val session = sessionStore.state.value
-            if (event.matchId.isBlank() || session.selectedTechnology == null) return
-            sessionStore.transitionToOnlineMatch(event.totalDurationSeconds)
+            val playerId = currentPlayerId ?: return
+            if (event.matchId.isBlank()) return
+            viewModelScope.launch {
+                _navigateToMatch.send(
+                    OnlineBattleRoute(
+                        technologyId = route.technologyId,
+                        technologyName = route.technologyName,
+                        playerName = route.playerName,
+                        playerAvatarKey = route.playerAvatarKey,
+                        currentPlayerId = playerId,
+                        matchId = event.matchId,
+                        startedAtEpochMillis = event.startedAtEpochMillis,
+                        totalDurationSeconds = event.totalDurationSeconds
+                    )
+                )
+            }
             _state.update { it.copy(stage = OnlineMatchStage.CONNECTED, isBusy = false) }
             return
         }
@@ -78,23 +95,21 @@ class BattleLobbyViewModel(
      * `"Player"` when blank. */
     private fun ensureConnected() {
         if (_state.value.connectionStatus != OnlineConnectionStatus.DISCONNECTED) return
-        val playerName = sessionStore.state.value.playerName.ifBlank { "Player" }
+        val playerName = route.playerName.ifBlank { "Player" }
         _state.update { it.copy(connectionStatus = OnlineConnectionStatus.CONNECTING) }
         viewModelScope.launch { connect(playerName) }
     }
 
     fun onCreateRoom() {
-        val session = sessionStore.state.value
-        val technology = session.selectedTechnology ?: return
         ensureConnected()
         _state.update { it.copy(stage = OnlineMatchStage.CREATING_ROOM, isBusy = true) }
         viewModelScope.launch {
             createRoom(
                 OnlineMatchSettings(
-                    timeControl = session.selectedTimeControl,
-                    difficulty = session.selectedDifficulty,
-                    technologyId = technology.id,
-                    technologyName = technology.name
+                    timeControl = route.timeControl,
+                    difficulty = route.difficulty,
+                    technologyId = route.technologyId,
+                    technologyName = route.technologyName
                 )
             )
         }

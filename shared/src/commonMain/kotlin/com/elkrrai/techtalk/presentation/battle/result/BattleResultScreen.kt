@@ -23,16 +23,10 @@ import com.elkrrai.techtalk.presentation.component.AppOutlinedButton
 @Composable
 fun BattleResultScreen(
     viewModel: BattleResultViewModel,
-    onClose: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val state by viewModel.state.collectAsState()
 
-    // onClose fires only from the explicit "Pick another tech" tap below — NOT from a
-    // DisposableEffect(Unit) { onDispose { onClose() } } like an earlier version had.
-    // That pattern fired on ANY disposal, including the one "Try again" itself causes by
-    // succeeding (phase -> BATTLE routes away from this screen), which wiped the battle
-    // that was just started. See BattleSessionStore's plan doc for the full story.
     Column(
         modifier = modifier.fillMaxSize().padding(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -73,10 +67,7 @@ fun BattleResultScreen(
         }
         AppOutlinedButton(
             text = "Pick another tech",
-            onClick = {
-                viewModel.onPickAnother()
-                onClose()
-            },
+            onClick = viewModel::onPickAnother,
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = if (state.canTryAgain) 8.dp else 32.dp)
