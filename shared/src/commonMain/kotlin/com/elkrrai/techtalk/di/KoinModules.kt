@@ -82,11 +82,13 @@ fun repositoryModule(): Module = module {
 }
 
 /** All 10 online use cases are registered (harmless, matches the domain layer's own
- * rebuild checklist) even though only 6 are ever injected into a ViewModel — see
- * [viewModelModule]. `SetOnlinePlayerReadyUseCase`, `RequestOnlineRematchUseCase`,
- * `LeaveOnlineRoomUseCase` and `ReconnectOnlineBattleUseCase` have no UI caller: the
- * lobby calls `disconnect()` directly instead of `LeaveOnlineRoomUseCase`, and
- * ready-up/rematch/reconnect have no screen at all. */
+ * rebuild checklist) even though only 7 are ever injected into a ViewModel — see
+ * [viewModelModule]. `SetOnlinePlayerReadyUseCase`, `RequestOnlineRematchUseCase` and
+ * `LeaveOnlineRoomUseCase` have no UI caller: the lobby calls `disconnect()` directly
+ * instead of `LeaveOnlineRoomUseCase`, and ready-up/rematch have no screen at all.
+ * `ReconnectOnlineBattleUseCase` DOES have a caller now — `OnlineBattleViewModel` calls
+ * it on `init` purely to force a fresh listener attachment (see its own doc comment for
+ * why), not because the player actually reconnected. */
 fun useCaseModule(): Module = module {
     single { ObserveOnlineBattleEventsUseCase(repository = get()) }
     single { ConnectOnlineBattleUseCase(repository = get()) }
@@ -112,7 +114,7 @@ fun viewModelModule(): Module = module {
 
     viewModel { (route: OfflineBattleRoute) -> OfflineBattleViewModel(route, get()) }
     viewModel { (route: BattleLobbyRoute) -> BattleLobbyViewModel(route, get(), get(), get(), get(), get()) }
-    viewModel { (route: OnlineBattleRoute) -> OnlineBattleViewModel(route, get(), get(), get()) }
+    viewModel { (route: OnlineBattleRoute) -> OnlineBattleViewModel(route, get(), get(), get(), get()) }
     viewModel { (route: BattleResultRoute) -> BattleResultViewModel(route) }
 
     viewModelOf(::GetMoreContentViewModel)

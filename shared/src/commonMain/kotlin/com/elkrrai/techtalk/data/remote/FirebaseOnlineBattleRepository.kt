@@ -1,7 +1,9 @@
 package com.elkrrai.techtalk.data.remote
 
 import com.elkrrai.techtalk.data.remote.firebase.BattleStatus
+import com.elkrrai.techtalk.data.remote.firebase.FirebaseMatchAnswerOption
 import com.elkrrai.techtalk.data.remote.firebase.FirebaseMatchDoc
+import com.elkrrai.techtalk.data.remote.firebase.FirebaseMatchQuestion
 import com.elkrrai.techtalk.data.remote.firebase.FirebaseRoomDoc
 import com.elkrrai.techtalk.data.utils.currentEpochMillis
 import com.elkrrai.techtalk.domain.model.common.Difficulty
@@ -92,12 +94,12 @@ private object AnswerKey {
  * "client command" becomes a write. See the design discussion this came out of for the
  * full data-shape rationale.
  *
- * Game format: each player races through the SAME fixed [FirebaseMatchDoc.questionIds]
+ * Game format: each player races through the SAME fixed [FirebaseMatchDoc.questions]
  * list independently (their own pace, not turn-based) — so [submitAnswer] never needs a
  * round trip before the next question: the next [OnlineBattleEvent.QuestionPushed] is
- * built locally from [repository]'s own local content the instant a write succeeds.
- * Both players already have the same bundled content pack, so nothing about question
- * text or answer options is ever written to Firebase at all.
+ * built directly from that already-synced list the instant a write succeeds. The full
+ * question content is resolved once, from the HOST's local database, at match start —
+ * see [FirebaseMatchDoc.questions]' doc comment for why a plain shared id isn't safe.
  *
  * Read this before treating it as more than a portfolio-grade first pass:
  * - **No authoritative grading.** Each client reports its own `isCorrect`/score; there is
@@ -134,6 +136,7 @@ class FirebaseOnlineBattleRepository(
         runCatching {
             Firebase.auth.currentUser?.uid ?: Firebase.auth.signInAnonymously().user?.uid
         }.onSuccess { uid ->
+            log("connect: success uid=$uid")
             if (uid == null) {
                 _events.emit(OnlineBattleEvent.Failure(FailureCode.SocketNotConnected, "Anonymous sign-in returned no user"))
                 return
@@ -141,6 +144,7 @@ class FirebaseOnlineBattleRepository(
             playerId = uid
             _events.emit(OnlineBattleEvent.Connected(playerId = uid, sessionId = uid, matchStartAtMillis = null))
         }.onFailure {
+            log("connect: FAILED ${it::class.simpleName}: ${it.message}")
             _events.emit(OnlineBattleEvent.Failure(FailureCode.SocketNotConnected, it.message ?: "Sign-in failed"))
         }
     }
@@ -159,7 +163,12 @@ class FirebaseOnlineBattleRepository(
         val matchId = newId("match")
         isHost = true
         currentRoomCode = roomCode
-        currentMatchId = matchId
+        // currentMatchId is deliberately NOT set here — it's assigned only once
+        // listenToRoom actually attaches to the match (status flips to in_progress).
+        // Pre-setting it to this room's matchId made that attachment's own guard
+        // condition (`currentMatchId != room.matchId`) false from the very first
+        // snapshot, so listenToMatch() was never called and the match never progressed
+        // past the lobby for either side — see the room-listener trigger below.
 
         val doc = FirebaseRoomDoc(
             matchId = matchId,
@@ -172,11 +181,14 @@ class FirebaseOnlineBattleRepository(
             status = BattleStatus.Waiting.key,
             createdAtEpochMillis = currentEpochMillis()
         )
-        val failed = runCatching { Firebase.database.reference("${FirebasePath.ROOMS}/$roomCode").setValue(doc) }.isFailure
+        val failed = runCatching { Firebase.database.reference("${FirebasePath.ROOMS}/$roomCode").setValue(doc) }
+            .onFailure { log("createRoom: setValue FAILED ${it::class.simpleName}: ${it.message}") }
+            .isFailure
         if (failed) {
             _events.emit(OnlineBattleEvent.Failure(FailureCode.SocketReceiveError, "Failed to create room"))
             return
         }
+        log("createRoom: OK roomCode=$roomCode matchId=$matchId hostId=$uid")
         _events.emit(OnlineBattleEvent.RoomCreated(roomCode = roomCode, matchId = matchId, expiresInSeconds = ROOM_EXPIRY_SECONDS))
         listenToRoom(roomCode)
     }
@@ -184,7 +196,10 @@ class FirebaseOnlineBattleRepository(
     override suspend fun joinRoom(request: JoinOnlineRoomRequest) {
         val uid = playerId ?: return emitNotConnected()
         val roomRef = Firebase.database.reference("${FirebasePath.ROOMS}/${request.roomCode}")
-        val room = runCatching { roomRef.valueEvents.first().value<FirebaseRoomDoc>() }.getOrNull()
+        val room = runCatching { roomRef.valueEvents.first().value<FirebaseRoomDoc>() }
+            .onFailure { log("joinRoom: read FAILED ${it::class.simpleName}: ${it.message}") }
+            .getOrNull()
+        log("joinRoom: roomCode=${request.roomCode} read hostId=${room?.hostId} guestId=${room?.guestId} status=${room?.status}")
         if (room == null || room.hostId.isBlank()) {
             _events.emit(OnlineBattleEvent.Failure(FailureCode.SocketReceiveError, "Room not found"))
             return
@@ -195,14 +210,17 @@ class FirebaseOnlineBattleRepository(
         }
         isHost = false
         currentRoomCode = request.roomCode
-        currentMatchId = room.matchId
+        // currentMatchId intentionally left unset here too — see the comment in
+        // createRoom().
         val failed = runCatching {
             roomRef.updateChildren(mapOf(RoomKey.GUEST_ID to uid, RoomKey.GUEST_NAME to playerName))
-        }.isFailure
+        }.onFailure { log("joinRoom: updateChildren FAILED ${it::class.simpleName}: ${it.message}") }
+            .isFailure
         if (failed) {
             _events.emit(OnlineBattleEvent.Failure(FailureCode.SocketReceiveError, "Failed to join room"))
             return
         }
+        log("joinRoom: OK roomCode=${request.roomCode} guestId=$uid")
         listenToRoom(request.roomCode)
     }
 
@@ -218,17 +236,20 @@ class FirebaseOnlineBattleRepository(
         val uid = playerId ?: return emitNotConnected()
         val matchId = currentMatchId ?: return emitNotConnected()
         val matchRef = Firebase.database.reference("${FirebasePath.MATCHES}/$matchId")
-        val questionId = request.questionId.toLongOrNull()
-        val correctAnswer = questionId?.let { id ->
-            repository.getAnswersByQuestionId(id).firstOrNull { it.id.toString() == request.answerId }
-        }
+        // Graded against the match doc's own synced questions, not a local database
+        // lookup — see FirebaseMatchDoc.questions' doc comment for why a local lookup
+        // by id is unsafe here.
+        val current = runCatching { matchRef.valueEvents.first().value<FirebaseMatchDoc>() }.getOrNull()
+        val correctAnswer = current?.questions
+            ?.firstOrNull { it.questionId == request.questionId }
+            ?.options
+            ?.firstOrNull { it.answerId == request.answerId }
         val isCorrect = correctAnswer?.isCorrect == true
         val gainedPoints = if (isCorrect) 10 else 0
         answeredCount += 1
 
         val scoreField = if (isHost) MatchKey.HOST_SCORE else MatchKey.GUEST_SCORE
         val countField = if (isHost) MatchKey.HOST_ANSWERED_COUNT else MatchKey.GUEST_ANSWERED_COUNT
-        val current = runCatching { matchRef.valueEvents.first().value<FirebaseMatchDoc>() }.getOrNull()
         val newScore = (if (isHost) current?.hostScore else current?.guestScore)?.plus(gainedPoints) ?: gainedPoints
 
         val failed = runCatching {
@@ -253,9 +274,9 @@ class FirebaseOnlineBattleRepository(
         val scoreboard = current.toScoreboard(isHostUpdate = isHost, newScore = newScore)
         _events.emit(OnlineBattleEvent.AnswerResult(matchId, request.questionId, isCorrect, gainedPoints, scoreboard))
 
-        val questionIds = current?.questionIds.orEmpty()
-        if (answeredCount < questionIds.size) {
-            emitNextQuestion(matchId, questionIds, answeredCount)
+        val questions = current?.questions.orEmpty()
+        if (answeredCount < questions.size) {
+            emitNextQuestion(matchId, questions, answeredCount)
         } else {
             maybeFinishMatch(matchRef, current, isHostFinished = isHost)
         }
@@ -339,6 +360,11 @@ class FirebaseOnlineBattleRepository(
                 val host = OnlinePlayer(room.hostId, room.hostName)
                 val guest = room.guestId?.let { OnlinePlayer(it, room.guestName.orEmpty()) }
 
+                log(
+                    "listenToRoom[$roomCode] isHost=$isHost hostId=${room.hostId} guestId=${room.guestId} " +
+                        "status=${room.status} matchId=${room.matchId} currentMatchId=$currentMatchId"
+                )
+
                 val guestJustJoined = previous?.guestId == null && room.guestId != null
                 if (guestJustJoined) {
                     _events.emit(OnlineBattleEvent.RoomJoined(roomCode, room.matchId, host, guest, settings))
@@ -346,8 +372,8 @@ class FirebaseOnlineBattleRepository(
                     _events.emit(OnlineBattleEvent.LobbyUpdated(roomCode, host, guest, room.hostReady, room.guestReady, settings))
                 }
 
-                val bothReady = room.hostReady && room.guestReady && guest != null
-                if (isHost && bothReady && room.status == BattleStatus.Waiting.key) {
+                if (isHost && guest != null && room.status == BattleStatus.Waiting.key) {
+                    log("listenToRoom[$roomCode]: conditions met, calling startMatch")
                     startMatch(roomCode, room, settings)
                 }
                 if (isHost && room.rematchRequestedByHost && room.rematchRequestedByGuest) {
@@ -373,10 +399,11 @@ class FirebaseOnlineBattleRepository(
             var announcedStart = false
             Firebase.database.reference("${FirebasePath.MATCHES}/$matchId").valueEvents.collectCatching { snapshot ->
                 val match = snapshot.value<FirebaseMatchDoc?>() ?: return@collectCatching
+                log("listenToMatch[$matchId]: status=${match.status} questionCount=${match.questions.size}")
                 if (!announcedStart) {
                     announcedStart = true
                     _events.emit(OnlineBattleEvent.MatchStarted(matchId, match.startedAtEpochMillis, match.totalDurationSeconds))
-                    emitNextQuestion(matchId, match.questionIds, answeredCount)
+                    emitNextQuestion(matchId, match.questions, answeredCount)
                 }
                 _events.emit(OnlineBattleEvent.ScoreUpdated(matchId, match.toScoreboard()))
                 if (match.status == BattleStatus.Ended.key) {
@@ -398,14 +425,39 @@ class FirebaseOnlineBattleRepository(
     /** Only the host writes this — both clients are listening to the same room doc, so
      * only one of them may act on "both ready" or the match doc gets written twice. */
     private suspend fun startMatch(roomCode: String, room: FirebaseRoomDoc, settings: OnlineMatchSettings) {
-        val guestId = room.guestId ?: return
+        val guestId = room.guestId ?: run {
+            log("startMatch: aborted, guestId is null")
+            return
+        }
         val questionIds = if (settings.difficulty == Difficulty.RANDOM) {
             repository.getQuestionIdsByTechnology(settings.technologyId)
         } else {
             repository.getQuestionIdsByTechnologyAndDifficulty(settings.technologyId, settings.difficulty)
         }.shuffled().take(MATCH_QUESTION_COUNT)
 
+        log("startMatch: technologyId=${settings.technologyId} difficulty=${settings.difficulty} questionIds.size=${questionIds.size}")
         if (questionIds.isEmpty()) {
+            log("startMatch: aborted, no questions available")
+            _events.emit(OnlineBattleEvent.Failure(FailureCode.SocketReceiveError, "No questions available for this technology"))
+            return
+        }
+        // Resolved from the HOST's own local database, once, here — the guest never
+        // needs to look anything up locally afterward. See FirebaseMatchDoc.questions.
+        val questions = questionIds.mapNotNull { id ->
+            val question = repository.getQuestionById(id) ?: return@mapNotNull null
+            val answers = repository.getAnswersByQuestionId(id)
+            FirebaseMatchQuestion(
+                questionId = id.toString(),
+                prompt = question.questionText,
+                difficulty = question.difficulty.name,
+                options = answers.map {
+                    FirebaseMatchAnswerOption(answerId = it.id.toString(), text = it.answerText, isCorrect = it.isCorrect)
+                }
+            )
+        }
+        log("startMatch: resolved questions.size=${questions.size}")
+        if (questions.isEmpty()) {
+            log("startMatch: aborted, resolved question content is empty")
             _events.emit(OnlineBattleEvent.Failure(FailureCode.SocketReceiveError, "No questions available for this technology"))
             return
         }
@@ -415,15 +467,17 @@ class FirebaseOnlineBattleRepository(
             guestId = guestId,
             startedAtEpochMillis = currentEpochMillis(),
             totalDurationSeconds = settings.timeControl.totalSeconds.takeIf { it > 0 },
-            questionIds = questionIds
+            questions = questions
         )
         runCatching {
             Firebase.database.reference("${FirebasePath.MATCHES}/${room.matchId}").setValue(matchDoc)
             Firebase.database.reference("${FirebasePath.ROOMS}/$roomCode").updateChildren(mapOf(RoomKey.STATUS to BattleStatus.InProgress.key))
         }.onFailure {
+            log("startMatch: write FAILED ${it::class.simpleName}: ${it.message}")
             _events.emit(OnlineBattleEvent.Failure(FailureCode.SocketReceiveError, it.message ?: "Failed to start match"))
             return
         }
+        log("startMatch: OK matchId=${room.matchId}, wrote match doc + room status=in_progress")
         _events.emit(OnlineBattleEvent.MatchStarting(room.matchId, currentEpochMillis(), countdownMillis = 0))
         // Deliberately doesn't call listenToMatch() itself — the room listener above
         // picks up this write's own "in_progress" status on its very next callback and
@@ -446,15 +500,16 @@ class FirebaseOnlineBattleRepository(
         }
     }
 
-    private suspend fun emitNextQuestion(matchId: String, questionIds: List<Long>, index: Int) {
-        val questionId = questionIds.getOrNull(index) ?: return
-        val question = repository.getQuestionById(questionId) ?: return
-        val answers = repository.getAnswersByQuestionId(questionId)
+    /** Built entirely from the already-synced [FirebaseMatchQuestion] — no local
+     * database lookup, so this works identically for host and guest. `isCorrect` is
+     * deliberately dropped before exposing [OnlineAnswerOption] to the caller. */
+    private suspend fun emitNextQuestion(matchId: String, questions: List<FirebaseMatchQuestion>, index: Int) {
+        val question = questions.getOrNull(index) ?: return
         val payload = OnlineQuestionPayload(
-            questionId = questionId.toString(),
-            prompt = question.questionText,
-            difficulty = question.difficulty,
-            options = answers.map { OnlineAnswerOption(answerId = it.id.toString(), text = it.answerText) }
+            questionId = question.questionId,
+            prompt = question.prompt,
+            difficulty = runCatching { Difficulty.valueOf(question.difficulty) }.getOrDefault(Difficulty.RANDOM),
+            options = question.options.map { OnlineAnswerOption(answerId = it.answerId, text = it.text) }
         )
         _events.emit(OnlineBattleEvent.QuestionPushed(matchId, index, payload))
     }
@@ -467,7 +522,7 @@ class FirebaseOnlineBattleRepository(
         current: FirebaseMatchDoc?,
         isHostFinished: Boolean
     ) {
-        val total = current?.questionIds?.size ?: return
+        val total = current?.questions?.size ?: return
         val opponentCount = if (isHostFinished) current.guestAnsweredCount else current.hostAnsweredCount
         if (opponentCount < total) return // opponent still playing — wait for their write to trigger this check
         val winnerPlayerId = when {
@@ -508,6 +563,14 @@ class FirebaseOnlineBattleRepository(
     private fun newId(prefix: String): String =
         "${prefix}_" + currentEpochMillis().toString(36) + Random.nextLong().toString(36)
 
+    // TEMPORARY diagnostic logging for the "stuck waiting" online-battle bug — remove
+    // once resolved. `println` rather than a logging library since none exists in this
+    // project yet; on Android it surfaces in logcat under tag "System.out", filterable
+    // with `adb logcat | grep FirebaseOnlineBattle`.
+    private fun log(message: String) {
+        println("[FirebaseOnlineBattle] $message")
+    }
+
     /** A cancelled job (e.g. [leaveRoom]/[disconnect], or [listenToRoom]/[listenToMatch]
      * replacing a still-running listener) throws [CancellationException] through this
      * `collect` — that's normal, cooperative cancellation, not a connection problem, so
@@ -522,12 +585,14 @@ class FirebaseOnlineBattleRepository(
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
+                    log("collectCatching: action FAILED ${e::class.simpleName}: ${e.message}")
                     _events.emit(OnlineBattleEvent.Failure(FailureCode.ProtocolDecodeError, e.message ?: "Listener error"))
                 }
             }
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
+            log("collectCatching: listener FAILED ${e::class.simpleName}: ${e.message}")
             _events.emit(OnlineBattleEvent.Failure(FailureCode.SocketReceiveError, e.message ?: "Listener closed"))
         }
     }

@@ -6,9 +6,11 @@ import com.elkrrai.techtalk.domain.model.battle.BattleProgression
 import com.elkrrai.techtalk.domain.model.battle.BattleStatus
 import com.elkrrai.techtalk.domain.model.online.OnlineBattleEvent
 import com.elkrrai.techtalk.domain.model.online.OnlineScoreBoard
+import com.elkrrai.techtalk.domain.model.online.ReconnectOnlineBattleRequest
 import com.elkrrai.techtalk.domain.model.online.SubmitOnlineAnswerRequest
 import com.elkrrai.techtalk.domain.repository.TechTalkRepository
 import com.elkrrai.techtalk.domain.usecase.online.ObserveOnlineBattleEventsUseCase
+import com.elkrrai.techtalk.domain.usecase.online.ReconnectOnlineBattleUseCase
 import com.elkrrai.techtalk.domain.usecase.online.SubmitOnlineAnswerUseCase
 import com.elkrrai.techtalk.presentation.battle.BattleResultRoute
 import com.elkrrai.techtalk.presentation.battle.OnlineBattleRoute
@@ -35,12 +37,23 @@ import kotlin.time.ExperimentalTime
  * arrives via nav args instead of being re-observed from the (non-replaying) events
  * SharedFlow, which used to be a real, if minor, race. Ignores everything once
  * [OnlineBattleUiState.isMatchEnded]; drops events whose matchId conflicts with the
- * active one. */
+ * active one.
+ *
+ * The FIRST [OnlineBattleEvent.QuestionPushed] doesn't get the same route-args
+ * treatment as `MatchStarted` — the transport (see `FirebaseOnlineBattleRepository`)
+ * emits it synchronously right after `MatchStarted`, well before this ViewModel exists
+ * to observe it (navigation + composition + construction all take real time), so on a
+ * non-replaying `SharedFlow` it's simply gone by the time [init] subscribes. [reconnect]
+ * is called here specifically to force a FRESH listener attachment once that
+ * subscription is active — a fresh Realtime Database listener always re-fires
+ * immediately with the current data, so it can't miss anything the way a passive
+ * subscribe can. */
 class OnlineBattleViewModel(
     private val route: OnlineBattleRoute,
     private val repository: TechTalkRepository,
     observeOnlineBattleEvents: ObserveOnlineBattleEventsUseCase,
-    private val submitOnlineAnswer: SubmitOnlineAnswerUseCase
+    private val submitOnlineAnswer: SubmitOnlineAnswerUseCase,
+    private val reconnect: ReconnectOnlineBattleUseCase
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(OnlineBattleUiState())
@@ -72,6 +85,14 @@ class OnlineBattleViewModel(
         startLocalCountdown(route.totalDurationSeconds, route.startedAtEpochMillis)
         viewModelScope.launch {
             observeOnlineBattleEvents().collect { event -> handleEvent(event) }
+        }
+        // Launched AFTER the collector above so its (already-registered-by-here)
+        // subscription is guaranteed active before this suspend call's network I/O
+        // completes and the fresh listener re-fires. playerToken is blank — nothing
+        // under anonymous auth issues or checks one; see FirebaseOnlineBattleRepository
+        // .reconnect()'s own doc comment.
+        viewModelScope.launch {
+            reconnect(ReconnectOnlineBattleRequest(matchId = route.matchId, playerId = route.currentPlayerId, playerToken = ""))
         }
     }
 

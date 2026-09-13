@@ -32,9 +32,19 @@ data class FirebaseRoomDoc(
 /**
  * Stored at `matches/{matchId}` — the WHOLE match (config + live score) lives in this
  * one node, read and written by both players, rather than split across several paths.
- * [questionIds] are looked up by each client against its OWN local content database
- * (same bundled pack on both devices) — nothing about question text or answer options
- * is ever written here, so delivering a question costs zero extra Firebase round-trips.
+ *
+ * [questions] carries the FULL resolved content (prompt + answer options, [Boolean]
+ * correctness included) rather than local database ids — an earlier version shipped
+ * just `questionIds: List<Long>` on the theory that "both players have the same bundled
+ * content pack, so a plain id is enough for each client to look the question up
+ * locally." That's false in practice: Room's `@PrimaryKey(autoGenerate = true)` ids are
+ * NOT guaranteed to line up across two independently-seeded on-device databases (a
+ * different install history, a different content-pack version at seed time, etc. all
+ * shift the sequence) — the guest's local id lookup silently returned nothing and no
+ * question ever appeared. Writing the resolved content once, from the host's own
+ * database, at match start makes both clients fully self-sufficient afterward: no
+ * further local-database dependency, and no possible id mismatch.
+ *
  * `answers/{playerId}/{questionId}` is written as a raw nested map by
  * [com.elkrrai.techtalk.data.remote.FirebaseOnlineBattleRepository.submitAnswer] for
  * audit purposes only — nothing reads it back, so it has no matching data class here.
@@ -46,7 +56,7 @@ data class FirebaseMatchDoc(
     val guestId: String = "",
     val startedAtEpochMillis: Long = 0,
     val totalDurationSeconds: Int? = null,
-    val questionIds: List<Long> = emptyList(),
+    val questions: List<FirebaseMatchQuestion> = emptyList(),
     val hostScore: Int = 0,
     val guestScore: Int = 0,
     val hostAnsweredCount: Int = 0,
@@ -54,6 +64,21 @@ data class FirebaseMatchDoc(
     val status: String = BattleStatus.InProgress.key,
     val winnerPlayerId: String? = null,
     val endReason: String? = null
+)
+
+@Serializable
+data class FirebaseMatchQuestion(
+    val questionId: String = "",
+    val prompt: String = "",
+    val difficulty: String = Difficulty.RANDOM.name,
+    val options: List<FirebaseMatchAnswerOption> = emptyList()
+)
+
+@Serializable
+data class FirebaseMatchAnswerOption(
+    val answerId: String = "",
+    val text: String = "",
+    val isCorrect: Boolean = false
 )
 
 enum class BattleStatus(val key: String) {
