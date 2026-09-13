@@ -24,17 +24,22 @@ fun BattleLobbyUiState.applyOnlineEvent(event: OnlineBattleEvent, currentPlayerI
             isBusy = false
         )
 
-        is OnlineBattleEvent.RoomJoined -> copy(
-            stage = OnlineMatchStage.WAITING_FOR_PLAYER,
-            roomCode = event.roomCode,
-            activeMatchId = event.matchId,
-            opponentName = resolveOpponentName(event.host, event.guest, currentPlayerId),
-            isBusy = false
-        )
+        is OnlineBattleEvent.RoomJoined -> {
+            val opponent = resolveOpponent(event.host, event.guest, currentPlayerId)
+            copy(
+                stage = OnlineMatchStage.WAITING_FOR_PLAYER,
+                roomCode = event.roomCode,
+                activeMatchId = event.matchId,
+                opponentName = opponent?.displayName,
+                opponentAvatarKey = opponent?.avatarKey,
+                isBusy = false
+            )
+        }
 
-        is OnlineBattleEvent.LobbyUpdated -> copy(
-            opponentName = resolveOpponentName(event.host, event.guest, currentPlayerId)
-        )
+        is OnlineBattleEvent.LobbyUpdated -> {
+            val opponent = resolveOpponent(event.host, event.guest, currentPlayerId)
+            copy(opponentName = opponent?.displayName, opponentAvatarKey = opponent?.avatarKey)
+        }
 
         is OnlineBattleEvent.ConnectionHealthChanged -> copy(
             connectionStatus = if (event.isHealthy) connectionStatus else OnlineConnectionStatus.RECONNECTING
@@ -69,5 +74,5 @@ fun BattleLobbyUiState.applyOnlineEvent(event: OnlineBattleEvent, currentPlayerI
 
 /** [currentPlayerId == host.playerId] means the local player is the host, so the
  * opponent is the guest — and vice versa. */
-private fun resolveOpponentName(host: OnlinePlayer, guest: OnlinePlayer?, currentPlayerId: String?): String? =
-    if (currentPlayerId == host.playerId) guest?.displayName else host.displayName
+private fun resolveOpponent(host: OnlinePlayer, guest: OnlinePlayer?, currentPlayerId: String?): OnlinePlayer? =
+    if (currentPlayerId == host.playerId) guest else host

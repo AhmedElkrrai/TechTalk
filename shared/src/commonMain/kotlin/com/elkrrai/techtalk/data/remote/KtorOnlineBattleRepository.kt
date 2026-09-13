@@ -72,6 +72,11 @@ class KtorOnlineBattleRepository(
     private var reconnectJob: Job? = null
 
     private var playerName: String = "Player"
+    // Not yet threaded into the wire protocol — OnlineClientCommandDto.Connect carries
+    // no avatar field, and there's no live server in this environment to extend it
+    // against. Stored for interface parity with FirebaseOnlineBattleRepository, which
+    // does use it (see connect()'s own note).
+    private var playerAvatarKey: String = ""
     private var currentMatchId: String? = null
     private var currentTimeControl: BattleTimeControl? = null
     private var lastPongAtEpochMillis: Long = currentEpochMillis()
@@ -82,8 +87,9 @@ class KtorOnlineBattleRepository(
     private val seenEventIds = ArrayDeque<String>()
     private val seenEventIdSet = mutableSetOf<String>()
 
-    override suspend fun connect(playerName: String) {
+    override suspend fun connect(playerName: String, avatarKey: String) {
         this.playerName = playerName
+        this.playerAvatarKey = avatarKey
         manuallyDisconnected = false
         reconnectJob?.cancel()
         reconnectJob = null

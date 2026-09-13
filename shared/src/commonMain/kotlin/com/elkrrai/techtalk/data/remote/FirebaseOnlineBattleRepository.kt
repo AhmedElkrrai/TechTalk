@@ -7,6 +7,7 @@ import com.elkrrai.techtalk.data.remote.firebase.FirebaseMatchQuestion
 import com.elkrrai.techtalk.data.remote.firebase.FirebaseRoomDoc
 import com.elkrrai.techtalk.data.utils.currentEpochMillis
 import com.elkrrai.techtalk.domain.model.common.Difficulty
+import com.elkrrai.techtalk.domain.model.common.getPoints
 import com.elkrrai.techtalk.domain.model.online.BattleTimeControl
 import com.elkrrai.techtalk.domain.model.online.FailureCode
 import com.elkrrai.techtalk.domain.model.online.JoinOnlineRoomRequest
@@ -61,6 +62,7 @@ private object RoomKey {
     const val MATCH_ID = "matchId"
     const val GUEST_ID = "guestId"
     const val GUEST_NAME = "guestName"
+    const val GUEST_AVATAR_KEY = "guestAvatarKey"
     const val HOST_READY = "hostReady"
     const val GUEST_READY = "guestReady"
     const val STATUS = "status"
@@ -122,6 +124,7 @@ class FirebaseOnlineBattleRepository(
 
     private var playerId: String? = null
     private var playerName: String = "Player"
+    private var playerAvatarKey: String = ""
     private var isHost: Boolean = false
 
     private var currentRoomCode: String? = null
@@ -131,8 +134,9 @@ class FirebaseOnlineBattleRepository(
     private var roomJob: Job? = null
     private var matchJob: Job? = null
 
-    override suspend fun connect(playerName: String) {
+    override suspend fun connect(playerName: String, avatarKey: String) {
         this.playerName = playerName
+        this.playerAvatarKey = avatarKey
         runCatching {
             Firebase.auth.currentUser?.uid ?: Firebase.auth.signInAnonymously().user?.uid
         }.onSuccess { uid ->
@@ -174,6 +178,7 @@ class FirebaseOnlineBattleRepository(
             matchId = matchId,
             hostId = uid,
             hostName = playerName,
+            hostAvatarKey = playerAvatarKey,
             technologyId = settings.technologyId,
             technologyName = settings.technologyName,
             difficulty = settings.difficulty.name,
@@ -213,7 +218,9 @@ class FirebaseOnlineBattleRepository(
         // currentMatchId intentionally left unset here too — see the comment in
         // createRoom().
         val failed = runCatching {
-            roomRef.updateChildren(mapOf(RoomKey.GUEST_ID to uid, RoomKey.GUEST_NAME to playerName))
+            roomRef.updateChildren(
+                mapOf(RoomKey.GUEST_ID to uid, RoomKey.GUEST_NAME to playerName, RoomKey.GUEST_AVATAR_KEY to playerAvatarKey)
+            )
         }.onFailure { log("joinRoom: updateChildren FAILED ${it::class.simpleName}: ${it.message}") }
             .isFailure
         if (failed) {
@@ -240,12 +247,14 @@ class FirebaseOnlineBattleRepository(
         // lookup — see FirebaseMatchDoc.questions' doc comment for why a local lookup
         // by id is unsafe here.
         val current = runCatching { matchRef.valueEvents.first().value<FirebaseMatchDoc>() }.getOrNull()
-        val correctAnswer = current?.questions
-            ?.firstOrNull { it.questionId == request.questionId }
-            ?.options
-            ?.firstOrNull { it.answerId == request.answerId }
+        val matchedQuestion = current?.questions?.firstOrNull { it.questionId == request.questionId }
+        val correctAnswer = matchedQuestion?.options?.firstOrNull { it.answerId == request.answerId }
         val isCorrect = correctAnswer?.isCorrect == true
-        val gainedPoints = if (isCorrect) 10 else 0
+        // Points scale with the question's own difficulty (Difficulty.getPoints():
+        // BEGINNER=1, INTERMEDIATE=3, ADVANCED=5) instead of a flat value, matching how
+        // offline battles already score.
+        val questionDifficulty = runCatching { Difficulty.valueOf(matchedQuestion?.difficulty ?: "") }.getOrDefault(Difficulty.RANDOM)
+        val gainedPoints = if (isCorrect) questionDifficulty.getPoints() else 0
         answeredCount += 1
 
         val scoreField = if (isHost) MatchKey.HOST_SCORE else MatchKey.GUEST_SCORE
@@ -305,7 +314,12 @@ class FirebaseOnlineBattleRepository(
                     Firebase.database.reference("${FirebasePath.ROOMS}/$roomCode").removeValue()
                 } else {
                     Firebase.database.reference("${FirebasePath.ROOMS}/$roomCode").updateChildren(
-                        mapOf(RoomKey.GUEST_ID to null, RoomKey.GUEST_NAME to null, RoomKey.GUEST_READY to false)
+                        mapOf(
+                            RoomKey.GUEST_ID to null,
+                            RoomKey.GUEST_NAME to null,
+                            RoomKey.GUEST_AVATAR_KEY to null,
+                            RoomKey.GUEST_READY to false
+                        )
                     )
                 }
             }
@@ -357,8 +371,8 @@ class FirebaseOnlineBattleRepository(
                     technologyId = room.technologyId,
                     technologyName = room.technologyName
                 )
-                val host = OnlinePlayer(room.hostId, room.hostName)
-                val guest = room.guestId?.let { OnlinePlayer(it, room.guestName.orEmpty()) }
+                val host = OnlinePlayer(room.hostId, room.hostName, room.hostAvatarKey)
+                val guest = room.guestId?.let { OnlinePlayer(it, room.guestName.orEmpty(), room.guestAvatarKey.orEmpty()) }
 
                 log(
                     "listenToRoom[$roomCode] isHost=$isHost hostId=${room.hostId} guestId=${room.guestId} " +

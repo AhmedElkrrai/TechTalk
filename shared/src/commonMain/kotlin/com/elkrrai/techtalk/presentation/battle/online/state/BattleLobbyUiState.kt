@@ -14,6 +14,7 @@ data class BattleLobbyUiState(
     // Leftover from a direct peer-to-peer design — never populated.
     val hostAddress: String? = null,
     val opponentName: String? = null,
+    val opponentAvatarKey: String? = null,
     val isBusy: Boolean = false,
     val errorMessage: String? = null
 )

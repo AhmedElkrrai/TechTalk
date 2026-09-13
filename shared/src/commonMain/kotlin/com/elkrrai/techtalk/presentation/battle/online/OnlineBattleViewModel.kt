@@ -78,6 +78,8 @@ class OnlineBattleViewModel(
             it.copy(
                 playerName = route.playerName,
                 playerAvatarKey = route.playerAvatarKey,
+                foeName = route.foeName,
+                foeAvatarKey = route.foeAvatarKey,
                 connectionStatus = OnlineConnectionStatus.CONNECTED,
                 matchId = route.matchId
             )
@@ -233,26 +235,26 @@ class OnlineBattleViewModel(
                 val elapsedSeconds = ((nowEpochMillis() - localStartedAtEpochMillis) / 1000).toInt()
                 val remaining = (totalDurationSeconds - elapsedSeconds).coerceAtLeast(0)
                 _state.update { it.copy(remainingTimeSeconds = remaining) }
-                if (remaining <= 0) return@launch
+                if (remaining <= 0) {
+                    finalizeToResult(playerScore = _state.value.playerScore, isResigned = false)
+                    return@launch
+                }
                 delay(1000)
             }
         }
     }
 
+    /** No separate Submit step — picking an answer submits it immediately. [hasAnswered]
+     * still guards against a second tap while the first submission is in flight (or
+     * after `AnswerResult` has already come back), same as before. */
     fun onAnswerSelected(answerId: Long) {
-        if (_state.value.hasAnswered) return
-        _state.update { it.copy(selectedAnswerId = answerId) }
-    }
-
-    fun onSubmitAnswer() {
         val current = _state.value
-        if (!current.canSubmitAnswer) return
+        if (current.hasAnswered || current.isSubmittingAnswer) return
         val matchId = current.matchId ?: return
         val questionId = current.currentQuestionId ?: return
-        val selectedId = current.selectedAnswerId ?: return
-        val originalAnswerId = answerIdByHash[selectedId] ?: return
+        val originalAnswerId = answerIdByHash[answerId] ?: return
 
-        _state.update { it.copy(isSubmittingAnswer = true) }
+        _state.update { it.copy(selectedAnswerId = answerId, isSubmittingAnswer = true) }
         viewModelScope.launch {
             submitOnlineAnswer(
                 SubmitOnlineAnswerRequest(

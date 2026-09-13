@@ -46,7 +46,12 @@ data class OnlineBattleRoute(
     val currentPlayerId: String,
     val matchId: String,
     val startedAtEpochMillis: Long,
-    val totalDurationSeconds: Int?
+    val totalDurationSeconds: Int?,
+    // Carried through nav args rather than re-derived from the lobby's own event
+    // stream, same reasoning as everything else here: BattleLobbyViewModel already
+    // knows the opponent's name/avatar by the time it builds this route.
+    val foeName: String = "",
+    val foeAvatarKey: String = ""
 )
 
 @Serializable

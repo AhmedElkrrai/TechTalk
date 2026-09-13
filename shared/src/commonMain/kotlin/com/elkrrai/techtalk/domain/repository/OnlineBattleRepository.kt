@@ -18,7 +18,7 @@ import kotlinx.coroutines.flow.Flow
 interface OnlineBattleRepository {
     val events: Flow<OnlineBattleEvent>
 
-    suspend fun connect(playerName: String)
+    suspend fun connect(playerName: String, avatarKey: String)
     suspend fun disconnect()
     suspend fun createRoom(settings: OnlineMatchSettings)
     suspend fun joinRoom(request: JoinOnlineRoomRequest)

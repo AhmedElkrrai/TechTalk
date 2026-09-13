@@ -20,6 +20,7 @@ data class OnlineBattleUiState(
     val playerName: String = "",
     val playerAvatarKey: String = AvatarCatalog.defaultAvatarKey,
     val foeName: String = "",
+    val foeAvatarKey: String = "",
     val playerScore: Int = 0,
     val foeScore: Int = 0,
     val connectionStatus: OnlineConnectionStatus = OnlineConnectionStatus.DISCONNECTED,
@@ -30,7 +31,4 @@ data class OnlineBattleUiState(
 ) {
     val progress: Float get() = currentQuestionIndex.toFloat() / totalQuestions.toFloat()
     val isLastQuestion: Boolean get() = currentQuestionIndex >= totalQuestions - 1
-    val canSubmitAnswer: Boolean
-        get() = selectedAnswerId != null && !hasAnswered && !isSubmittingAnswer &&
-            connectionStatus == OnlineConnectionStatus.CONNECTED
 }

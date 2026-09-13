@@ -16,7 +16,8 @@ enum class BattleTimeControl(val totalSeconds: Int) {
 
 data class OnlinePlayer(
     val playerId: String,
-    val displayName: String
+    val displayName: String,
+    val avatarKey: String = ""
 )
 
 data class OnlineScoreBoard(

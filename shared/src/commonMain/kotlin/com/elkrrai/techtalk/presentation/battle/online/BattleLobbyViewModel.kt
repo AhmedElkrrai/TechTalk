@@ -79,7 +79,9 @@ class BattleLobbyViewModel(
                         currentPlayerId = playerId,
                         matchId = event.matchId,
                         startedAtEpochMillis = event.startedAtEpochMillis,
-                        totalDurationSeconds = event.totalDurationSeconds
+                        totalDurationSeconds = event.totalDurationSeconds,
+                        foeName = _state.value.opponentName.orEmpty(),
+                        foeAvatarKey = _state.value.opponentAvatarKey.orEmpty()
                     )
                 )
             }
@@ -117,7 +119,7 @@ class BattleLobbyViewModel(
             else -> {
                 val playerName = route.playerName.ifBlank { "Player" }
                 _state.update { it.copy(connectionStatus = OnlineConnectionStatus.CONNECTING) }
-                connect(playerName)
+                connect(playerName, route.playerAvatarKey)
             }
         }
     }

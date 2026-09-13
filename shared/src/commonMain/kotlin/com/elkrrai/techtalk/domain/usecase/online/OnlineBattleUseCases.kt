@@ -23,7 +23,7 @@ class ObserveOnlineBattleEventsUseCase(private val repository: OnlineBattleRepos
 }
 
 class ConnectOnlineBattleUseCase(private val repository: OnlineBattleRepository) {
-    suspend operator fun invoke(playerName: String) = repository.connect(playerName)
+    suspend operator fun invoke(playerName: String, avatarKey: String) = repository.connect(playerName, avatarKey)
 }
 
 class DisconnectOnlineBattleUseCase(private val repository: OnlineBattleRepository) {
