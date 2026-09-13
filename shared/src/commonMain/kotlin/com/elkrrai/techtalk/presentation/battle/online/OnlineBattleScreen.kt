@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -24,7 +26,11 @@ import com.elkrrai.techtalk.presentation.component.BattlePlayerChip
 fun OnlineBattleScreen(viewModel: OnlineBattleViewModel, modifier: Modifier = Modifier) {
     val state by viewModel.state.collectAsState()
 
-    Column(modifier = modifier.fillMaxSize()) {
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+    ) {
         BattleTopBar(title = "Online battle", onResign = viewModel::onResign)
 
         Row(

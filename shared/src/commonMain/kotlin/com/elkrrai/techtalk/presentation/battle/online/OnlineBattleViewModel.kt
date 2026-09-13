@@ -82,7 +82,7 @@ class OnlineBattleViewModel(
                 matchId = route.matchId
             )
         }
-        startLocalCountdown(route.totalDurationSeconds, route.startedAtEpochMillis)
+        startLocalCountdown(route.totalDurationSeconds)
         viewModelScope.launch {
             observeOnlineBattleEvents().collect { event -> handleEvent(event) }
         }
@@ -110,8 +110,8 @@ class OnlineBattleViewModel(
 
             is OnlineBattleEvent.ScoreUpdated -> withScoreBoard(event.scoreboard)
 
-            // Explicitly ignored — the countdown is local, re-derived from
-            // startedAtEpochMillis rather than trusting server ticks.
+            // Explicitly ignored — the countdown is entirely local (see
+            // startLocalCountdown's doc comment), not derived from server ticks at all.
             is OnlineBattleEvent.TimerTick -> Unit
 
             is OnlineBattleEvent.OpponentConnectionChanged -> _state.update {
@@ -214,16 +214,23 @@ class OnlineBattleViewModel(
         _state.update { it.copy(playerScore = playerScore, foeScore = foeScore) }
     }
 
-    @OptIn(ExperimentalTime::class)
-    private fun startLocalCountdown(totalDurationSeconds: Int?, startedAtEpochMillis: Long) {
+    /** Anchored to THIS device's own clock at the moment it starts counting down, not to
+     * [route]'s `startedAtEpochMillis` (the HOST's device clock at match-start) — comparing
+     * `nowEpochMillis()` against a timestamp from a DIFFERENT physical device assumes the
+     * two devices' clocks agree, which real devices frequently don't (a two-minute gap
+     * between two test devices was enough to make a 60-second countdown read 0:00 on the
+     * guest from the very first frame). Each side's countdown can now only ever drift by
+     * genuine network/composition latency (milliseconds), never by clock skew. */
+    private fun startLocalCountdown(totalDurationSeconds: Int?) {
         countdownJob?.cancel()
         if (totalDurationSeconds == null) {
             _state.update { it.copy(remainingTimeSeconds = null) }
             return
         }
+        val localStartedAtEpochMillis = nowEpochMillis()
         countdownJob = viewModelScope.launch {
             while (true) {
-                val elapsedSeconds = ((nowEpochMillis() - startedAtEpochMillis) / 1000).toInt()
+                val elapsedSeconds = ((nowEpochMillis() - localStartedAtEpochMillis) / 1000).toInt()
                 val remaining = (totalDurationSeconds - elapsedSeconds).coerceAtLeast(0)
                 _state.update { it.copy(remainingTimeSeconds = remaining) }
                 if (remaining <= 0) return@launch
