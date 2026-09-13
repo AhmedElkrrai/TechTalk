@@ -106,7 +106,14 @@ class OnlineBattleViewModel(
             is OnlineBattleEvent.QuestionPushed -> handleQuestionPushed(event)
 
             is OnlineBattleEvent.AnswerResult -> {
-                _state.update { it.copy(hasAnswered = true, isSubmittingAnswer = false) }
+                _state.update {
+                    val justFinishedLastQuestion = it.currentQuestionIndex >= it.totalQuestions - 1
+                    it.copy(
+                        hasAnswered = true,
+                        isSubmittingAnswer = false,
+                        currentQuestionIndex = if (justFinishedLastQuestion) it.totalQuestions else it.currentQuestionIndex
+                    )
+                }
                 withScoreBoard(event.scoreboard)
             }
 
