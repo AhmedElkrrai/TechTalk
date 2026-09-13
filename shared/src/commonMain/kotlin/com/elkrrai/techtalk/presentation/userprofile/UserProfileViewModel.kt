@@ -51,9 +51,17 @@ class UserProfileViewModel(private val repository: TechTalkRepository) : ViewMod
         _state.update { it.copy(name = name) }
     }
 
+    /** Flushes any typed-but-unsaved name first — otherwise `updateUserAvatar` re-reads
+     * the profile row (still carrying the last *persisted* name, not what's in the name
+     * field right now), re-upserts it unchanged, and `observeUserProfile()`'s re-emission
+     * overwrites the field with that stale value. Selecting an avatar before ever
+     * blurring the name field used to blank the name out this way. */
     fun onAvatarSelected(avatarKey: String) {
         if (avatarKey == _state.value.selectedAvatarKey) return
-        viewModelScope.launch { repository.updateUserAvatar(avatarKey) }
+        viewModelScope.launch {
+            persistPendingNameIfNeeded()
+            repository.updateUserAvatar(avatarKey)
+        }
     }
 
     fun onMessageShown() {
@@ -61,8 +69,12 @@ class UserProfileViewModel(private val repository: TechTalkRepository) : ViewMod
     }
 
     fun saveName() {
+        viewModelScope.launch { persistPendingNameIfNeeded() }
+    }
+
+    private suspend fun persistPendingNameIfNeeded() {
         val trimmed = pendingName.trim()
         if (trimmed.isBlank()) return
-        viewModelScope.launch { repository.updateUserName(trimmed) }
+        repository.updateUserName(trimmed)
     }
 }

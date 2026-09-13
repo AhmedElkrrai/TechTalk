@@ -52,7 +52,16 @@ fun BattleLobbyUiState.applyOnlineEvent(event: OnlineBattleEvent, currentPlayerI
 
         is OnlineBattleEvent.Failure -> copy(
             errorMessage = mapOnlineFailureToUserMessage(event.code),
-            isBusy = false
+            isBusy = false,
+            // A failed connect attempt must not leave connectionStatus stuck at
+            // CONNECTING — that would both hide the error behind a permanent "loading"
+            // stage and block any retry, since ensureConnected() treats CONNECTING as
+            // "someone else is already handling this, just wait for it".
+            connectionStatus = if (connectionStatus == OnlineConnectionStatus.CONNECTING) {
+                OnlineConnectionStatus.DISCONNECTED
+            } else {
+                connectionStatus
+            }
         )
 
         else -> this

@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -91,22 +92,40 @@ class BattleLobbyViewModel(
 
     fun onRoleSelected(role: OnlineMatchRole) {
         _state.update { it.copy(selectedRole = role) }
-        ensureConnected()
+        viewModelScope.launch { ensureConnected() }
     }
 
-    /** Connects only when currently disconnected — player name falls back to
-     * `"Player"` when blank. */
-    private fun ensureConnected() {
-        if (_state.value.connectionStatus != OnlineConnectionStatus.DISCONNECTED) return
-        val playerName = route.playerName.ifBlank { "Player" }
-        _state.update { it.copy(connectionStatus = OnlineConnectionStatus.CONNECTING) }
-        viewModelScope.launch { connect(playerName) }
+    /**
+     * Connects only when currently disconnected, player name falling back to
+     * `"Player"` when blank — and **awaits** the connection rather than firing it as a
+     * detached coroutine. This must run to completion before any command that needs a
+     * `playerId` (createRoom/joinRoom) — calling those from a separate `launch{}` racing
+     * against this one is exactly what used to produce "Not connected to the server" on
+     * a fresh app start, since `createRoom`/`joinRoom` could reach the repository before
+     * `connect()`'s anonymous sign-in had actually finished.
+     *
+     * When another caller is already connecting (e.g. [onRoleSelected] fired first on
+     * the same tap that also calls [onCreateRoom]/[onJoinRoom]), this waits for that
+     * attempt to resolve instead of starting a second concurrent sign-in.
+     */
+    private suspend fun ensureConnected() {
+        when (_state.value.connectionStatus) {
+            OnlineConnectionStatus.CONNECTED -> Unit
+            OnlineConnectionStatus.CONNECTING -> {
+                state.first { it.connectionStatus != OnlineConnectionStatus.CONNECTING || it.errorMessage != null }
+            }
+            else -> {
+                val playerName = route.playerName.ifBlank { "Player" }
+                _state.update { it.copy(connectionStatus = OnlineConnectionStatus.CONNECTING) }
+                connect(playerName)
+            }
+        }
     }
 
     fun onCreateRoom() {
-        ensureConnected()
         _state.update { it.copy(stage = OnlineMatchStage.CREATING_ROOM, isBusy = true) }
         viewModelScope.launch {
+            ensureConnected()
             createRoom(
                 OnlineMatchSettings(
                     timeControl = route.timeControl,
@@ -131,9 +150,11 @@ class BattleLobbyViewModel(
             _state.update { it.copy(errorMessage = "Enter the 6-character room code") }
             return
         }
-        ensureConnected()
         _state.update { it.copy(stage = OnlineMatchStage.JOINING_ROOM, isBusy = true) }
-        viewModelScope.launch { joinRoom(JoinOnlineRoomRequest(input)) }
+        viewModelScope.launch {
+            ensureConnected()
+            joinRoom(JoinOnlineRoomRequest(input))
+        }
     }
 
     /** Calls [disconnect] directly, not a `LeaveOnlineRoom` use case — matches the
