@@ -134,6 +134,11 @@ class FirebaseOnlineBattleRepository(
     private var roomJob: Job? = null
     private var matchJob: Job? = null
 
+    // Emit MatchStarted at most once per matchId for this process's lifetime, no matter
+    // how many times listenToMatch gets re-attached for it — see listenToMatch's own
+    // comment for why re-attachment (by design) must still happen repeatedly.
+    private val announcedMatchIds = mutableSetOf<String>()
+
     override suspend fun connect(playerName: String, avatarKey: String) {
         this.playerName = playerName
         this.playerAvatarKey = avatarKey
@@ -416,7 +421,11 @@ class FirebaseOnlineBattleRepository(
                 log("listenToMatch[$matchId]: status=${match.status} questionCount=${match.questions.size}")
                 if (!announcedStart) {
                     announcedStart = true
-                    _events.emit(OnlineBattleEvent.MatchStarted(matchId, match.startedAtEpochMillis, match.totalDurationSeconds))
+                    if (announcedMatchIds.add(matchId)) {
+                        _events.emit(OnlineBattleEvent.MatchStarted(matchId, match.startedAtEpochMillis, match.totalDurationSeconds))
+                    } else {
+                        log("listenToMatch[$matchId]: MatchStarted already announced, skipping re-emit")
+                    }
                     emitNextQuestion(matchId, match.questions, answeredCount)
                 }
                 _events.emit(OnlineBattleEvent.ScoreUpdated(matchId, match.toScoreboard()))
