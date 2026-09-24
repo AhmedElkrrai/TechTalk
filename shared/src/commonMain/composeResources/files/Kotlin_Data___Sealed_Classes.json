@@ -10,7 +10,7 @@
             "tips": [
                 {
                     "title": "data class — instant value objects",
-                    "content": "Data classes auto-generate equals(), hashCode(), toString(), copy(),\nand destructuring functions from the properties in the primary constructor.\n\nPerfect for models, DTOs, and state holders — any class whose identity\nis defined by its data rather than a unique reference.\n\nUse 'copy()' to create modified copies without mutating the original.\nThis is the foundation of immutable state management in Kotlin.",
+                    "content": "Data classes auto-generate equals(), hashCode(), toString(), copy(),\nand destructuring functions from the properties in the primary constructor.\n\nPerfect for models, DTOs, and state holders — any class whose identity\nis defined by its data rather than a unique reference.\n\nOnly properties declared in the primary constructor take part in the\ngenerated equals(), hashCode(), toString() and copy(); properties declared in\nthe class body are ignored, which is a common source of confusion.\n\nUse 'copy()' to create modified copies without mutating the original.\nThis is the foundation of immutable state management in Kotlin.",
                     "codeSnippet": "data class User(val name: String, val age: Int)\n\nval alice = User(\"Alice\", 30)\nval aliceCopy = alice.copy(age = 31)\n\nprintln(alice)         // User(name=Alice, age=30)\nprintln(alice == aliceCopy)  // false — different age\n\n// Destructuring\nval (name, age) = alice\nprintln(\"$name is $age\")  // Alice is 30",
                     "codeLang": "Kotlin",
                     "difficulty": "BEGINNER"

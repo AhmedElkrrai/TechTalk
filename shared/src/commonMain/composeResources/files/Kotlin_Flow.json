@@ -28,6 +28,90 @@
                     "codeSnippet": "// Search with debounce + flatMapLatest\nsearchQuery\n    .debounce(300)           // wait 300ms after typing stops\n    .filter { it.length > 2 } // ignore short queries\n    .flatMapLatest { query ->\n        repository.search(query) // cancel previous search\n    }\n    .collect { results -> _state.update { it.copy(results = results) } }\n\n// Combine multiple flows\ncombine(userFlow, settingsFlow) { user, settings ->\n    UiState(user = user, darkMode = settings.darkMode)\n}.collect { state -> _uiState.value = state }",
                     "codeLang": "Kotlin",
                     "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Use a suspend function for one value and a Flow for values over time",
+                    "content": "A suspend function returns a single result and then it is done: loading a profile, saving a form. A Flow represents a sequence of values that arrive over time: database changes, location updates, search results as the user types.\n\nChoosing the wrong one causes awkward code. Returning a Flow for a one-shot call forces callers to collect it and then cancel it, and polling a suspend function in a loop reinvents what a Flow already gives you. A Room query that returns Flow<List<T>> is a good example: it emits again whenever the data changes.",
+                    "codeSnippet": "interface ProfileRepository {\n    suspend fun loadProfile(id: String): Profile      // one value, then done\n\n    fun observeProfile(id: String): Flow<Profile>     // a new value on every change\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "Operators are lazy; a terminal operator starts the flow",
+                    "content": "Intermediate operators like map, filter, take and onEach only describe a pipeline — nothing runs until a terminal operator is called. collect is the general one; first(), single(), toList() and reduce() collect and return a result. first() also cancels the upstream flow as soon as it has its value.\n\nlaunchIn(scope) is a terminal operator that collects in a new coroutine and returns its Job, which is convenient in a ViewModel or a Fragment when you have several flows to observe and use onEach for the work.",
+                    "codeSnippet": "val source = flowOf(1, 2, 3, 4, 5)\n\nval doubled = source.map { it * 2 }      // nothing has run yet\nval firstBig = doubled.first { it > 4 }  // 6, and the flow is cancelled after it\nval all = doubled.toList()               // [2, 4, 6, 8, 10]\n\n// Collect in a new coroutine without a nested launch\ndoubled\n    .onEach { render(it) }\n    .launchIn(viewModelScope)",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "flowOn changes where upstream runs, never where the collector runs",
+                    "content": "A flow runs in the coroutine that collects it. To move expensive upstream work (disk, parsing) to another dispatcher, apply flowOn: it changes the context for everything above it, and the collector still runs in its own context. This is called context preservation, and it means a collector on the main thread can safely update the UI.\n\nDon't call withContext inside flow { } to emit from another dispatcher — the flow throws an IllegalStateException because emissions must come from the collector's context. flowOn (or channelFlow) is the supported way.",
+                    "codeSnippet": "fun observeReports(): Flow<Report> = flow {\n    while (true) {\n        emit(parseReport(readFile()))   // runs on Dispatchers.IO (because of flowOn below)\n        delay(5_000)\n    }\n}.flowOn(Dispatchers.IO)                // affects only the code above this line\n\nviewModelScope.launch {                 // collector stays on Main\n    observeReports().collect { show(it) }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "buffer, conflate and collectLatest for a slow collector",
+                    "content": "By default a flow is sequential: the producer emits the next value only after the collector finishes the previous one, so a slow collector slows the whole pipeline. Three tools change that.\n\nbuffer() lets the producer keep emitting into a buffer while the collector works. conflate() also runs concurrently but drops intermediate values, so the collector only sees the latest. collectLatest cancels the previous collector block when a new value arrives, which suits work whose result is obsolete as soon as new data comes in, such as rendering a search result.",
+                    "codeSnippet": "flow { repeat(5) { emit(it); delay(100) } }\n    .buffer()                        // producer no longer waits for the collector\n    .collect { delay(300); println(it) }\n\nflow { repeat(5) { emit(it); delay(100) } }\n    .conflate()                      // slow collector skips values, sees the latest\n    .collect { delay(300); println(it) }\n\nqueryFlow.collectLatest { query -> showResults(search(query)) } // previous search is cancelled",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "catch handles upstream errors only, and onCompletion always runs",
+                    "content": "The catch operator handles exceptions thrown by the flow above it. It does not catch an exception thrown in the collector (the collect block) or below it, which is called exception transparency: a flow must not hide errors that originate downstream.\n\nInside catch you can emit a fallback value or rethrow. onCompletion runs when the flow finishes normally, with an error, or when it is cancelled; its cause parameter tells you which. It is the right place to hide a loading indicator.",
+                    "codeSnippet": "repository.observeOrders()\n    .map { OrdersUi.Content(it) as OrdersUi }\n    .onStart { emit(OrdersUi.Loading) }\n    .catch { e -> emit(OrdersUi.Error(e.message)) }   // upstream errors only\n    .onCompletion { cause -> log(\"finished, cause = $cause\") }\n    .collect { render(it) }                           // errors in here are NOT caught above",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "retry and retryWhen re-collect a failed flow",
+                    "content": "retry(n) { predicate } re-runs the upstream flow from the start when it fails with an exception that matches the predicate, up to n times. retryWhen gives you the cause and the attempt number so you can wait between attempts, for example with exponential backoff.\n\nRetry only errors that are worth retrying (a network IOException, not a parsing error), and remember that a retry re-collects the whole upstream, so any side effects in it run again. Never retry a CancellationException — it means the collector is gone.",
+                    "codeSnippet": "api.liveUpdates()\n    .retryWhen { cause, attempt ->\n        if (cause is IOException && attempt < 3) {\n            delay(1_000L shl attempt.toInt())   // 1s, 2s, 4s\n            true                                // retry\n        } else {\n            false                               // give up: the error reaches catch/collect\n        }\n    }\n    .catch { showOfflineBanner() }\n    .collect { render(it) }",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "zip, combine and merge combine flows in different ways",
+                    "content": "zip pairs the nth value of one flow with the nth value of the other and completes as soon as either flow completes, so it is for values that belong together. combine emits whenever any input emits (once every input has emitted at least once), using the latest value of each, which suits UI state built from several sources. merge interleaves values of the same type from several flows into one, with no pairing.\n\nPick by the question you are asking: \"these belong together\" (zip), \"the latest of each\" (combine), \"all events from any of them\" (merge).",
+                    "codeSnippet": "val temperature = flowOf(20, 21, 22)\nval label = flowOf(\"mon\", \"tue\")\n\ntemperature.zip(label) { t, l -> \"$l: $t\" }        // \"mon: 20\", \"tue: 21\" then completes\n\ncombine(userFlow, settingsFlow) { user, settings ->\n    UiState(user, settings.darkMode)               // latest user + latest settings\n}\n\nmerge(clicks, keyPresses)                          // every event from either source",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "flatMapConcat, flatMapMerge and flatMapLatest differ in concurrency",
+                    "content": "All three turn each upstream value into an inner flow and flatten the results, but they treat overlapping inner flows differently. flatMapConcat runs them one at a time, in order. flatMapMerge runs them concurrently (up to a limit, 16 by default) and emits in whichever order values arrive. flatMapLatest cancels the previous inner flow as soon as a new upstream value arrives.\n\nUse flatMapLatest for search-as-you-type where old results are useless, flatMapConcat when order matters and each step depends on the last, and flatMapMerge to fan out independent work. Some of these operators require an opt-in annotation depending on the coroutines version.",
+                    "codeSnippet": "queries\n    .debounce(300)\n    .flatMapLatest { q -> repository.search(q) }        // cancels the stale search\n\nids.flatMapConcat { id -> repository.load(id) }          // strictly one after another\nids.flatMapMerge(concurrency = 4) { id -> repository.load(id) } // up to 4 at once",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Wrap callback APIs with callbackFlow, and always call awaitClose",
+                    "content": "callbackFlow turns a listener-based API into a Flow. Register the listener inside the block, send values with trySend, and finish with awaitClose { } to unregister. awaitClose suspends until the collector cancels or the channel closes; without it the block would end immediately and the flow would fail with an IllegalStateException.\n\nAnything you register must be removed inside awaitClose, or the listener leaks after the collector is gone. trySend never suspends, so add buffer() or conflate() downstream if the source can produce faster than the collector consumes.",
+                    "codeSnippet": "fun SensorApi.readings(): Flow<Reading> = callbackFlow {\n    val callback = object : SensorCallback {\n        override fun onReading(reading: Reading) { trySend(reading) }\n        override fun onError(error: Throwable) { close(error) }\n    }\n    register(callback)\n    awaitClose { unregister(callback) }   // required: cleanup on cancellation\n}.conflate()",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "channelFlow lets several coroutines emit into one flow",
+                    "content": "A flow { } builder is sequential: you can only emit from the coroutine running the block, and emitting from another coroutine throws. channelFlow is backed by a channel, so you can launch child coroutines inside it and call send from each one, which makes it the right builder for concurrent producers.\n\nUse it to run several requests in parallel and stream results as each one finishes, instead of waiting for all of them. The flow completes when the block and all of its children are done.",
+                    "codeSnippet": "fun searchAll(queries: List<String>): Flow<SearchResult> = channelFlow {\n    queries.forEach { query ->\n        launch {                                    // runs concurrently\n            send(api.search(query))                 // send is safe from any child\n        }\n    }\n} // completes after every child has finished",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "stateIn and shareIn turn a cold flow into a hot one",
+                    "content": "A cold flow restarts for every collector, so two screens observing the same database query run it twice. stateIn converts it into a StateFlow (with an initial value) and shareIn into a SharedFlow, both running the upstream once in a scope you provide and sharing the result.\n\nThe SharingStarted policy decides when the upstream runs. WhileSubscribed(5_000) is the common choice for UI state: it stops the upstream 5 seconds after the last collector leaves, long enough to survive a configuration change without restarting, and short enough not to keep working in the background.",
+                    "codeSnippet": "class OrdersViewModel(repository: OrderRepository) : ViewModel() {\n    val uiState: StateFlow<OrdersUi> = repository.observeOrders()\n        .map { OrdersUi.Content(it) as OrdersUi }\n        .stateIn(\n            scope = viewModelScope,\n            started = SharingStarted.WhileSubscribed(5_000),\n            initialValue = OrdersUi.Loading\n        )\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Deliver one-shot UI events with a Channel, not a SharedFlow",
+                    "content": "One-shot events (show a snackbar, navigate) must be handled exactly once. A MutableSharedFlow with the default replay = 0 drops an event that is emitted while nobody is collecting — for instance during a configuration change or before the screen starts collecting. A StateFlow holding the event is worse: it replays it again after rotation.\n\nA Channel exposed with receiveAsFlow buffers events until a collector is ready and delivers each one to a single collector. Use Channel.BUFFERED so send doesn't suspend, and collect it in the UI only while it is visible.",
+                    "codeSnippet": "class SaveViewModel : ViewModel() {\n    private val _events = Channel<UiEvent>(Channel.BUFFERED)\n    val events: Flow<UiEvent> = _events.receiveAsFlow()\n\n    fun onSave() {\n        viewModelScope.launch {\n            repository.save()\n            _events.send(UiEvent.Saved)      // held until the screen collects it\n        }\n    }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
                 }
             ]
         }

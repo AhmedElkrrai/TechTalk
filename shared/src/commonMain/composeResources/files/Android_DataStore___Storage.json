@@ -1,0 +1,77 @@
+{
+    "version": 1,
+    "author": "TechTalk",
+    "description": "Android — DataStore & Storage",
+    "entries": [
+        {
+            "technologyName": "Android",
+            "topicName": "DataStore & Storage",
+            "topicDescription": "Persisting preferences and files safely: DataStore, app-specific storage, scoped storage, and backups.",
+            "tips": [
+                {
+                    "title": "Prefer DataStore over SharedPreferences for new code",
+                    "content": "DataStore stores small pieces of data asynchronously with coroutines and Flow. Reads come back as a Flow that re-emits when the data changes, and writes happen in a transaction on a background dispatcher — so it can't block the main thread the way SharedPreferences can (for example when it flushes to disk in the middle of a lifecycle callback).\n\nPreferences DataStore holds key-value pairs, similar to SharedPreferences but with a safe API. It does not encrypt anything: for secrets, protect the values with a Keystore-backed key as well.",
+                    "codeSnippet": "val Context.settingsStore by preferencesDataStore(name = \"settings\")\n\nprivate val DARK_MODE = booleanPreferencesKey(\"dark_mode\")\n\nfun darkModeFlow(context: Context): Flow<Boolean> =\n    context.settingsStore.data.map { prefs -> prefs[DARK_MODE] ?: false }\n\nsuspend fun setDarkMode(context: Context, enabled: Boolean) {\n    context.settingsStore.edit { prefs -> prefs[DARK_MODE] = enabled }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "Create exactly one DataStore instance per file",
+                    "content": "DataStore assumes it is the only writer of its file in the process. Creating a second instance for the same file makes it throw an IllegalStateException (\"There are multiple DataStores active for the same file\") as soon as both are active.\n\nDeclare the property delegate once at the top level of a Kotlin file (the delegate keeps a single instance per Context), or provide the instance from your DI container as a singleton. Never build a DataStore inside a function that can run more than once.",
+                    "codeSnippet": "// Wrong: every call creates another DataStore for the same file\nfun settings(context: Context) =\n    PreferenceDataStoreFactory.create { context.preferencesDataStoreFile(\"settings\") }\n\n// Right: one top-level delegate (or one DI singleton)\nval Context.settingsStore by preferencesDataStore(name = \"settings\")",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Migrate from SharedPreferences with SharedPreferencesMigration",
+                    "content": "Moving an existing app to DataStore doesn't have to lose saved settings. Pass a SharedPreferencesMigration when you create the DataStore: before the first read or write, DataStore copies the old values across and then cleans up the migrated keys from SharedPreferences.\n\nThe migration runs once and is safe to keep in the code across releases; after every user has migrated it simply does nothing.",
+                    "codeSnippet": "val Context.settingsStore by preferencesDataStore(\n    name = \"settings\",\n    produceMigrations = { context ->\n        listOf(SharedPreferencesMigration(context, \"legacy_prefs\"))\n    }\n)",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Handle read errors, and rely on edit being atomic",
+                    "content": "DataStore reports problems reading the file as an IOException on the data Flow. Catch it and fall back to defaults so one bad read doesn't crash collectors, and rethrow anything else.\n\nWrites are transactional: everything you change inside one edit block is applied together or not at all. Group related changes in a single edit rather than several separate ones, so readers never observe a half-updated state.",
+                    "codeSnippet": "val settings: Flow<Preferences> = context.settingsStore.data\n    .catch { e ->\n        if (e is IOException) emit(emptyPreferences()) else throw e\n    }\n\nsuspend fun saveSession(token: String, userId: String) {\n    context.settingsStore.edit { prefs ->\n        prefs[TOKEN] = token    // both keys change together\n        prefs[USER_ID] = userId\n    }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Proto DataStore stores typed objects instead of loose keys",
+                    "content": "Preferences DataStore is untyped: keys and types are only checked by convention. Typed DataStore persists a whole object through a Serializer you provide, giving you a real schema with defaults. It works with Protocol Buffers, or with kotlinx.serialization as below.\n\nThrow CorruptionException when the stored bytes can't be read so DataStore can apply your corruption handler instead of crashing, and remember that the object is immutable — update it with updateData and copy().",
+                    "codeSnippet": "@Serializable\ndata class UserSettings(val theme: String = \"system\", val notifications: Boolean = true)\n\nobject UserSettingsSerializer : Serializer<UserSettings> {\n    override val defaultValue = UserSettings()\n\n    override suspend fun readFrom(input: InputStream): UserSettings = try {\n        Json.decodeFromString(UserSettings.serializer(), input.readBytes().decodeToString())\n    } catch (e: SerializationException) {\n        throw CorruptionException(\"Cannot read settings\", e)\n    }\n\n    override suspend fun writeTo(t: UserSettings, output: OutputStream) {\n        output.write(Json.encodeToString(UserSettings.serializer(), t).encodeToByteArray())\n    }\n}\n\nval Context.userSettings by dataStore(\"user_settings.json\", UserSettingsSerializer)\n\nsuspend fun setTheme(context: Context, theme: String) =\n    context.userSettings.updateData { it.copy(theme = theme) }",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Know which storage directory fits the data",
+                    "content": "Each app has private directories that need no permission. filesDir holds durable private files and is included in backups; cacheDir holds data you can rebuild, and the system may delete it when storage runs low; noBackupFilesDir is private and excluded from backups; getExternalFilesDir() is app-specific space on shared storage that other apps can technically read, and it is removed when the app is uninstalled.\n\nPick by what happens if the data disappears: rebuildable data goes in cacheDir, must-keep private data in filesDir, and device-specific or secret data in noBackupFilesDir.",
+                    "codeSnippet": "val documents = File(context.filesDir, \"documents\")      // durable + backed up\nval thumbnails = File(context.cacheDir, \"thumbnails\")    // may be cleared by the system\nval deviceKey = File(context.noBackupFilesDir, \"key\")    // private, never backed up\nval exports = context.getExternalFilesDir(\"exports\")     // app-specific on shared storage",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "Use the Photo Picker instead of broad media permissions",
+                    "content": "Scoped storage (enforced from Android 11) stops apps from freely browsing shared storage. To let users pick photos or videos you don't need any storage permission at all: the system Photo Picker returns a content URI for just the items the user selects.\n\nReading all of a user's media with READ_MEDIA_IMAGES / READ_MEDIA_VIDEO (Android 13+) is only justified for gallery-style apps; for \"attach a photo\" flows, the picker is simpler and safer, and it is backported to older devices through Google Play services.",
+                    "codeSnippet": "val pickMedia = registerForActivityResult(\n    ActivityResultContracts.PickVisualMedia()\n) { uri: Uri? ->\n    uri?.let { showImage(it) } // temporary read access to just this item\n}\n\npickMedia.launch(\n    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)\n)",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Let the user choose files with the Storage Access Framework",
+                    "content": "For documents, exports, and backups, the Storage Access Framework lets the user pick or create a file anywhere (device storage or cloud providers) and hands your app a URI, again with no storage permission. Use CreateDocument to save and OpenDocument to read.\n\nAccess to a picked URI ends when your process dies unless you call takePersistableUriPermission; do that if you need to reopen the same file later, and store the URI string.",
+                    "codeSnippet": "val createBackup = registerForActivityResult(\n    ActivityResultContracts.CreateDocument(\"application/json\")\n) { uri: Uri? ->\n    uri?.let { context.contentResolver.openOutputStream(it)?.use { out -> out.write(json) } }\n}\ncreateBackup.launch(\"backup.json\")\n\nval openBackup = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->\n    uri?.let {\n        context.contentResolver.takePersistableUriPermission(\n            it, Intent.FLAG_GRANT_READ_URI_PERMISSION\n        )\n    }\n}\nopenBackup.launch(arrayOf(\"application/json\"))",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Exclude device-bound data from backups",
+                    "content": "Auto Backup copies an app's files, databases and SharedPreferences to the user's cloud backup and restores them on a new device by default. Data that is tied to the device, like tokens or files encrypted with a Keystore key, is useless after a restore because Keystore keys are not backed up, and code that tries to decrypt it will fail.\n\nOn Android 12+ declare rules in a data-extraction-rules file (separate sections for cloud backup and device-to-device transfer) via android:dataExtractionRules, and keep android:fullBackupContent for Android 11 and lower.",
+                    "codeSnippet": "<!-- AndroidManifest.xml -->\n<application\n    android:dataExtractionRules=\"@xml/data_extraction_rules\"\n    android:fullBackupContent=\"@xml/backup_rules\" />\n\n<!-- res/xml/data_extraction_rules.xml -->\n<data-extraction-rules>\n    <cloud-backup>\n        <exclude domain=\"sharedpref\" path=\"secure_prefs.xml\" />\n        <exclude domain=\"database\" path=\"session_cache.db\" />\n    </cloud-backup>\n    <device-transfer>\n        <exclude domain=\"sharedpref\" path=\"secure_prefs.xml\" />\n    </device-transfer>\n</data-extraction-rules>",
+                    "codeLang": "XML",
+                    "difficulty": "ADVANCED"
+                }
+            ]
+        }
+    ]
+}

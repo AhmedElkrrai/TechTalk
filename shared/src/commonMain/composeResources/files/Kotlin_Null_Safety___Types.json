@@ -37,13 +37,6 @@
                     "difficulty": "INTERMEDIATE"
                 },
                 {
-                    "title": "Elvis operator with return/throw for early-exit null handling",
-                    "content": "Chaining multiple ?.let blocks to handle a nullable value gets hard to read\nfast, especially when you need to bail out of the function on null.\n\nCombine ?: with return or throw directly at the point of null-checking —\nthis reads top-to-bottom like a guard clause and keeps the rest of the\nfunction body working with a guaranteed non-null value.",
-                    "codeSnippet": "fun processOrder(order: Order?) {\n    val validOrder = order ?: return\n    val firstItem = validOrder.items.firstOrNull()\n        ?: throw IllegalStateException(\"Order has no items\")\n    // rest of function works with non-null values\n}",
-                    "codeLang": "Kotlin",
-                    "difficulty": "BEGINNER"
-                },
-                {
                     "title": "The platform type gap when calling Java from Kotlin",
                     "content": "Java has no concept of nullability annotations Kotlin can always trust, so\nvalues returned from Java code show up as platform types (String! rather\nthan String or String?) — Kotlin lets you treat them as either, which\ndefeats the compiler's null-safety guarantees at that boundary.\n\nWrap Java API calls in an explicit null check or a Kotlin-native adapter\nlayer as soon as they cross into your Kotlin code, so a NullPointerException\nfrom unannotated Java code doesn't surface deep inside otherwise-safe\nKotlin logic.",
                     "codeSnippet": "// javaLibrary.getValue() returns a platform type String!\nval raw: String? = javaLibrary.getValue() // explicitly nullable at the boundary\nval safe: String = raw ?: \"default\"",
@@ -72,13 +65,6 @@
                     "difficulty": "ADVANCED"
                 },
                 {
-                    "title": "Safe call operator (?.)",
-                    "content": "The safe call operator ?. lets you access properties or call methods \non a nullable reference. If the object is null, the entire expression \nreturns null instead of throwing a NullPointerException.\n\nYou can chain multiple safe calls together. \nIf any part in the chain is null, the whole chain short-circuits to null.\n\nThis replaces verbose if-null checks from Java.",
-                    "codeSnippet": "val city: String? = user?.address?.city\n\n// Equivalent Java code:\n// String city = null;\n// if (user != null) {\n//     Address addr = user.getAddress();\n//     if (addr != null) {\n//         city = addr.getCity();\n//     }\n// }",
-                    "codeLang": "Kotlin",
-                    "difficulty": "BEGINNER"
-                },
-                {
                     "title": "Elvis operator (?:)",
                     "content": "The Elvis operator ?: provides a default value when an expression is null.\nThe name comes from the emoticon — tilt your head left and ?: looks like Elvis' hair.\n\nIt's perfect for fallback values and early returns.\nYou can even use 'return' or 'throw' on the right side \nto exit a function when something is null.",
                     "codeSnippet": "// Default value\nval name = user?.name ?: \"Anonymous\"\n\n// Early return\nfun process(data: Data?) {\n    val validated = data ?: return\n    // 'validated' is smart-cast to non-null Data here\n    save(validated)\n}\n\n// Throw on null\nval config = loadConfig() ?: throw IllegalStateException(\"No config\")",
@@ -100,23 +86,9 @@
                     "difficulty": "ADVANCED"
                 },
                 {
-                    "title": "Combine as? with the Elvis operator for a safe-cast-with-default idiom",
-                    "content": "Using `as` for an unchecked cast throws a ClassCastException immediately\nif the value isn't actually the target type — risky when a value's exact\ntype isn't guaranteed, such as after JSON deserialization into a\nheterogeneous structure.\n\n`as?` returns null instead of throwing on a failed cast, and chaining it\nwith `?:` gives you a one-line safe-cast-with-fallback idiom, avoiding a\nseparate `is` check followed by a smart cast.",
-                    "codeSnippet": "val config: Map<String, Any> = loadConfig()\nval timeout = (config[\"timeout\"] as? Int) ?: 30_000 // safe cast, default on mismatch or absence",
-                    "codeLang": "Kotlin",
-                    "difficulty": "ADVANCED"
-                },
-                {
                     "title": "::isInitialized checks a lateinit property without triggering the exception",
                     "content": "Accessing an uninitialized lateinit property throws\nUninitializedPropertyAccessException — but sometimes you genuinely need\nto check whether it's been set yet without risking that exception, such\nas in a cleanup path that may run before setup completes.\n\nThe reflective `this::property.isInitialized` check (available since\nKotlin 1.2 for properties in the same scope) returns a Boolean safely,\nletting you branch on initialization state without a try/catch.",
                     "codeSnippet": "class MyFragment : Fragment() {\n    private lateinit var binding: FragmentBinding\n\n    override fun onDestroyView() {\n        if (::binding.isInitialized) binding.recyclerView.adapter = null\n    }\n}",
-                    "codeLang": "Kotlin",
-                    "difficulty": "ADVANCED"
-                },
-                {
-                    "title": "Extension functions can be defined on nullable receivers",
-                    "content": "A regular extension function like `fun String.isValid()` can only be\ncalled on a non-null String — calling it on a String? forces a safe call\nor a null check first, spreading null-handling logic across every call\nsite.\n\nDefining the extension on the nullable type directly (`fun String?.isValid()\n`) lets the function itself decide how to handle a null receiver\ninternally, centralizing that null-handling logic in one place instead of\nrepeating it at every call site.",
-                    "codeSnippet": "fun String?.isValidToken(): Boolean = this != null && this.length >= 20\n\nval token: String? = getToken()\nif (token.isValidToken()) { /* no separate null check needed at the call site */ }",
                     "codeLang": "Kotlin",
                     "difficulty": "ADVANCED"
                 },

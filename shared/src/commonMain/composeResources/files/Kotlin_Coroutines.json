@@ -94,7 +94,7 @@
                 },
                 {
                     "title": "SupervisorJob isolates failures in sibling coroutines",
-                    "content": "A regular Job cancels all siblings when one child fails. SupervisorJob\nchanges that — a failure in one child does not cancel the others.\n\nThis is commonly used at the root of a ViewModel's CoroutineScope so\none failed background task doesn't tear down unrelated ongoing work.\n\nNote that supervisorScope only isolates failures one level down — if you\nnest a regular coroutineScope inside, normal cancellation propagation resumes\nwithin that nested scope.",
+                    "content": "A regular Job cancels all siblings when one child fails. SupervisorJob\nchanges that — a failure in one child does not cancel the others.\n\nThis is commonly used at the root of a ViewModel's CoroutineScope so\none failed background task doesn't tear down unrelated ongoing work.\nviewModelScope already uses a SupervisorJob internally, but a scope you\ncreate yourself needs one explicitly.\n\nNote that supervisorScope only isolates failures one level down — if you\nnest a regular coroutineScope inside, normal cancellation propagation resumes\nwithin that nested scope.",
                     "codeSnippet": "class MyViewModel : ViewModel() {\n    private val supervisor = SupervisorJob()\n    private val scope = CoroutineScope(Dispatchers.Main.immediate + supervisor)\n\n    fun loadEverything() {\n        scope.launch { loadProfile() }   // failure here...\n        scope.launch { loadStats() }     // ...won't cancel this\n    }\n\n    override fun onCleared() { scope.cancel() } // a hand-made scope must be cancelled\n}",
                     "codeLang": "Kotlin",
                     "difficulty": "INTERMEDIATE"
@@ -114,9 +114,51 @@
                     "difficulty": "INTERMEDIATE"
                 },
                 {
-                    "title": "SupervisorJob prevents cascading failure",
-                    "content": "With a regular Job, if one child coroutine fails, all siblings are cancelled too.\nSupervisorJob changes this: each child fails independently.\n\nThis is critical for UI work. If one network request fails, \nyou don't want it to cancel other unrelated requests in the same scope.\n\nviewModelScope already uses SupervisorJob internally, \nbut if you create custom scopes, remember to use it.",
-                    "codeSnippet": "// Regular Job — one failure cancels everything\nval scope = CoroutineScope(Job())\n\n// SupervisorJob — failures are isolated\nval scope = CoroutineScope(SupervisorJob())\n\nscope.launch { fetchUser() }    // if this fails...\nscope.launch { fetchPosts() }   // ...this keeps running ✅",
+                    "title": "A coroutine is a lightweight task, not a thread",
+                    "content": "A coroutine is a unit of work that can suspend and resume. It runs on threads owned by a dispatcher, but it is not tied to one: while it is suspended (for example in delay or a network call) its thread is free to run other coroutines. That is why you can start tens of thousands of coroutines where the same number of threads would exhaust memory.\n\nSuspending is cooperative: a coroutine only gives up its thread at a suspension point. A long loop with no suspend calls keeps the thread busy however many coroutines you have.",
+                    "codeSnippet": "fun main() = runBlocking {\n    repeat(100_000) {\n        launch {\n            delay(1_000)     // suspends: the thread is free meanwhile\n            counter.incrementAndGet()\n        }\n    }\n} // finishes in about a second, not 100,000 seconds",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "runBlocking blocks the calling thread — keep it out of app code",
+                    "content": "runBlocking starts a coroutine and blocks the current thread until it finishes. That is exactly what suspend functions are meant to avoid, so it belongs only at the very top of a program, in main(), and in simple tests.\n\nCalling it on Android's main thread freezes the UI and can cause an ANR; calling it from inside a coroutine can deadlock a dispatcher with limited threads. If you find yourself wrapping a suspend call in runBlocking to use it from non-suspending code, launch a coroutine in the right scope instead.",
+                    "codeSnippet": "// Fine: the entry point of a program, or a test\nfun main() = runBlocking { println(fetchGreeting()) }\n\n// Wrong in an app: blocks the main thread until the network call returns\nfun onClick() {\n    val user = runBlocking { api.loadUser() }\n}\n\n// Right: start a coroutine and update state when it finishes\nfun onClick() {\n    viewModelScope.launch { _state.value = api.loadUser() }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "Make suspend functions main-safe",
+                    "content": "A main-safe function can be called from the main thread without blocking it. The convention is that the function that does the blocking work chooses its own dispatcher with withContext, instead of expecting every caller to do it.\n\nThat keeps dispatcher decisions in one place (the repository or data source), makes ViewModels simple and testable, and removes a class of bugs where a caller forgets to switch threads. Inject the dispatcher so tests can replace it.",
+                    "codeSnippet": "class ArticleRepository(\n    private val api: ArticleApi,\n    private val io: CoroutineDispatcher = Dispatchers.IO\n) {\n    // Main-safe: callers never need to think about threads\n    suspend fun load(id: String): Article = withContext(io) {\n        api.fetchBlocking(id)\n    }\n}\n\nviewModelScope.launch { _state.value = repository.load(\"42\") } // called from Main",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "launch returns a Job you can join or cancel",
+                    "content": "launch starts a coroutine and immediately returns a Job, a handle to it. join() suspends until the coroutine finishes, cancel() asks it to stop, and isActive, isCompleted and isCancelled tell you its state. A Job goes from Active to Completed, or via Cancelling to Cancelled.\n\nKeep the Job when you may need to cancel the work later (for instance the previous search when a new query arrives), and remember that cancellation is cooperative: the coroutine stops at its next suspension point.",
+                    "codeSnippet": "var searchJob: Job? = null\n\nfun onQueryChanged(query: String) {\n    searchJob?.cancel()                         // drop the stale request\n    searchJob = viewModelScope.launch {\n        delay(300)                              // debounce\n        _results.value = repository.search(query)\n    }\n}\n\nval job = launch { doWork() }\njob.join()                                       // wait for it to finish",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "async can start lazily with CoroutineStart.LAZY",
+                    "content": "By default async starts running immediately. With start = CoroutineStart.LAZY it only starts when you call start() or await(), which lets you create the Deferred up front and decide later whether the work is needed.\n\nNote that lazy async still runs sequentially if you await the first one before creating or awaiting the second. To run lazy Deferreds in parallel, call start() on all of them first, then await.",
+                    "codeSnippet": "coroutineScope {\n    val profile = async(start = CoroutineStart.LAZY) { api.profile() }\n    val orders = async(start = CoroutineStart.LAZY) { api.orders() }\n\n    if (needsData) {\n        profile.start()           // begin both together...\n        orders.start()\n        show(profile.await(), orders.await())   // ...then wait\n    }\n    // if needsData is false, neither request is ever made\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Dispatchers.Main.immediate avoids a needless re-dispatch",
+                    "content": "Dispatchers.Main always posts the coroutine to the main thread's queue, even when you are already on it, so the code runs slightly later. Dispatchers.Main.immediate runs the coroutine right away when the current thread is already the main thread, and otherwise dispatches as normal.\n\nThat is why viewModelScope uses Main.immediate: state set at the start of a launch block is applied synchronously, without a frame of stale UI. Prefer it over Main when you have a choice on the UI thread.",
+                    "codeSnippet": "fun refresh() {\n    viewModelScope.launch {                    // Dispatchers.Main.immediate\n        _state.value = UiState.Loading         // applied immediately, before returning\n        _state.value = UiState.Content(repository.load())\n    }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "limitedParallelism caps how many coroutines run at once on a dispatcher",
+                    "content": "dispatcher.limitedParallelism(n) returns a view of a dispatcher that never runs more than n coroutines at the same time, while sharing the underlying threads. It is a light way to limit concurrency without creating another thread pool.\n\nlimitedParallelism(1) gives you serialized execution, which makes access to a shared piece of state safe without a lock — as long as the state is only touched from coroutines using that view. For blocking I/O, limitedParallelism on Dispatchers.IO can also go above 64 threads when you truly need it.",
+                    "codeSnippet": "// At most 2 uploads at any moment, without a new thread pool\nprivate val uploadDispatcher = Dispatchers.IO.limitedParallelism(2)\n\nsuspend fun upload(files: List<File>) = coroutineScope {\n    files.forEach { file -> launch(uploadDispatcher) { api.upload(file) } }\n}\n\n// Serialized access to shared state\nprivate val stateDispatcher = Dispatchers.Default.limitedParallelism(1)\nsuspend fun add(item: Item) = withContext(stateDispatcher) { items.add(item) }",
                     "codeLang": "Kotlin",
                     "difficulty": "ADVANCED"
                 }

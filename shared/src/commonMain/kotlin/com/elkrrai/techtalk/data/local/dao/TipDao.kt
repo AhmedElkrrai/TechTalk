@@ -76,6 +76,10 @@ interface TipDao {
     @Query("SELECT * FROM tips WHERE topicId = :topicId AND title = :title LIMIT 1")
     suspend fun getByTopicIdAndTitle(topicId: Long, title: String): TipEntity?
 
+    /** Content-sync removal of a bundled tip merged into another. History rows cascade. */
+    @Query("DELETE FROM tips WHERE topicId = :topicId AND title = :title")
+    suspend fun deleteByTopicIdAndTitle(topicId: Long, title: String)
+
     /** Keeps the row (and so its seen/interested history) when a bundled tip is retitled. */
     @Query("UPDATE tips SET title = :newTitle WHERE topicId = :topicId AND title = :oldTitle")
     suspend fun renameTip(topicId: Long, oldTitle: String, newTitle: String)

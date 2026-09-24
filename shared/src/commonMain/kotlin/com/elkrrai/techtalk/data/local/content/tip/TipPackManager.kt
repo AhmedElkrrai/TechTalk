@@ -104,7 +104,11 @@ class TipPackManager(
      * are retitled first so a reworded bundled tip updates instead of duplicating.
      * Never deletes, so tips the user imported into the same topic are safe.
      */
-    suspend fun sync(pack: TipPack, renames: List<SeedManifest.ContentRename>): ImportResult {
+    suspend fun sync(
+        pack: TipPack,
+        renames: List<SeedManifest.ContentRename>,
+        removals: List<SeedManifest.ContentRemoval> = emptyList()
+    ): ImportResult {
         var topicsCreated = 0
         var topicsMatched = 0
         var tipsSynced = 0
@@ -143,6 +147,12 @@ class TipPackManager(
                     }
                 }
 
+            // Only tips named in the explicit removal list are ever deleted, so tips the
+            // user imported into the same topic are safe.
+            removals
+                .filter { it.technology == entry.technologyName && it.topic == entry.topicName }
+                .forEach { tipDao.deleteByTopicIdAndTitle(topicId, it.title) }
+
             for (tip in entry.tips) {
                 val difficulty = runCatching { Difficulty.valueOf(tip.difficulty) }
                     .getOrDefault(Difficulty.BEGINNER)
@@ -174,8 +184,11 @@ class TipPackManager(
         )
     }
 
-    suspend fun syncFromJson(jsonContent: String, renames: List<SeedManifest.ContentRename>): ImportResult =
-        sync(parse(jsonContent), renames)
+    suspend fun syncFromJson(
+        jsonContent: String,
+        renames: List<SeedManifest.ContentRename>,
+        removals: List<SeedManifest.ContentRemoval> = emptyList()
+    ): ImportResult = sync(parse(jsonContent), renames, removals)
 
     /** Resolves tip -> topic -> technology, groups by (technologyName, topicName). */
     suspend fun exportFromDatabase(

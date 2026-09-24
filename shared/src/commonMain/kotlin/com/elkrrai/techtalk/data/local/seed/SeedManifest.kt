@@ -13,7 +13,7 @@ object SeedManifest {
      * installs that already seeded their database pick the changes up (see
      * [DatabaseSeeder.seedOrSync]). Installs that never stored a version count as 1.
      */
-    const val contentVersion: Int = 2
+    const val contentVersion: Int = 3
 
     /** A bundled tip retitled (or question reworded) since the content shipped earlier.
      * Sync renames the existing row first so its user history survives instead of the
@@ -81,6 +81,32 @@ object SeedManifest {
         )
     )
 
+    /** A bundled tip deleted because it duplicated another (its useful content was folded
+     * into the tip that stays). Sync deletes exactly these rows, never anything else, so
+     * tips the user imported into the same topic are safe. Keep entries here forever. */
+    data class ContentRemoval(val technology: String, val topic: String, val title: String)
+
+    val removedTips: List<ContentRemoval> = listOf(
+        ContentRemoval("Kotlin", "Coroutines", "SupervisorJob prevents cascading failure"),
+        ContentRemoval("Kotlin", "Delegation", "lazy — compute once, use forever"),
+        ContentRemoval("Kotlin", "Delegation", "observable & vetoable delegates"),
+        ContentRemoval("Kotlin", "Delegation", "Interface delegation with 'by'"),
+        ContentRemoval("Kotlin", "Null Safety & Types", "Safe call operator (?.)"),
+        ContentRemoval("Kotlin", "Null Safety & Types", "Elvis operator with return/throw for early-exit null handling"),
+        ContentRemoval("Kotlin", "Null Safety & Types", "Combine as? with the Elvis operator for a safe-cast-with-default idiom"),
+        ContentRemoval("Kotlin", "Null Safety & Types", "Extension functions can be defined on nullable receivers"),
+        ContentRemoval("Kotlin", "Fundamentals", "data class auto-generates equals, hashCode, toString, and copy"),
+        ContentRemoval("Kotlin", "Fundamentals", "@DslMarker prevents accidental access to an outer DSL receiver"),
+        ContentRemoval("Kotlin", "Fundamentals", "Lambdas with receiver are the foundation of Kotlin DSLs"),
+        ContentRemoval("Kotlin", "Fundamentals", "Extension properties add computed members without a backing field"),
+        ContentRemoval("Kotlin", "Fundamentals", "Reified type parameters let you inspect T at runtime"),
+        ContentRemoval("Kotlin", "Generics", "Self-referential generics enable type-safe fluent builder chains"),
+        ContentRemoval("Kotlin", "Generics", "Multiple bounds via a where clause combine several constraints"),
+        ContentRemoval("Kotlin", "Generics", "out and in mirror producer/consumer roles, not just direction"),
+        ContentRemoval("Kotlin", "Generics", "Generic classes let one implementation work across many types"),
+        ContentRemoval("Kotlin", "Collections", "Sequence for large collections")
+    )
+
     val tipPackFileNames: List<String> = listOf(
         // Android
         "Android_Activity_Lifecycle.json",
@@ -130,8 +156,10 @@ object SeedManifest {
         "Kotlin_Flow.json",
         "Kotlin_Fundamentals.json",
         "Kotlin_Generics.json",
+        "Kotlin_Multiplatform.json",
         "Kotlin_Null_Safety___Types.json",
         "Kotlin_Scope_Functions.json",
+        "Kotlin_Structured_Concurrency___Errors.json",
         // Swift
         "Swift_Closures.json",
         "Swift_Enums___Pattern_Matching.json",

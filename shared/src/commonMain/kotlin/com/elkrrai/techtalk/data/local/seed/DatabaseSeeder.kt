@@ -55,7 +55,11 @@ class DatabaseSeeder(
         for (fileName in SeedManifest.tipPackFileNames) {
             runCatching {
                 val bytes = Res.readBytes("files/$fileName")
-                tipPackManager.syncFromJson(bytes.decodeToString(), SeedManifest.renamedTips)
+                tipPackManager.syncFromJson(
+                    bytes.decodeToString(),
+                    SeedManifest.renamedTips,
+                    SeedManifest.removedTips
+                )
             }.onFailure {
                 allApplied = false
                 inspect("DatabaseSeeder: failed to sync tip pack '$fileName': ${it.message}")

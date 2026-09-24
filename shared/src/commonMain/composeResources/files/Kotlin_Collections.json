@@ -154,13 +154,6 @@
                     "codeSnippet": "data class Student(val name: String, val grade: String)\n\nval students = listOf(\n    Student(\"Alice\", \"A\"),\n    Student(\"Bob\", \"B\"),\n    Student(\"Carol\", \"A\"),\n)\n\nval byGrade = students.groupBy { it.grade }\n// { \"A\" -> [Alice, Carol], \"B\" -> [Bob] }\n\n// Count per grade\nval counts = students.groupingBy { it.grade }.eachCount()\n// { \"A\" -> 2, \"B\" -> 1 }",
                     "codeLang": "Kotlin",
                     "difficulty": "INTERMEDIATE"
-                },
-                {
-                    "title": "Sequence for large collections",
-                    "content": "Regular collection operations (map, filter) create intermediate lists at each step.\nFor large collections, this wastes memory.\n\nSequences process elements lazily — one at a time, through all operations, \nwithout creating intermediate collections.\n\nUse .asSequence() when chaining multiple operations on large lists. \nFor small collections (< 100 elements), regular lists are faster due to less overhead.",
-                    "codeSnippet": "// Eager — creates 2 intermediate lists\nval result = hugeList\n    .map { it.name }        // new list\n    .filter { it.length > 3 } // another new list\n    .first()\n\n// Lazy — processes one element at a time, stops early\nval result = hugeList.asSequence()\n    .map { it.name }\n    .filter { it.length > 3 }\n    .first()  // stops as soon as one match is found",
-                    "codeLang": "Kotlin",
-                    "difficulty": "ADVANCED"
                 }
             ]
         }

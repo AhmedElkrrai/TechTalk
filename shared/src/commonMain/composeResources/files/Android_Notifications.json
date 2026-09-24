@@ -1,0 +1,77 @@
+{
+    "version": 1,
+    "author": "TechTalk",
+    "description": "Android — Notifications",
+    "entries": [
+        {
+            "technologyName": "Android",
+            "topicName": "Notifications",
+            "topicDescription": "Posting, channeling, and permissioning notifications on modern Android.",
+            "tips": [
+                {
+                    "title": "Every notification needs a channel on Android 8+",
+                    "content": "Since Android 8.0 (API 26), a notification must be posted to a NotificationChannel; a notification with no valid channel is not shown at all. Channels group notifications by purpose (messages, promotions, sync status) so users can silence one category without turning off everything your app sends.\n\nCreate your channels once at startup, for example in Application.onCreate. Creating a channel that already exists is a harmless no-op, and the channel ID is the stable string you pass to NotificationCompat.Builder every time you post.",
+                    "codeSnippet": "fun createChannels(context: Context) {\n    // Needed only when minSdk < 26; on API 26+ channels always exist\n    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return\n\n    val messages = NotificationChannel(\n        \"messages\",                        // stable ID used when posting\n        \"Messages\",                        // name shown in system settings\n        NotificationManager.IMPORTANCE_HIGH\n    ).apply { description = \"New chat messages\" }\n\n    context.getSystemService(NotificationManager::class.java)\n        .createNotificationChannel(messages)\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "Once created, a channel's behavior belongs to the user",
+                    "content": "After you create a notification channel, your app can no longer change its importance, sound, or vibration through code — the user has full control from then on. Calling createNotificationChannel again with different settings is ignored; only the channel's name and description can still be updated.\n\nIf you genuinely need different behavior, ship a new channel ID. Deleting a channel and re-creating it with the same ID does not reset it: Android restores the deleted channel with its previous settings. Note that system settings also show how many channels an app has deleted, so avoid churning channel IDs.\n\nChoose importance and sound carefully the first time, because you can't take it back.",
+                    "codeSnippet": "// v1 shipped with a loud default the user later muted\n// nm.createNotificationChannel(NotificationChannel(\"promos\", \"Promotions\", IMPORTANCE_HIGH))\n\n// Changing behavior needs a NEW id; retire the old channel\nnm.deleteNotificationChannel(\"promos\")\nnm.createNotificationChannel(\n    NotificationChannel(\"promos_v2\", \"Promotions\", NotificationManager.IMPORTANCE_LOW)\n)",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "POST_NOTIFICATIONS is a runtime permission on Android 13+",
+                    "content": "On Android 13 (API 33) and above, apps must hold the POST_NOTIFICATIONS runtime permission to show notifications. Apps that target API 33 or higher must declare it in the manifest and request it; for an app that targets a lower API level, the system shows the prompt itself the first time a channel is created.\n\nAsk in context, right before the feature that needs notifications, and explain the value first. Check NotificationManagerCompat.areNotificationsEnabled() to see the current state (it also returns false when the user turned notifications off in settings). If the user denies twice, the system stops showing the dialog and you have to link to the app's notification settings instead.",
+                    "codeSnippet": "// AndroidManifest.xml:\n// <uses-permission android:name=\"android.permission.POST_NOTIFICATIONS\" />\n\nval launcher = rememberLauncherForActivityResult(\n    ActivityResultContracts.RequestPermission()\n) { granted -> if (!granted) showNotificationsOffHint() }\n\nif (Build.VERSION.SDK_INT >= 33 &&\n    !NotificationManagerCompat.from(context).areNotificationsEnabled()\n) {\n    launcher.launch(Manifest.permission.POST_NOTIFICATIONS)\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "Match channel importance to how urgent the content really is",
+                    "content": "Importance decides how intrusive a notification is: IMPORTANCE_HIGH makes a sound and pops up as a heads-up notification, DEFAULT makes a sound, LOW is silent but shows in the shade, and MIN is silent and collapsed. NONE blocks the channel.\n\nMarking everything HIGH trains users to disable your notifications entirely. Reserve HIGH for time-sensitive, person-to-person content such as a message or a call, use DEFAULT for things worth a sound, and LOW for background status like sync progress or a finished download.",
+                    "codeSnippet": "NotificationChannel(\"messages\", \"Messages\", NotificationManager.IMPORTANCE_HIGH)        // heads-up + sound\nNotificationChannel(\"reminders\", \"Reminders\", NotificationManager.IMPORTANCE_DEFAULT)   // sound, no pop-up\nNotificationChannel(\"sync\", \"Sync status\", NotificationManager.IMPORTANCE_LOW)          // silent",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Build a real back stack for notification taps with TaskStackBuilder",
+                    "content": "A notification that deep-links into a screen should behave like the user navigated there: pressing Back should lead to the parent screen, not out of the app. TaskStackBuilder builds that synthetic back stack from the parent activities declared in your manifest.\n\nUse PendingIntent.FLAG_IMMUTABLE (required to be explicit on Android 12+), and give each PendingIntent a unique request code; with FLAG_UPDATE_CURRENT and a shared code, a second notification silently overwrites the extras of the first.",
+                    "codeSnippet": "val tapIntent = TaskStackBuilder.create(context).run {\n    // needs android:parentActivityName on ChatActivity in the manifest\n    addNextIntentWithParentStack(\n        Intent(context, ChatActivity::class.java).putExtra(\"chatId\", chatId)\n    )\n    getPendingIntent(\n        chatId.hashCode(), // unique per chat\n        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE\n    )\n}\n\nval notification = NotificationCompat.Builder(context, \"messages\")\n    .setContentIntent(tapIntent)\n    .setAutoCancel(true)\n    .build()",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Post with a stable ID to update in place, and cancel what is obsolete",
+                    "content": "NotificationManagerCompat.notify(id, notification) creates the notification the first time and replaces it on later calls with the same ID — the right way to show progress or a changing state without piling up new entries.\n\nPick IDs deliberately: one constant per ongoing thing (a download, a call) or a per-conversation ID. Cancel notifications as soon as they are no longer true, for example when the user opens the chat, so the shade doesn't fill up with stale items.",
+                    "codeSnippet": "val manager = NotificationManagerCompat.from(context)\n\n// Same ID: the notification updates in place instead of stacking\nmanager.notify(DOWNLOAD_ID, builder.setProgress(100, 40, false).build())\nmanager.notify(DOWNLOAD_ID, builder.setProgress(100, 80, false).build())\n\n// Done or no longer relevant\nmanager.cancel(DOWNLOAD_ID)",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "Inline reply needs a mutable PendingIntent",
+                    "content": "Notification actions can carry a RemoteInput so the user replies without opening the app. The system fills the typed text into the intent behind the action's PendingIntent, so that PendingIntent must be created with FLAG_MUTABLE — an immutable one would drop the reply text. This is the standard case where mutability is intentional, and the intent should be explicit (with a component set) to stay safe.\n\nAfter handling the reply, update the same notification (same ID) to clear the reply spinner, otherwise it keeps showing indefinitely.",
+                    "codeSnippet": "val remoteInput = RemoteInput.Builder(\"key_reply\").setLabel(\"Reply\").build()\n\nval replyPending = PendingIntent.getBroadcast(\n    context, chatId.hashCode(),\n    Intent(context, ReplyReceiver::class.java), // explicit component\n    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE\n)\n\nval replyAction = NotificationCompat.Action.Builder(R.drawable.ic_reply, \"Reply\", replyPending)\n    .addRemoteInput(remoteInput)\n    .build()\n\n// in ReplyReceiver.onReceive:\n// val text = RemoteInput.getResultsFromIntent(intent)?.getCharSequence(\"key_reply\")",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Group related notifications under a summary",
+                    "content": "When several notifications belong together (messages from one chat, emails in one account), give them the same group key and post one extra summary notification with setGroupSummary(true). On Android 7.0+ the system collapses the children under the summary; the summary is what older versions and wearables show, and it is required for the grouping to work reliably.\n\nGive every child and the summary its own notification ID, and update the summary whenever the number of children changes.",
+                    "codeSnippet": "val groupKey = \"com.example.MESSAGES\"\n\nval child = NotificationCompat.Builder(context, \"messages\")\n    .setContentTitle(\"Ana\")\n    .setContentText(\"Are you coming?\")\n    .setGroup(groupKey)\n    .build()\n\nval summary = NotificationCompat.Builder(context, \"messages\")\n    .setContentTitle(\"3 new messages\")\n    .setStyle(NotificationCompat.InboxStyle().addLine(\"Ana: Are you coming?\"))\n    .setGroup(groupKey)\n    .setGroupSummary(true)\n    .build()\n\nmanager.notify(childId, child)\nmanager.notify(SUMMARY_ID, summary)",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "FCM notification messages vs data messages",
+                    "content": "Firebase Cloud Messaging has two message types. A notification message is displayed by the system for you when your app is in the background (your code only sees it if the app is in the foreground); a data message is always delivered to onMessageReceived, and you build the notification yourself, including choosing the channel.\n\nUse data messages when you need full control (custom layout, grouping, deciding whether to show anything). For notification messages, set the default channel in the manifest so the system-displayed notification lands in a channel you created.",
+                    "codeSnippet": "// AndroidManifest.xml\n// <meta-data\n//     android:name=\"com.google.firebase.messaging.default_notification_channel_id\"\n//     android:value=\"messages\" />\n\nclass PushService : FirebaseMessagingService() {\n    override fun onMessageReceived(message: RemoteMessage) {\n        val title = message.data[\"title\"] ?: return   // data message: we build the UI\n        showNotification(title, message.data[\"body\"].orEmpty())\n    }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                }
+            ]
+        }
+    ]
+}

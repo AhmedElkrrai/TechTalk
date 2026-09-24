@@ -281,6 +281,310 @@
                     ]
                 }
             ]
+        },
+        {
+            "technologyName": "Kotlin",
+            "topicName": "Flow",
+            "topicDescription": "Reactive streams built on coroutines for asynchronous data processing.",
+            "questions": [
+                {
+                    "questionText": "Which Flow operator changes the dispatcher used by the flow above it, without changing where collect runs?",
+                    "difficulty": "INTERMEDIATE",
+                    "explanation": "flowOn switches the context of the upstream flow only; the collector keeps running in its own context. Using withContext inside flow { } to emit from another dispatcher violates the flow invariant and throws.",
+                    "answers": [
+                        {
+                            "answerText": "withContext",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "launchIn",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "flowOn",
+                            "isCorrect": true
+                        },
+                        {
+                            "answerText": "buffer",
+                            "isCorrect": false
+                        }
+                    ]
+                },
+                {
+                    "questionText": "What does the catch operator on a Flow handle?",
+                    "difficulty": "INTERMEDIATE",
+                    "explanation": "catch handles exceptions thrown by the flow above it (exception transparency). Errors thrown in the collect block are not caught by it.",
+                    "answers": [
+                        {
+                            "answerText": "Every exception, including ones thrown in the collect block",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "Only IOException",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "Exceptions thrown by the upstream flow, not by the collector",
+                            "isCorrect": true
+                        },
+                        {
+                            "answerText": "Only CancellationException",
+                            "isCorrect": false
+                        }
+                    ]
+                },
+                {
+                    "questionText": "Why must a callbackFlow block end with awaitClose?",
+                    "difficulty": "ADVANCED",
+                    "explanation": "awaitClose suspends until the flow is cancelled or closed and lets you unregister the callback. Without it the block finishes immediately and the flow fails with an IllegalStateException.",
+                    "answers": [
+                        {
+                            "answerText": "To make the flow hot",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "To switch the flow to the main thread",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "To keep the flow open and remove the callback when the collector is gone",
+                            "isCorrect": true
+                        },
+                        {
+                            "answerText": "To buffer values so none are dropped",
+                            "isCorrect": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "technologyName": "Kotlin",
+            "topicName": "Channels & Actors",
+            "topicDescription": "Communication primitives for coroutines — send and receive values between concurrent tasks.",
+            "questions": [
+                {
+                    "questionText": "What is the default capacity of Channel<T>()?",
+                    "difficulty": "BEGINNER",
+                    "explanation": "A default Channel is a rendezvous channel with no buffer: send suspends until a receiver takes the value, and receive suspends until a value is sent.",
+                    "answers": [
+                        {
+                            "answerText": "Unlimited",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "64 elements",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "Zero (rendezvous): send waits for a receiver",
+                            "isCorrect": true
+                        },
+                        {
+                            "answerText": "One element",
+                            "isCorrect": false
+                        }
+                    ]
+                },
+                {
+                    "questionText": "Which Channel capacity keeps only the most recently sent value?",
+                    "difficulty": "INTERMEDIATE",
+                    "explanation": "CONFLATED never suspends the sender and overwrites an unreceived value with the newest one, so the receiver only ever sees the latest.",
+                    "answers": [
+                        {
+                            "answerText": "RENDEZVOUS",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "UNLIMITED",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "CONFLATED",
+                            "isCorrect": true
+                        },
+                        {
+                            "answerText": "BUFFERED",
+                            "isCorrect": false
+                        }
+                    ]
+                },
+                {
+                    "questionText": "When several coroutines receive from the same Channel, how is each element delivered?",
+                    "difficulty": "INTERMEDIATE",
+                    "explanation": "A Channel delivers each element to exactly one receiver (fan-out). A SharedFlow, by contrast, delivers every value to all collectors.",
+                    "answers": [
+                        {
+                            "answerText": "To every receiver",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "To the receiver that started first",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "To all receivers, but in random order",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "To exactly one receiver",
+                            "isCorrect": true
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "technologyName": "Kotlin",
+            "topicName": "Structured Concurrency & Errors",
+            "topicDescription": "How coroutine scopes, cancellation and failures propagate, and how to handle them safely.",
+            "questions": [
+                {
+                    "questionText": "Why doesn't a try/catch wrapped around scope.launch { } catch an exception thrown inside the block?",
+                    "difficulty": "INTERMEDIATE",
+                    "explanation": "launch returns immediately, so the try/catch is done before the coroutine body fails. The exception propagates through the Job hierarchy instead; put the try/catch inside the coroutine.",
+                    "answers": [
+                        {
+                            "answerText": "Because exceptions inside launch are only reported in debug builds",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "Because exceptions in coroutines are ignored",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "Because launch returns before the block runs; the exception is thrown later inside the coroutine",
+                            "isCorrect": true
+                        },
+                        {
+                            "answerText": "Because try/catch only works with async",
+                            "isCorrect": false
+                        }
+                    ]
+                },
+                {
+                    "questionText": "What does withTimeoutOrNull return when the time limit is exceeded?",
+                    "difficulty": "INTERMEDIATE",
+                    "explanation": "withTimeoutOrNull cancels the block and returns null on timeout, whereas withTimeout throws TimeoutCancellationException.",
+                    "answers": [
+                        {
+                            "answerText": "It throws TimeoutCancellationException",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "It returns the last value produced",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "null",
+                            "isCorrect": true
+                        },
+                        {
+                            "answerText": "Unit",
+                            "isCorrect": false
+                        }
+                    ]
+                },
+                {
+                    "questionText": "Why can runCatching { suspendCall() } break coroutine cancellation?",
+                    "difficulty": "ADVANCED",
+                    "explanation": "runCatching catches every Throwable, including CancellationException. Swallowing it makes the coroutine keep running as if it had not been cancelled; rethrow CancellationException.",
+                    "answers": [
+                        {
+                            "answerText": "It always runs on Dispatchers.IO",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "It cancels the parent scope",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "It also catches CancellationException, so the coroutine ignores its cancellation",
+                            "isCorrect": true
+                        },
+                        {
+                            "answerText": "It only works in non-suspending code",
+                            "isCorrect": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "technologyName": "Kotlin",
+            "topicName": "Kotlin Multiplatform",
+            "topicDescription": "Sharing Kotlin code across Android, iOS and other targets: source sets, expect/actual, and interop.",
+            "questions": [
+                {
+                    "questionText": "Where should code that must compile for every target be placed?",
+                    "difficulty": "BEGINNER",
+                    "explanation": "commonMain holds code shared by all targets and can use only common APIs. Platform source sets like androidMain and iosMain hold platform-specific code.",
+                    "answers": [
+                        {
+                            "answerText": "androidMain",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "iosMain",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "commonMain",
+                            "isCorrect": true
+                        },
+                        {
+                            "answerText": "The root build.gradle.kts",
+                            "isCorrect": false
+                        }
+                    ]
+                },
+                {
+                    "questionText": "What does the expect keyword declare in Kotlin Multiplatform?",
+                    "difficulty": "INTERMEDIATE",
+                    "explanation": "expect declares an API in common code; each target must supply a matching actual implementation, and the compiler reports a missing one at build time.",
+                    "answers": [
+                        {
+                            "answerText": "A function that must run on the main thread",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "A test that is expected to fail",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "A declaration whose platform-specific implementation is provided by actual in each target",
+                            "isCorrect": true
+                        },
+                        {
+                            "answerText": "A value that is loaded lazily",
+                            "isCorrect": false
+                        }
+                    ]
+                },
+                {
+                    "questionText": "Which source set is meant for code shared only by the iOS targets (device and simulator)?",
+                    "difficulty": "INTERMEDIATE",
+                    "explanation": "iosMain is the shared source set for the iOS targets (iosArm64, iosSimulatorArm64, and so on), sitting between commonMain and the individual targets.",
+                    "answers": [
+                        {
+                            "answerText": "jvmMain",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "wasmJsMain",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "androidMain",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "iosMain",
+                            "isCorrect": true
+                        }
+                    ]
+                }
+            ]
         }
     ]
 }

@@ -121,27 +121,6 @@
                     "difficulty": "ADVANCED"
                 },
                 {
-                    "title": "lazy — compute once, use forever",
-                    "content": "'by lazy' creates a property that's computed on first access\nand then cached. The initializer lambda runs only once.\n\nBy default, lazy is thread-safe (SYNCHRONIZED mode).\nUse LazyThreadSafetyMode.NONE if you're sure it's single-threaded\nfor a small performance boost.\n\nGreat for expensive computations, dependency initialization,\nor anything you want to defer until it's actually needed.",
-                    "codeSnippet": "// Computed only when first accessed\nval heavyObject: ExpensiveObject by lazy {\n    println(\"Initializing...\")\n    ExpensiveObject()\n}\n\n// First access — prints \"Initializing...\", returns object\nheavyObject.doWork()\n// Second access — uses cached value, no print\nheavyObject.doMoreWork()\n\n// Single-thread mode (faster, no synchronization)\nval config by lazy(LazyThreadSafetyMode.NONE) {\n    loadConfig()\n}",
-                    "codeLang": "Kotlin",
-                    "difficulty": "BEGINNER"
-                },
-                {
-                    "title": "observable & vetoable delegates",
-                    "content": "Delegates.observable() calls a handler AFTER a property changes.\nDelegates.vetoable() calls a handler BEFORE and can reject the change.\n\nObservable is great for logging, UI updates, or reacting to state changes.\nVetoable is perfect for validation — prevent invalid values from being set.\n\nBoth receive the property metadata, old value, and new value as parameters.",
-                    "codeSnippet": "import kotlin.properties.Delegates\n\n// React after change\nvar name: String by Delegates.observable(\"Initial\") {\n    prop, old, new ->\n    println(\"Changed from '$old' to '$new'\")\n}\n\nname = \"Alice\"  // prints: Changed from 'Initial' to 'Alice'\n\n// Reject invalid changes\nvar age: Int by Delegates.vetoable(0) {\n    _, _, newValue -> newValue >= 0  // reject negative ages\n}\n\nage = 25   // ✅ accepted\nage = -1   // ❌ rejected, age stays 25",
-                    "codeLang": "Kotlin",
-                    "difficulty": "INTERMEDIATE"
-                },
-                {
-                    "title": "Interface delegation with 'by'",
-                    "content": "Kotlin supports the Delegation pattern natively with the 'by' keyword.\nInstead of implementing an interface manually, you delegate to another object.\n\nThis is a powerful alternative to inheritance. Your class gets all the methods\nof the delegate, and you can selectively override specific ones.\n\nComposition over inheritance, made trivially easy by the language.",
-                    "codeSnippet": "interface Logger {\n    fun log(message: String)\n    fun error(message: String)\n}\n\nclass ConsoleLogger : Logger {\n    override fun log(message: String) = println(\"LOG: $message\")\n    override fun error(message: String) = println(\"ERR: $message\")\n}\n\n// Delegates Logger to consoleLogger, overrides just one method\nclass TimestampLogger(\n    consoleLogger: Logger\n) : Logger by consoleLogger {\n    override fun log(message: String) {\n        println(\"[${System.currentTimeMillis()}] $message\")\n    }\n    // error() is automatically delegated ✅\n}",
-                    "codeLang": "Kotlin",
-                    "difficulty": "ADVANCED"
-                },
-                {
                     "title": "Delegate a property directly to another property with var x by ::y",
                     "content": "Sometimes a property is meant to be a pure alias for another property —\nkeeping them manually in sync with a custom getter/setter that just\nforwards reads and writes is boilerplate for something conceptually\nsimple.\n\n`var alias by ::original` delegates directly to another property's own\nbacking storage via a property reference, so reads and writes to alias\ngenuinely read and write the original property, with no separate storage\nor manual forwarding logic needed.",
                     "codeSnippet": "class LegacyConfig { var timeoutSeconds: Int = 30 }\n\nclass ModernConfig(legacy: LegacyConfig) {\n    var timeout: Int by legacy::timeoutSeconds // delegated alias — reads/writes forward directly\n}",

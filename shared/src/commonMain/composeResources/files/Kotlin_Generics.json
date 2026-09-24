@@ -44,13 +44,6 @@
                     "difficulty": "ADVANCED"
                 },
                 {
-                    "title": "Self-referential generics enable type-safe fluent builder chains",
-                    "content": "A fluent builder base class whose methods return the base type loses type\ninformation as soon as a subclass-specific method is called — the\nreturned base type doesn't expose the subclass's own methods, breaking\nthe chain.\n\nCombining F-bounded generics with an abstract self() function preserves\nthe concrete subclass type through every chained call, so\n`CarBuilder().configure().withColor(\"red\")` type-checks correctly instead\nof needing an explicit downcast partway through the chain.",
-                    "codeSnippet": "abstract class Builder<T : Builder<T>> {\n    @Suppress(\"UNCHECKED_CAST\") protected fun self() = this as T\n    fun withId(id: String): T { /* set id */ return self() }\n}\n\nclass CarBuilder : Builder<CarBuilder>() { fun withColor(c: String): CarBuilder = self() }\n\nCarBuilder().withId(\"c1\").withColor(\"red\") // chain preserves CarBuilder type throughout",
-                    "codeLang": "Kotlin",
-                    "difficulty": "ADVANCED"
-                },
-                {
                     "title": "Variance annotations constrain the public API, not internal implementation",
                     "content": "Declaring a class covariant (`out T`) only restricts how T can appear in\nthe class's public member signatures — it says nothing about how T is\nused in private implementation details, where the compiler doesn't\nenforce variance rules at all.\n\nThis means a covariant class can freely store T in a private mutable\nfield internally (an 'in' position), as long as no public method exposes\nT in an unsafe 'in' position — the variance contract is about the API\nsurface callers see, not the private mechanics behind it.",
                     "codeSnippet": "class Buffer<out T>(initial: T) {\n    private var storage: T = initial // fine — private, not part of the public contract\n    fun get(): T = storage // public API only exposes T in an 'out' position\n    // fun set(value: T) {} // would NOT compile — public 'in' position violates covariance\n}",
@@ -79,25 +72,11 @@
                     "difficulty": "ADVANCED"
                 },
                 {
-                    "title": "Generic classes let one implementation work across many types",
-                    "content": "Without generics, you'd need a separate class for IntBox, StringBox,\nUserBox, and so on, duplicating identical logic for each type just to get\ntype safety.\n\nA generic class parameterized with <T> writes the logic once, and the\ncompiler substitutes the concrete type at each usage site — giving you\nboth code reuse and compile-time type checking, instead of choosing\nbetween the two.",
-                    "codeSnippet": "class Box<T>(private var content: T) {\n    fun get(): T = content\n    fun set(value: T) { content = value }\n}\n\nval intBox = Box(5)          // Box<Int>\nval stringBox = Box(\"hello\") // Box<String>, same class, different type",
-                    "codeLang": "Kotlin",
-                    "difficulty": "BEGINNER"
-                },
-                {
                     "title": "Type inference usually removes the need to write generic type arguments",
                     "content": "Explicitly writing `listOf<String>(\"a\", \"b\")` or\n`val box: Box<Int> = Box<Int>(5)` is redundant when the compiler can\nalready determine the type parameter from the arguments or the assignment\ntarget.\n\nLet the compiler infer the type argument from context whenever possible;\nonly write it explicitly when there's genuine ambiguity, such as calling a\ngeneric function with no arguments to infer from (`emptyList<String>()`).",
                     "codeSnippet": "val names = listOf(\"Ahmed\", \"Ali\") // inferred as List<String>, no <String> needed\n\nval empty = emptyList<String>() // explicit needed — nothing to infer from",
                     "codeLang": "Kotlin",
                     "difficulty": "BEGINNER"
-                },
-                {
-                    "title": "out and in mirror producer/consumer roles, not just direction",
-                    "content": "`out T` means the type is only ever produced (returned) by the generic\ntype, never consumed (taken as a parameter) — this makes List<out T>\ncovariant, so List<Dog> can be used where List<Animal> is expected.\n\n`in T` is the opposite: the type is only ever consumed, making the generic\ntype contravariant. Comparator<in T> is contravariant because a\nComparator<Animal> can safely compare Dogs — remembering 'producer =\nout, consumer = in' (PECS) makes variance rules predictable instead of\nmemorized.",
-                    "codeSnippet": "interface Producer<out T> { fun produce(): T }\ninterface Consumer<in T> { fun consume(item: T) }\n\nval dogProducer: Producer<Dog> = object : Producer<Dog> { override fun produce() = Dog() }\nval animalProducer: Producer<Animal> = dogProducer // OK — covariant",
-                    "codeLang": "Kotlin",
-                    "difficulty": "ADVANCED"
                 },
                 {
                     "title": "Star projections when you don't care about the exact type argument",
@@ -117,13 +96,6 @@
                     "title": "Generic type erasure blocks reified-free runtime type checks",
                     "content": "Without reified (which only works on inline functions), a generic function\ncan't check `if (value is T)` or instantiate T directly, because the JVM\nerases T to its upper bound (usually Any?) at runtime.\n\nWhen you need runtime type info in a non-inline context (e.g. a class\nmethod, not a top-level inline function), pass a KClass<T> explicitly as a\nparameter instead of relying on the erased type parameter.",
                     "codeSnippet": "class Deserializer {\n    // fun <T> deserialize(json: String): T { if (... is T) } // won't compile — erased\n\n    fun <T : Any> deserialize(json: String, clazz: KClass<T>): T =\n        gson.fromJson(json, clazz.java)\n}",
-                    "codeLang": "Kotlin",
-                    "difficulty": "ADVANCED"
-                },
-                {
-                    "title": "Multiple bounds via a where clause combine several constraints",
-                    "content": "A type parameter sometimes needs to satisfy more than one interface — for\nexample, being both Comparable and Serializable. A single `<T : Bound>`\nsyntax only allows one bound directly after the colon.\n\nThe `where` clause lets you list multiple upper bounds for the same type\nparameter, all of which must be satisfied by any type argument used at the\ncall site.",
-                    "codeSnippet": "fun <T> sortedUnique(items: List<T>): List<T>\n    where T : Comparable<T>, T : Any {\n    return items.distinct().sorted()\n}",
                     "codeLang": "Kotlin",
                     "difficulty": "ADVANCED"
                 },

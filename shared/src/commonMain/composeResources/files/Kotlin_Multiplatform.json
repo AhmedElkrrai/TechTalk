@@ -1,0 +1,70 @@
+{
+    "version": 1,
+    "author": "TechTalk",
+    "description": "Kotlin — Kotlin Multiplatform",
+    "entries": [
+        {
+            "technologyName": "Kotlin",
+            "topicName": "Kotlin Multiplatform",
+            "topicDescription": "Sharing Kotlin code across Android, iOS and other targets: source sets, expect/actual, and interop.",
+            "tips": [
+                {
+                    "title": "Shared code lives in commonMain; each platform adds its own source set",
+                    "content": "In a Kotlin Multiplatform module, commonMain holds code that compiles for every target and may only use common APIs. Platform source sets such as androidMain and iosMain hold code and dependencies for one platform, and can use that platform's APIs freely.\n\nPut as much as possible in commonMain and add platform dependencies only where they belong. This app shares its UI (Compose Multiplatform), database (Room), DI (Koin) and networking core (Ktor) in commonMain, while the Android source set adds only what is Android-specific, such as the OkHttp engine and koin-android.",
+                    "codeSnippet": "kotlin {\n    sourceSets {\n        commonMain.dependencies {\n            implementation(libs.koin.core)\n            implementation(libs.ktor.client.core)   // engine-independent API\n        }\n        androidMain.dependencies {\n            implementation(libs.ktor.client.okhttp) // Android's engine\n        }\n        iosMain.dependencies {\n            implementation(libs.ktor.client.darwin) // iOS's engine\n        }\n    }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "expect declares an API in common code; actual implements it per platform",
+                    "content": "When common code needs something only a platform can provide, declare it with expect in commonMain and provide an actual implementation in every target's source set. The compiler checks that each target has a matching actual with the same signature, so a missing implementation is a build error, not a runtime crash.\n\nFunctions are the simplest and most stable case. This app declares its platform dependency-injection module and a back-button handler this way.",
+                    "codeSnippet": "// commonMain\nexpect fun platformModule(): Module\n\n@Composable\nexpect fun PlatformBackHandler(enabled: Boolean = true, onBack: () -> Unit)\n\n// androidMain\nactual fun platformModule(): Module = module { /* Android-only bindings */ }\n\n@Composable\nactual fun PlatformBackHandler(enabled: Boolean, onBack: () -> Unit) {\n    BackHandler(enabled, onBack)\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "expect/actual classes and objects need an opt-in flag",
+                    "content": "expect/actual for classes, objects and other non-function declarations is still Beta. The compiler warns about it unless you opt in with the -Xexpect-actual-classes compiler option, because the exact rules may change.\n\nRoom's Kotlin Multiplatform setup relies on an expect object whose actual implementations Room generates, which is why this project turns the flag on for all targets. If you can express the same thing with a function or an interface, do that instead of using expect classes.",
+                    "codeSnippet": "kotlin {\n    targets.configureEach {\n        compilations.configureEach {\n            compileTaskProvider.configure {\n                compilerOptions.freeCompilerArgs.add(\"-Xexpect-actual-classes\")\n            }\n        }\n    }\n}\n\n// commonMain — implemented by generated code on each platform\nexpect object AppDatabaseConstructor : RoomDatabaseConstructor<AppDatabase>",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Prefer an interface plus dependency injection over expect/actual for larger APIs",
+                    "content": "expect/actual is a compile-time link between two declarations. For anything bigger than a small function — a storage service, a file picker, analytics — it is often cleaner to define an interface in commonMain, implement it in each platform source set, and provide the implementation through dependency injection.\n\nCommon code depends only on the interface, so it is easy to fake in tests, and each platform's implementation stays normal Kotlin (or Swift on iOS). A platform module that registers the implementations keeps the wiring in one place.",
+                    "codeSnippet": "// commonMain\ninterface Analytics { fun track(event: String) }\n\nclass CheckoutViewModel(private val analytics: Analytics) { /* ... */ }\n\n// androidMain\nclass FirebaseAnalytics(private val context: Context) : Analytics {\n    override fun track(event: String) { /* Android SDK call */ }\n}\n\nactual fun platformModule(): Module = module {\n    single<Analytics> { FirebaseAnalytics(androidContext()) }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Configure the iOS framework in the shared module",
+                    "content": "For iOS, the shared module is compiled into a framework that the Xcode project links. In build.gradle.kts, declare the iOS targets and configure the framework: baseName is the module name you import in Swift, and isStatic = true builds a static framework, which is the default choice for Compose Multiplatform projects and avoids some dynamic-linking problems.\n\nDeclare a target for the device (iosArm64) and one for the simulator (iosSimulatorArm64, for Apple silicon Macs). Building iOS targets requires a Mac with Xcode.",
+                    "codeSnippet": "kotlin {\n    listOf(\n        iosArm64(),\n        iosSimulatorArm64()\n    ).forEach { iosTarget ->\n        iosTarget.binaries.framework {\n            baseName = \"Shared\"     // Swift: import Shared\n            isStatic = true\n        }\n    }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Suspend functions and Flow look different from Swift",
+                    "content": "Swift can call Kotlin suspend functions: they are exported as functions with a completion handler, and Swift 5.5+ can also call them with async/await. Kotlin's cancellation does not map neatly to Swift's, so cancelling a Swift Task doesn't reliably cancel the Kotlin coroutine.\n\nA Kotlin Flow is exported as a Kotlin type with a collect method, not as a Swift AsyncSequence or Combine publisher, and the generic type information is partly lost. A common approach is to expose a small wrapper from Kotlin or use a library such as SKIE or KMP-NativeCoroutines that generates idiomatic Swift APIs. Also remember Kotlin/Native exports are only as expressive as Objective-C, so keep the public API of the shared module simple.",
+                    "codeSnippet": "// Kotlin (commonMain)\nclass UserRepository {\n    suspend fun loadUser(id: String): User = TODO()\n    fun observeUsers(): Flow<List<User>> = TODO()\n}\n\n// Swift — suspend function via async/await\n// let user = try await repository.loadUser(id: \"42\")\n\n// Swift — a Flow needs a wrapper or a helper library to become an AsyncSequence",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Compose Multiplatform resources are shared through composeResources",
+                    "content": "Compose Multiplatform generates a Res class for the files under src/commonMain/composeResources: drawables, strings, fonts and raw files. Access generated resources from common code, and Compose Multiplatform packages them for each platform.\n\nArbitrary data files go in the files folder and are read with Res.readBytes, which is a suspend function. This app ships all its tip and battle content this way: JSON packs in composeResources/files, read at first launch by the database seeder.",
+                    "codeSnippet": "// src/commonMain/composeResources/files/Android_Room.json\n\n@OptIn(ExperimentalResourceApi::class)\nsuspend fun loadPack(fileName: String): String {\n    val bytes = Res.readBytes(\"files/$fileName\")\n    return bytes.decodeToString()\n}\n\n// Strings and drawables are read in composables:\n// Text(stringResource(Res.string.app_name))",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Room works in common code, with the compiler run once per target",
+                    "content": "Room supports Kotlin Multiplatform: entities, DAOs and the database class live in commonMain, and the platform-specific database builders live in androidMain and iosMain. Use the bundled SQLite driver so every platform uses the same SQLite version.\n\nRoom's annotation processor (KSP) has to run for each target, so add the compiler dependency to every target's KSP configuration, and turn on schema export so migrations can be tested. Construct the database with a @ConstructedBy annotation pointing at an expect object that Room implements for each target.",
+                    "codeSnippet": "dependencies {\n    add(\"kspAndroid\", libs.androidx.room.compiler)\n    add(\"kspIosArm64\", libs.androidx.room.compiler)\n    add(\"kspIosSimulatorArm64\", libs.androidx.room.compiler)\n}\n\n@Database(entities = [TipEntity::class], version = 5, exportSchema = true)\n@ConstructedBy(AppDatabaseConstructor::class)\nabstract class AppDatabase : RoomDatabase()\n\nfun buildDatabase(builder: RoomDatabase.Builder<AppDatabase>): AppDatabase =\n    builder.setDriver(BundledSQLiteDriver()).build()",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                }
+            ]
+        }
+    ]
+}

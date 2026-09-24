@@ -58,13 +58,6 @@
                     "difficulty": "BEGINNER"
                 },
                 {
-                    "title": "Extension properties add computed members without a backing field",
-                    "content": "Like extension functions, extension properties let you add members to a\ntype you don't own — but they can't have a backing field (no state storage\nof their own), since they don't actually modify the original class.\n\nAn extension property must be computed entirely from a custom getter (and\noptionally a setter that writes through to some existing state on the\nreceiver) — you can't declare `val Foo.bar = 5` with a stored initial value.",
-                    "codeSnippet": "val String.isValidEmail: Boolean\n    get() = Regex(\"^[^@]+@[^@]+\\\\.[^@]+$\").matches(this)\n\nprintln(\"a@b.com\".isValidEmail) // reads like a real property",
-                    "codeLang": "Kotlin",
-                    "difficulty": "INTERMEDIATE"
-                },
-                {
                     "title": "Custom property getters/setters run logic on every access",
                     "content": "Unlike a plain stored property, a custom get()/set() lets you run\nvalidation, transformation, or derived-value logic every time the\nproperty is read or written — while still looking like ordinary field\naccess at every call site.\n\nA `val` with only a getter recomputes its value on every access (it's not\ncached, unlike `by lazy`), so keep the getter's logic cheap or move to a\nlazy delegate if the computation is expensive and the value shouldn't\nchange.",
                     "codeSnippet": "class Rectangle(val width: Int, val height: Int) {\n    val area: Int\n        get() = width * height // recomputed on every access\n\n    var name: String = \"\"\n        set(value) { field = value.trim() } // 'field' refers to the backing field\n}",
@@ -114,13 +107,6 @@
                     "difficulty": "INTERMEDIATE"
                 },
                 {
-                    "title": "Reified type parameters let you inspect T at runtime",
-                    "content": "Generic type parameters are normally erased at runtime, so you can't do\n`T::class` or `is T` inside a generic function — the JVM doesn't know what\nT was.\n\nMarking an inline function's type parameter reified keeps the actual type\navailable inside the function body, because the compiler substitutes the\nreal type at each inlined call site. This is how functions like\nGson's fromJson<T>() avoid needing a Class<T> parameter.",
-                    "codeSnippet": "inline fun <reified T> Gson.fromJson(json: String): T =\n    fromJson(json, T::class.java)\n\nval user: User = gson.fromJson(jsonString) // no Class<User> needed",
-                    "codeLang": "Kotlin",
-                    "difficulty": "ADVANCED"
-                },
-                {
                     "title": "Prefer sealed interfaces over enums when variants carry different data",
                     "content": "Enums are great for a fixed set of interchangeable constants, but every\nenum entry shares the same properties — you can't give one variant an extra\nfield without giving it to all of them.\n\nSealed interfaces let each variant be its own class with its own\nproperties, while still giving you exhaustive `when` checks like an enum.\nReach for sealed interfaces whenever different states or variants need\ndifferent associated data.",
                     "codeSnippet": "sealed interface DownloadState {\n    data object Idle : DownloadState\n    data class InProgress(val percent: Int) : DownloadState\n    data class Failed(val error: Throwable) : DownloadState\n}",
@@ -145,13 +131,6 @@
                     "title": "Non-local returns only work from lambdas passed to inline functions",
                     "content": "A `return` written inside a lambda passed to a regular (non-inline)\nhigher-order function is actually illegal Kotlin — the compiler has no way\nto make that return exit the enclosing function, since the lambda is a\nseparate compiled object by the time it runs.\n\nBecause inline functions copy the lambda's body directly into the call\nsite, a `return` inside it genuinely does exit the enclosing function —\nthis is why `return` works naturally inside a forEach {} (inline) but not\ninside a custom non-inline higher-order function with the same shape.",
                     "codeSnippet": "inline fun forEachInline(items: List<Int>, action: (Int) -> Unit) { for (i in items) action(i) }\n\nfun findFirstEven(items: List<Int>): Int? {\n    forEachInline(items) { if (it % 2 == 0) return it } // legal — inline function\n    return null\n}",
-                    "codeLang": "Kotlin",
-                    "difficulty": "ADVANCED"
-                },
-                {
-                    "title": "@DslMarker prevents accidental access to an outer DSL receiver",
-                    "content": "Nested DSL builders (a menu builder inside a screen builder, say) both\nexpose `this` implicitly inside their lambdas — without any restriction,\nan inner lambda can accidentally call a method on the outer receiver\ninstead of the intended inner one, since both are implicitly in scope.\n\n@DslMarker-annotated receiver types restrict implicit receiver resolution\nso only the innermost matching receiver is directly accessible, forcing\nyou to write `this@Outer.method()` explicitly if you genuinely need the\nouter receiver — this is how kotlinx.html and Ktor's routing DSL avoid\nscope leakage bugs.",
-                    "codeSnippet": "@DslMarker annotation class ScreenDsl\n\n@ScreenDsl class ScreenBuilder { fun menu(block: MenuBuilder.() -> Unit) { } }\n@ScreenDsl class MenuBuilder { fun item(name: String) { } }\n// inside menu { }, calling a ScreenBuilder method requires this@ScreenBuilder explicitly",
                     "codeLang": "Kotlin",
                     "difficulty": "ADVANCED"
                 },
@@ -219,13 +198,6 @@
                     "difficulty": "BEGINNER"
                 },
                 {
-                    "title": "data class auto-generates equals, hashCode, toString, and copy",
-                    "content": "Writing equals/hashCode/toString by hand for every model class is\nrepetitive and easy to get subtly wrong (forgetting a field in equals but\nnot toString, for example).\n\nThe data modifier generates all of these from the primary constructor\nproperties automatically, plus a copy() function for immutable-style\nupdates. Properties declared in the class body (not the constructor) are\nexcluded from the generated methods, which is a common source of confusion.",
-                    "codeSnippet": "data class User(val id: String, val name: String)\n\nval u1 = User(\"1\", \"Ahmed\")\nval u2 = u1.copy(name = \"Ali\") // new instance, id unchanged\nprintln(u1 == u2) // false — equals compares constructor properties",
-                    "codeLang": "Kotlin",
-                    "difficulty": "BEGINNER"
-                },
-                {
                     "title": "componentN() functions power destructuring declarations",
                     "content": "Destructuring like `val (id, name) = user` isn't special syntax tied only\nto data classes — it works on any type that defines component1(),\ncomponent2(), etc. as operator functions.\n\ndata class generates these automatically for its constructor properties,\nbut you can add them to any class (or via extension functions on types you\ndon't own) to enable destructuring for your own types.",
                     "codeSnippet": "class Point(val x: Int, val y: Int) {\n    operator fun component1() = x\n    operator fun component2() = y\n}\n\nval (x, y) = Point(3, 4) // destructures via component1()/component2()",
@@ -252,13 +224,6 @@
                     "codeSnippet": "fun processOrder(order: Order) {\n    fun validate(item: OrderItem): Boolean = item.quantity > 0 && item.price >= 0\n\n    val validItems = order.items.filter(::validate)\n    // validate() is invisible outside processOrder\n}",
                     "codeLang": "Kotlin",
                     "difficulty": "BEGINNER"
-                },
-                {
-                    "title": "Lambdas with receiver are the foundation of Kotlin DSLs",
-                    "content": "A normal lambda type like `(Config) -> Unit` requires callers to reference\nthe parameter explicitly (`it.setName(...)`). A function type with a\nreceiver, `Config.() -> Unit`, makes the parameter the implicit `this`\ninside the lambda, so its members are called directly without a prefix.\n\nThis is exactly what powers builder-style DSLs like Compose's Column { }\ncontent lambdas or Gradle's build.gradle.kts blocks — the lambda body reads like it\nis a method inside the receiver type.",
-                    "codeSnippet": "class HttpRequestBuilder { var url: String = \"\"; var method: String = \"GET\" }\n\nfun request(block: HttpRequestBuilder.() -> Unit): HttpRequestBuilder =\n    HttpRequestBuilder().apply(block)\n\nval req = request {\n    url = \"https://api.example.com\" // 'this' is implicit HttpRequestBuilder\n    method = \"POST\"\n}",
-                    "codeLang": "Kotlin",
-                    "difficulty": "INTERMEDIATE"
                 },
                 {
                     "title": "Operator overloading maps symbols to conventionally-named functions",

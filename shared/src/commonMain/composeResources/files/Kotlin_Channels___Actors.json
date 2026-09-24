@@ -91,6 +91,34 @@
                     "codeSnippet": "val channel = Channel<Int>(capacity = 10)\n\nval result = channel.trySend(5)\nif (result.isSuccess) println(\"Sent immediately\") else println(\"Channel full or closed\")",
                     "codeLang": "Kotlin",
                     "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "A default Channel is a rendezvous: send waits for a receiver",
+                    "content": "A Channel is a queue that coroutines use to pass values to each other. By default (Channel<T>()) it has no buffer, which is called a rendezvous channel: send suspends until another coroutine calls receive, and receive suspends until someone sends. The two meet at the same moment.\n\nEach element is delivered to exactly one receiver, and a channel is hot — it exists independently of who is listening. Close it when no more values will come, so receivers using a for loop can finish.",
+                    "codeSnippet": "val channel = Channel<Int>()          // rendezvous: no buffer\n\nlaunch {\n    for (i in 1..3) {\n        println(\"sending $i\")\n        channel.send(i)               // waits here until the receiver takes it\n    }\n    channel.close()\n}\n\nfor (value in channel) println(\"received $value\")",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "Channel capacity decides how much can be sent before send suspends",
+                    "content": "The capacity controls buffering. RENDEZVOUS (0, the default) has no buffer. BUFFERED uses a default buffer size (64 unless configured). A positive number gives a buffer of exactly that size, and send suspends only when it is full. UNLIMITED never suspends the sender, but memory grows without bound if the receiver is slower. CONFLATED keeps just the latest value and never suspends.\n\nPick the smallest capacity that solves the problem: a buffer smooths out bursts, but an unlimited one only hides a slow consumer until you run out of memory.",
+                    "codeSnippet": "Channel<Event>()                           // RENDEZVOUS: send waits for a receiver\nChannel<Event>(Channel.BUFFERED)           // default-sized buffer\nChannel<Event>(capacity = 16)              // send suspends when 16 are waiting\nChannel<Event>(Channel.UNLIMITED)          // never suspends, unbounded memory\nChannel<Location>(Channel.CONFLATED)       // only the latest value is kept",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Choose what happens when a buffered channel is full",
+                    "content": "By default a full channel suspends the sender (BufferOverflow.SUSPEND), which gives natural backpressure. When you would rather never wait, pass onBufferOverflow to drop data instead: DROP_OLDEST removes the oldest buffered element to make room, and DROP_LATEST ignores the new one.\n\nUse DROP_OLDEST for live data where only recent values matter (sensor readings, progress), and keep SUSPEND when every element must be processed. The same parameter exists on MutableSharedFlow.",
+                    "codeSnippet": "val readings = Channel<Reading>(\n    capacity = 8,\n    onBufferOverflow = BufferOverflow.DROP_OLDEST   // sender never waits\n)\n\nreadings.trySend(latestReading)   // always succeeds; the oldest is dropped if full",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Channel or Flow? It depends on who consumes the values",
+                    "content": "A Channel is a hot, mutable queue: producers push values and each value goes to one receiver. It is good for handing work between coroutines and for one-shot events. A Flow is a cold, declarative stream: every collector gets its own run, and you build it with operators. It is good for exposing data to observers.\n\nA SharedFlow or StateFlow is the hot version of a Flow for many observers (all collectors get every value). Rule of thumb: work queue or single-consumer events, use a Channel; data that many parts of the UI observe, use a StateFlow or SharedFlow; a stream produced on demand, use a plain Flow.",
+                    "codeSnippet": "// Work queue: each job is handled by exactly one worker\nval jobs = Channel<Job>(Channel.BUFFERED)\n\n// One-shot UI event stream, delivered once\nval events = Channel<UiEvent>(Channel.BUFFERED).receiveAsFlow()\n\n// State many collectors observe\nval state: StateFlow<UiState> = _state.asStateFlow()\n\n// Cold stream, built when collected\nfun ticks(): Flow<Int> = flow { var i = 0; while (true) { emit(i++); delay(1_000) } }",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
                 }
             ]
         }

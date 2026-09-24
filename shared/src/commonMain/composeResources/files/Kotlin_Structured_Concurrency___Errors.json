@@ -1,0 +1,70 @@
+{
+    "version": 1,
+    "author": "TechTalk",
+    "description": "Kotlin — Structured Concurrency & Errors",
+    "entries": [
+        {
+            "technologyName": "Kotlin",
+            "topicName": "Structured Concurrency & Errors",
+            "topicDescription": "How coroutine scopes, cancellation and failures propagate, and how to handle them safely.",
+            "tips": [
+                {
+                    "title": "coroutineScope splits work in parallel and fails as a unit",
+                    "content": "coroutineScope { } creates a scope that suspends until every coroutine launched inside it has finished. If one child fails, the scope cancels its siblings and rethrows the exception to the caller. That makes it the natural way to run several independent pieces of work in parallel inside a suspend function: the function only returns when all of them are done, and never leaves stray work behind.\n\nBecause the exception is rethrown at the coroutineScope call, an ordinary try/catch around it works, unlike a try/catch around launch.",
+                    "codeSnippet": "suspend fun loadDashboard(): Dashboard = coroutineScope {\n    val profile = async { api.profile() }\n    val orders = async { api.orders() }\n    val offers = async { api.offers() }\n\n    // returns only when all three are done; if one throws, the others are cancelled\n    Dashboard(profile.await(), orders.await(), offers.await())\n}\n\ntry {\n    show(loadDashboard())\n} catch (e: IOException) {\n    showError()      // catches the failure of any child\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "supervisorScope lets children fail independently",
+                    "content": "supervisorScope is coroutineScope with a supervisor: a failing child does not cancel its siblings or the scope itself. Use it when the pieces of work are independent and a partial result is acceptable — for example loading several optional sections of a screen.\n\nThe catch is that nothing propagates the child's exception for you. A failing launch child reports to the coroutine exception handler, so wrap its body in try/catch (or use async and handle the failure when you await it) so the failure is handled where you can act on it.",
+                    "codeSnippet": "suspend fun loadHome(): Home = supervisorScope {\n    val feed = async { api.feed() }\n    val banners = async { api.banners() }\n\n    Home(\n        feed = feed.await(),                                        // required: may throw\n        banners = try { banners.await() } catch (e: IOException) { emptyList() } // optional\n    )\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "A try/catch around launch does not catch the coroutine's exception",
+                    "content": "launch returns immediately, long before the coroutine body runs to completion, so a try/catch wrapped around the launch call has already finished by the time the exception is thrown inside the coroutine. The exception instead propagates through the Job hierarchy to the parent, and, if nothing handles it, to the CoroutineExceptionHandler or the thread's uncaught exception handler.\n\nPut the try/catch inside the coroutine, around the code that can fail. With async the situation is different: the exception is held by the Deferred and thrown when you call await(), so wrapping the await call works.",
+                    "codeSnippet": "// Does NOT catch the failure: launch returns before the block runs\ntry {\n    scope.launch { riskyCall() }\n} catch (e: Exception) { /* never reached for riskyCall's error */ }\n\n// Catches it: the try/catch is inside the coroutine\nscope.launch {\n    try { riskyCall() } catch (e: IOException) { showError() }\n}\n\n// async: the exception is thrown at await\nval deferred = scope.async { riskyCall() }\ntry { deferred.await() } catch (e: IOException) { showError() }",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "awaitAll is fail-fast: the first failure cancels the rest",
+                    "content": "awaitAll() waits for a list of Deferreds and returns their results in order. If any of them fails, awaitAll throws immediately, without waiting for the others, and inside a regular scope the failure also cancels the remaining children.\n\nThat is usually what you want when you need all results to proceed. If some results are optional, collect them individually so one failure doesn't discard the rest: catch per Deferred, or map each to a Result.",
+                    "codeSnippet": "suspend fun loadAll(ids: List<String>): List<Item> = coroutineScope {\n    ids.map { id -> async { api.item(id) } }.awaitAll()   // one failure fails everything\n}\n\n// Tolerate individual failures\nsuspend fun loadAvailable(ids: List<String>): List<Item> = supervisorScope {\n    ids.map { id -> async { try { api.item(id) } catch (e: IOException) { null } } }\n        .awaitAll()\n        .filterNotNull()\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "withTimeout throws; withTimeoutOrNull returns null",
+                    "content": "withTimeout(ms) { } cancels the block when time runs out and throws TimeoutCancellationException. withTimeoutOrNull returns null instead, which is easier to use when a timeout is an expected outcome rather than an error.\n\nTimeoutCancellationException is a subclass of CancellationException. Inside the block the timeout looks like a normal cancellation (so cleanup in finally still runs), but a broad catch of CancellationException would swallow your own timeout. The block only stops at a suspension point, so blocking or CPU-bound code inside it will not be interrupted on time.",
+                    "codeSnippet": "val user = withTimeoutOrNull(3_000) { api.loadUser() }\nif (user == null) showTimeout() else show(user)\n\ntry {\n    withTimeout(3_000) { api.loadUser() }\n} catch (e: TimeoutCancellationException) {\n    showTimeout()\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "runCatching swallows CancellationException — rethrow it",
+                    "content": "runCatching catches every Throwable, including CancellationException. When a coroutine is cancelled, its next suspension point throws CancellationException; if runCatching (or a broad catch) swallows it, the coroutine carries on as if it had not been cancelled, and structured concurrency silently breaks.\n\nAround suspend calls, either catch specific exception types or use a helper that rethrows cancellation. Keep the helper in one place so the rule can't be forgotten.",
+                    "codeSnippet": "suspend inline fun <T> suspendRunCatching(block: () -> T): Result<T> =\n    try {\n        Result.success(block())\n    } catch (e: CancellationException) {\n        throw e                       // never turn cancellation into a failure value\n    } catch (e: Throwable) {\n        Result.failure(e)\n    }\n\nval result = suspendRunCatching { api.loadUser() }",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "cancel() is a request; cancelAndJoin() waits until the coroutine has finished",
+                    "content": "cancel() marks a Job as cancelled and returns immediately. The coroutine only stops when it reaches a suspension point (or checks isActive or ensureActive), and it may still run cleanup in finally blocks. If code after the cancel depends on that cleanup being finished, for example releasing a file before you reopen it, call cancelAndJoin(), which cancels and then waits.\n\nWaiting matters for correctness when two runs could overlap: cancel the old job and join it before starting a new one that uses the same resource.",
+                    "codeSnippet": "var uploadJob: Job? = null\n\nfun restartUpload() {\n    viewModelScope.launch {\n        uploadJob?.cancelAndJoin()          // old upload has fully cleaned up\n        uploadJob = launch { uploader.run() } // safe to reuse the resource now\n    }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Model expected failures as values, not exceptions",
+                    "content": "Exceptions are for unexpected problems. A failed login, a missing item, or a validation error is a normal outcome that callers should be forced to handle. Returning a sealed result (or Result<T>) makes every possible outcome visible in the function's signature, and an exhaustive when checks that callers handle them.\n\nConvert exceptions to result values at the boundary (the repository), let unexpected errors and cancellation propagate, and keep the UI layer free of try/catch.",
+                    "codeSnippet": "sealed interface LoginResult {\n    data class Success(val user: User) : LoginResult\n    data object WrongPassword : LoginResult\n    data class NetworkError(val cause: IOException) : LoginResult\n}\n\nsuspend fun login(name: String, password: String): LoginResult = try {\n    LoginResult.Success(api.login(name, password))\n} catch (e: HttpException) {\n    if (e.code == 401) LoginResult.WrongPassword else throw e   // unexpected: propagate\n} catch (e: IOException) {\n    LoginResult.NetworkError(e)\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                }
+            ]
+        }
+    ]
+}
