@@ -28,6 +28,48 @@
                     "codeSnippet": "fun String?.orEmpty(): String = this ?: \"\"\n\nfun String?.isNullOrBlank(): Boolean =\n    this == null || this.isBlank()\n\n// Usage — no ?. needed!\nval name: String? = null\nname.orEmpty()       // \"\"\nname.isNullOrBlank() // true",
                     "codeLang": "Kotlin",
                     "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "A member function always wins over an extension",
+                    "content": "If a class has a member function and you declare an extension with the same name and parameters, calls resolve to the member; the extension is never called, and the compiler warns that it is shadowed. Extensions cannot override or replace members.\n\nAn extension with a different signature is fine — it just acts as an overload. This is why an extension can't change how an existing class behaves; it can only add to it.",
+                    "codeSnippet": "class Greeter { fun greet() = \"member\" }\n\nfun Greeter.greet() = \"extension\"          // warning: shadowed by the member\n\nfun Greeter.greet(name: String) = \"hi $name\" // different signature: a real overload\n\nprintln(Greeter().greet())        // member\nprintln(Greeter().greet(\"Ana\"))   // hi Ana",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Member extensions have two receivers",
+                    "content": "An extension can be declared inside a class. Then it has two receivers: the extension receiver (the type being extended) and the dispatch receiver (an instance of the enclosing class). It is only usable where the dispatch receiver is available, which makes it a way to scope a helper to one class or builder.\n\nWhen both receivers have a member with the same name, the extension receiver wins, and you reach the dispatch receiver with a label such as this@HtmlBuilder.",
+                    "codeSnippet": "class HtmlBuilder {\n    private val out = StringBuilder()\n\n    // extension on String, usable only inside HtmlBuilder\n    private fun String.bold() = \"<b>$this</b>\"\n\n    fun paragraph(text: String) {\n        out.append(\"<p>${text.bold()}</p>\")\n    }\n}\n\n// \"x\".bold()  // does not compile outside HtmlBuilder",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Extend a companion object to add factory functions",
+                    "content": "An extension can target a class's companion object, so you can add what looks like a static factory to a type. The class must declare a companion object, even an empty one, for this to work.\n\nThat is useful for adding conversions and constructors from another module without editing the class. Keep in mind it only works for classes that have a companion, so you can't do it for most Java classes.",
+                    "codeSnippet": "class Money(val cents: Long) {\n    companion object              // must exist, even if empty\n}\n\nfun Money.Companion.zero() = Money(0)\nfun Money.Companion.fromDollars(d: Double) = Money((d * 100).toLong())\n\nval price = Money.fromDollars(9.99)\nval none = Money.zero()",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Constrain generic extensions with a bound",
+                    "content": "An extension can be generic, and a type bound restricts which receivers it accepts and unlocks operations on them. A bound of Comparable<T> lets the extension compare elements; a reified type parameter lets an inline extension use the type at runtime.\n\nThe bound keeps the extension out of code where it wouldn't make sense: calling isSorted on a list of objects that can't be compared is a compile error, not a runtime crash.",
+                    "codeSnippet": "fun <T : Comparable<T>> List<T>.isSorted(): Boolean =\n    zipWithNext().all { (a, b) -> a <= b }\n\nlistOf(1, 2, 3).isSorted()        // true\n// listOf(Any(), Any()).isSorted() // does not compile\n\ninline fun <reified T> Iterable<*>.firstOfType(): T? =\n    filterIsInstance<T>().firstOrNull()",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "An extension is only visible where it is declared or imported",
+                    "content": "A top-level extension belongs to the package where it is declared, and you must import it to use it from a different package, just like any function. That is why the same extension can be present in one file and unresolved in another. A private extension is visible only in its own file, and a member extension only inside its class.\n\nPut related extensions in a clearly named file (StringExt.kt) and make them private if they are just helpers for one file.",
+                    "codeSnippet": "// package com.example.util  (StringExt.kt)\nfun String.slugify() = lowercase().replace(\" \", \"-\")\n\nprivate fun String.stripTags() = replace(Regex(\"<[^>]*>\"), \"\")   // this file only\n\n// another package\nimport com.example.util.slugify\n\nval slug = \"Hello World\".slugify()",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "Know when not to write an extension",
+                    "content": "Extensions are convenient, but they have costs. An extension on a very general type (Any, T, String) shows up in autocomplete everywhere and can clash with a member added by a later library version. One that hides a side effect (network, disk) looks like a cheap property access.\n\nWrite a plain function when there is no natural receiver, keep extensions on general types private or narrowly scoped, and don't use one to hide business logic that belongs in a named class.",
+                    "codeSnippet": "// Suspicious: shows up on every object, and hides I/O\nfun Any.saveToDisk() { /* ... */ }\n\n// Better: a named function with an explicit dependency\nfun saveToDisk(storage: Storage, value: Settings) { /* ... */ }\n\n// Fine: small, pure, and clearly about the receiver\nfun String.isValidEmail(): Boolean = \"@\" in this && \".\" in substringAfter(\"@\")",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
                 }
             ]
         }

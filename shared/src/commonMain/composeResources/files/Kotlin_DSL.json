@@ -28,6 +28,55 @@
                     "codeSnippet": "// Lambda with receiver type\nfun buildGreeting(block: StringBuilder.() -> Unit): String {\n    val sb = StringBuilder()\n    sb.block()  // 'this' inside block is the StringBuilder\n    return sb.toString()\n}\n\nval result = buildGreeting {\n    append(\"Hello, \")  // 'this' is StringBuilder\n    append(\"World!\")\n    appendLine()\n    append(\"Welcome to Kotlin DSLs\")\n}\n// \"Hello, World!\\nWelcome to Kotlin DSLs\"",
                     "codeLang": "Kotlin",
                     "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "buildString, buildList and buildMap are DSLs in the standard library",
+                    "content": "Several standard-library functions take a lambda with receiver so you can build a value with a small local DSL: buildString gives you a StringBuilder, buildList a MutableList, and buildMap a MutableMap. The block runs once and the function returns the finished, read-only result.\n\nThey are the simplest way to see the pattern in action, and a good default when building a value takes loops or conditions.",
+                    "codeSnippet": "val csv = buildString {\n    appendLine(\"id,name\")\n    users.forEach { appendLine(\"${it.id},${it.name}\") }\n}\n\nval tags = buildList {\n    add(\"kotlin\")\n    if (isAndroid) add(\"android\")\n}\n\nval headers = buildMap {\n    put(\"Accept\", \"application/json\")\n    if (token != null) put(\"Authorization\", \"Bearer $token\")\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "Keep the builder mutable and the result immutable",
+                    "content": "A DSL block needs something it can change as it runs, so the builder class has var properties and mutable collections. The value it produces should not: build() copies that state into an immutable object (a data class with val properties and read-only collections) and that is what the rest of the program sees.\n\nThis keeps the flexibility of the DSL where it is used and the safety of immutability everywhere else, and it stops code from changing the object after construction.",
+                    "codeSnippet": "class RequestBuilder {\n    var url: String = \"\"\n    private val headers = mutableMapOf<String, String>()\n\n    fun header(name: String, value: String) { headers[name] = value }\n\n    fun build() = Request(url, headers.toMap())   // immutable snapshot\n}\n\ndata class Request(val url: String, val headers: Map<String, String>)\n\nfun request(block: RequestBuilder.() -> Unit): Request =\n    RequestBuilder().apply(block).build()",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Use operator invoke to nest configuration blocks",
+                    "content": "An operator function named invoke lets you call an object or a string like a function, and with a trailing lambda that looks like a block. Declared as a member extension on String, it lets a DSL open a nested block with just a name and braces.\n\nThis is how DSLs get their outline-like structure. Because nested blocks can call functions of the outer receiver by accident, pair this style with @DslMarker for larger DSLs.",
+                    "codeSnippet": "class Route(val path: String) {\n    val children = mutableListOf<Route>()\n\n    operator fun String.invoke(init: Route.() -> Unit) {\n        children += Route(this).apply(init)\n    }\n}\n\nfun routes(init: Route.() -> Unit) = Route(\"/\").apply(init)\n\nval tree = routes {\n    \"users\" {\n        \"profile\" { }\n        \"settings\" { }\n    }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "infix functions make assertion-style DSLs read like sentences",
+                    "content": "An infix function with one parameter can be called without the dot and parentheses. That is enough to write test assertions or rules that read almost like English: result shouldBe expected, age isBetween 18 and 65.\n\nRestraint helps: infix suits a few well-named operations with an obvious meaning. Too many of them make code cryptic, and the parser needs care when several infix calls are combined without parentheses.",
+                    "codeSnippet": "infix fun <T> T.shouldBe(expected: T) {\n    check(this == expected) { \"Expected $expected but was $this\" }\n}\n\ninfix fun Int.isBetween(range: IntRange) = this in range\n\n// Reads like a sentence\ntotal shouldBe 42\n(age isBetween 18..65) shouldBe true",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Gradle's Kotlin DSL is lambdas with receiver",
+                    "content": "build.gradle.kts is ordinary Kotlin code. android { } and dependencies { } are functions that take a lambda with receiver, so inside the block you can call the receiver's members without a prefix. The implementation(...) inside dependencies { } is a generated extension function on that receiver.\n\nThat explains why the IDE can autocomplete and check the build script: it is type-checked Kotlin, not a separate configuration language. It is also why you can call normal Kotlin (variables, loops, functions) in a build script.",
+                    "codeSnippet": "// build.gradle.kts\ndependencies {                                // lambda with receiver (DependencyHandler scope)\n    implementation(\"io.ktor:ktor-client-core:3.0.0\")\n    testImplementation(kotlin(\"test\"))\n}\n\nandroid {                                      // lambda with receiver (extension for the Android plugin)\n    compileSdk = 35\n    defaultConfig { minSdk = 26 }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Composable lambdas form a UI DSL",
+                    "content": "Jetpack Compose UI is built with the same language features as any DSL: trailing lambdas for children, lambdas with receiver (a Column content lambda has a ColumnScope receiver, so it can use Modifier.weight), and named arguments with defaults for options.\n\nNested layouts read like the structure of the screen, and a scope receiver makes only valid calls available in the right place: weight is offered inside a Row or Column, not everywhere.",
+                    "codeSnippet": "@Composable\nfun Profile(user: User) {\n    Column(modifier = Modifier.padding(16.dp)) {      // content: ColumnScope.() -> Unit\n        Text(user.name, style = MaterialTheme.typography.titleLarge)\n        Row {\n            Text(\"Age\", modifier = Modifier.weight(1f)) // weight only exists in a Row/Column scope\n            Text(user.age.toString())\n        }\n    }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Don't build a DSL when named arguments and defaults are enough",
+                    "content": "A DSL adds code to write and maintain: builder classes, receivers, and often a marker annotation. It pays off when a structure is nested or repeated (HTML, routes, UI, build scripts). For a flat set of options, named arguments and default values do the job with no extra machinery.\n\nAsk whether callers will nest blocks or build a variable amount of structure. If not, a data class with defaults is simpler, easier to test and easier to discover.",
+                    "codeSnippet": "// A DSL would be overkill for this\ndata class Notification(\n    val title: String,\n    val body: String = \"\",\n    val priority: Int = 0,\n    val sound: Boolean = true\n)\n\nval n = Notification(title = \"Saved\", priority = 1)",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
                 }
             ]
         }

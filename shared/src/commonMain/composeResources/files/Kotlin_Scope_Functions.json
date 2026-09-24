@@ -28,6 +28,48 @@
                     "codeSnippet": "fun getUser(): User =\n    repository.findUser(id)\n        .also { println(\"Found user: $it\") }  // log\n        .also { require(it.isActive) }              // validate\n\n// Great for debugging chains\nlistOf(1, 2, 3)\n    .map { it * 2 }\n    .also { println(\"After map: $it\") }  // [2, 4, 6]\n    .filter { it > 3 }\n    .also { println(\"After filter: $it\") }  // [4, 6]",
                     "codeLang": "Kotlin",
                     "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "run turns a block into an expression that returns its result",
+                    "content": "run takes a lambda and returns whatever the last expression evaluates to. As an extension (obj.run { }) the object becomes 'this' inside the block, so it is a good fit when you want to call several members of an object and compute a result from them.\n\nThere is also a form with no receiver, run { }, that just gives you a scope: local variables declared inside stay inside, and the block's last expression becomes the value. That makes it handy for a multi-step initialization of a val.",
+                    "codeSnippet": "// Extension form: 'this' is the object, the result is the last expression\nval status = service.run {\n    port = 8080\n    connect()          // returned\n}\n\n// No receiver: a scoped block that produces a value\nval label = run {\n    val base = computeBase()\n    val tax = base * 0.2\n    \"Total: ${base + tax}\"   // 'base' and 'tax' don't leak out\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "with calls several members of one object without repeating its name",
+                    "content": "with(obj) { } is not an extension function: you pass the object as an argument, and inside the block it is 'this'. It returns the result of the last expression, like run. It reads best when you already have a non-null object and want to read or set many of its members.\n\nIf the value can be null, prefer obj?.run { } (or let), because with has no safe-call form.",
+                    "codeSnippet": "val summary = with(order) {\n    \"$id: ${items.size} items, total $total\"   // id, items, total belong to order\n}\n\n// with a builder-like object\nwith(paint) {\n    color = Color.RED\n    strokeWidth = 4f\n    isAntiAlias = true\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "takeIf and takeUnless turn a condition into a nullable value",
+                    "content": "takeIf { predicate } returns the receiver if the predicate is true and null otherwise; takeUnless is the opposite. Combined with the safe call and the Elvis operator they let you express \"use this value only if it is valid\" in one expression instead of an if statement and a temporary.\n\nUse them for validation-like checks on a value you are already holding. If the condition becomes long or has side effects, a normal if is clearer.",
+                    "codeSnippet": "val port = config.port.takeIf { it in 1..65535 } ?: 8080\n\nval text = File(path)\n    .takeIf { it.exists() && it.length() > 0 }\n    ?.readText()\n\nval name = input.trim().takeUnless { it.isEmpty() }",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "x?.let { } ?: default is not an if/else",
+                    "content": "The pattern user?.let { ... } ?: fallback looks like \"if user is not null do this, else that\". It isn't: the Elvis operator runs the fallback whenever the whole left side evaluates to null, and that includes the case where user is non-null but the let block itself returns null.\n\nIt works as an if/else only when the block can never return null. When the block returns a nullable value, or has a branch that returns null, you get the fallback in the \"wrong\" case. Use a real if/else when you mean if/else.",
+                    "codeSnippet": "// Bug: showLogin() also runs for a logged-in user without an avatar\nuser?.let { it.avatarUrl } ?: showLogin()\n\n// Clear: two explicit branches\nif (user != null) {\n    show(user.avatarUrl)\n} else {\n    showLogin()\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Avoid deeply nested scope functions — this and it get ambiguous",
+                    "content": "Scope functions are easy to stack, but each level changes what 'this' or 'it' means. Inside a nested let, 'it' is the inner value and the outer 'it' is hidden; inside nested lambdas with receiver, 'this' is the innermost receiver and the outer one is only reachable through a label. Readers (and you, later) have to work out which object a name refers to.\n\nGive the parameter a name when you nest (let { user -> ... }), keep nesting to one level, and extract a function when a block gets long.",
+                    "codeSnippet": "// Hard to read: which 'it' is which?\norder?.let {\n    it.customer?.let {\n        show(it.name)           // this 'it' is the customer, the order is hidden\n    }\n}\n\n// Clearer: named parameters\norder?.let { o ->\n    o.customer?.let { c -> show(c.name, o.id) }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Sometimes a plain local variable is better than a scope function",
+                    "content": "A scope function is worth it when it removes repetition or limits a variable's scope. Wrapping a single statement in let, also or run only adds a lambda and a level of indentation, and it makes the code harder to step through in a debugger.\n\nA useful test: if you can't say what the scope function buys you (a shorter null-check, a scoped temporary, configuring an object in one place), write it without one.",
+                    "codeSnippet": "// Needless wrapping\nname.let { println(it) }\n\n// Just call it\nprintln(name)\n\n// Worth it: the temporary stays inside and the null check is one line\nval length = name?.let { it.trim().length }",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
                 }
             ]
         }

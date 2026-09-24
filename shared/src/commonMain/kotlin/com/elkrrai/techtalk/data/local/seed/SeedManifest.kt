@@ -13,7 +13,7 @@ object SeedManifest {
      * installs that already seeded their database pick the changes up (see
      * [DatabaseSeeder.seedOrSync]). Installs that never stored a version count as 1.
      */
-    const val contentVersion: Int = 3
+    const val contentVersion: Int = 4
 
     /** A bundled tip retitled (or question reworded) since the content shipped earlier.
      * Sync renames the existing row first so its user history survives instead of the
@@ -160,6 +160,7 @@ object SeedManifest {
         "Kotlin_Null_Safety___Types.json",
         "Kotlin_Scope_Functions.json",
         "Kotlin_Structured_Concurrency___Errors.json",
+        "Kotlin_Testing_Coroutines___Flow.json",
         // Swift
         "Swift_Closures.json",
         "Swift_Enums___Pattern_Matching.json",

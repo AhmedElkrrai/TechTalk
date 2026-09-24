@@ -28,6 +28,48 @@
                     "codeSnippet": "sealed interface Error\nsealed interface UserError : Error\nsealed interface NetworkError : Error\n\n// Can implement multiple sealed interfaces\ndata class Timeout(val ms: Long) : NetworkError\ndata class NotFound(val id: String) : NetworkError, UserError\ndata class Unauthorized(val reason: String) : UserError\n\nfun handleError(error: Error) = when (error) {\n    is Timeout      -> retry()\n    is NotFound     -> show404()\n    is Unauthorized -> redirectToLogin()\n}",
                     "codeLang": "Kotlin",
                     "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "A data class must follow a few rules",
+                    "content": "A data class needs at least one parameter in its primary constructor, and every primary-constructor parameter must be marked val or var. It cannot be abstract, open, sealed or inner. It can, however, implement interfaces and extend other classes.\n\nThese rules exist because the generated equals, hashCode, toString, copy and componentN functions are built from the primary constructor's properties. Only those properties take part.",
+                    "codeSnippet": "data class User(val name: String, var age: Int)     // valid\n\n// data class Empty()                 // error: needs at least one parameter\n// data class Bad(name: String)       // error: parameter must be val or var\n// open data class Base(val id: Int)  // error: data classes can't be open\n\ndata class Admin(val id: Int) : Comparable<Admin> {\n    override fun compareTo(other: Admin) = id.compareTo(other.id)\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "copy() is shallow",
+                    "content": "copy() creates a new instance and copies each property reference as it is. If a property holds a mutable object such as a MutableList, the original and the copy share the same list, so changing it through one changes it in the other.\n\nFor real immutability, keep collections read-only and replace them when you change something, or copy the inner structure explicitly when you need independent state.",
+                    "codeSnippet": "data class Team(val name: String, val members: MutableList<String>)\n\nval a = Team(\"core\", mutableListOf(\"Ana\"))\nval b = a.copy(name = \"core-2\")\n\nb.members.add(\"Bo\")\nprintln(a.members)   // [Ana, Bo]  — the same list is shared!\n\n// Safer: read-only list, replaced on change\ndata class Team2(val name: String, val members: List<String>)\nval c = Team2(\"core\", listOf(\"Ana\")).let { it.copy(members = it.members + \"Bo\") }",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Use data object for singleton cases in a sealed hierarchy",
+                    "content": "A plain object has a default toString like Loading@1a2b3c and identity-based equality only. Declaring it as data object (stable since Kotlin 1.9) gives it a readable toString (\"Loading\"), and equals/hashCode that stay consistent even if a second instance is ever created (for example through reflection or deserialization), which makes it the right choice for the stateless cases of a sealed type.\n\nUse a data class for cases that carry data and a data object for cases that don't.",
+                    "codeSnippet": "sealed interface UiState {\n    data object Loading : UiState                       // prints as \"Loading\"\n    data class Content(val items: List<String>) : UiState\n    data class Error(val message: String) : UiState\n}\n\nprintln(UiState.Loading)   // Loading   (a plain object would print an address-like name)",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "An else branch defeats exhaustiveness checking on sealed types",
+                    "content": "The main benefit of a sealed type is that a when over it must cover every subtype, so adding a new subtype turns every incomplete when into a compile error. If you add else -> ... to that when, the compiler is satisfied by the else and no longer tells you about new cases: they silently fall into the fallback.\n\nLeave out else when you mean \"handle every case\", and spell out the cases you handle the same way. Use else only when the fallback is genuinely correct for every future subtype.",
+                    "codeSnippet": "sealed interface Payment { data object Card : Payment; data object Cash : Payment; data object Wallet : Payment }\n\nfun fee(p: Payment): Int = when (p) {\n    Payment.Card -> 3\n    Payment.Cash -> 0\n    Payment.Wallet -> 1\n    // no else: adding a new Payment breaks the build here, which is the point\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Model screen state as a sealed type, not as a bag of flags",
+                    "content": "A single data class with isLoading, error and data fields can represent impossible combinations, such as loading and failed at the same time, and every screen has to remember which combinations are valid. A sealed interface where each case carries only the data that makes sense removes the impossible states.\n\nThe UI then uses an exhaustive when to render each case, and adding a new state (for example Empty) produces compile errors wherever it isn't handled.",
+                    "codeSnippet": "// Impossible states are representable:\ndata class ScreenState(val isLoading: Boolean, val error: String?, val items: List<Item>?)\n\n// Only valid states exist:\nsealed interface Screen {\n    data object Loading : Screen\n    data class Loaded(val items: List<Item>) : Screen\n    data class Failed(val message: String) : Screen\n}\n\n@Composable fun Render(s: Screen) = when (s) {\n    Screen.Loading -> Spinner()\n    is Screen.Loaded -> List(s.items)\n    is Screen.Failed -> ErrorText(s.message)\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Mutating a var in a data class can break hash-based collections",
+                    "content": "A data class's hashCode is computed from its primary-constructor properties. If one of them is a var and you change it after the object has been put in a HashSet or used as a HashMap key, its hash changes, but it is still stored in the bucket for the old hash. The collection then can't find it: contains returns false and remove fails, although the object is still there.\n\nPrefer val properties in data classes that are used as keys or in sets, and use copy() to create a changed instance.",
+                    "codeSnippet": "data class Point(var x: Int, var y: Int)\n\nval points = hashSetOf(Point(1, 2))\nval p = points.first()\n\np.x = 99                       // hashCode changed after insertion\nprintln(points.contains(p))    // usually false — lookup goes to a different bucket\nprintln(points.size)           // 1      — but it is still in the set",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
                 }
             ]
         }

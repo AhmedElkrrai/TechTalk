@@ -1,0 +1,70 @@
+{
+    "version": 1,
+    "author": "TechTalk",
+    "description": "Kotlin — Testing Coroutines & Flow",
+    "entries": [
+        {
+            "technologyName": "Kotlin",
+            "topicName": "Testing Coroutines & Flow",
+            "topicDescription": "Writing fast, deterministic tests for suspend functions, coroutines and Flow with kotlinx-coroutines-test.",
+            "tips": [
+                {
+                    "title": "runTest runs coroutines on virtual time",
+                    "content": "Testing code that calls delay would normally make the test wait in real time. runTest (from the kotlinx-coroutines-test library) runs your test body in a TestScope with a virtual clock: when every coroutine is waiting, the clock jumps straight to the next scheduled time, so a delay of ten seconds finishes immediately.\n\nInside the test, currentTime shows the virtual time in milliseconds. A test that hangs fails with a timeout instead of running forever, and the timeout can be changed with a parameter of runTest.",
+                    "codeSnippet": "class DelayTest {\n    @Test\n    fun delayIsSkipped() = runTest {\n        val start = currentTime\n        delay(10_000)                                   // returns immediately in real time\n        assertEquals(10_000, currentTime - start)       // but 10 s of virtual time passed\n    }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "StandardTestDispatcher queues work; UnconfinedTestDispatcher runs it eagerly",
+                    "content": "runTest uses a StandardTestDispatcher by default: a coroutine you launch is queued and doesn't start until the test body suspends or you advance the scheduler. That gives predictable ordering, but a test that launches something and immediately asserts will see nothing has happened yet.\n\nUnconfinedTestDispatcher starts a coroutine right away, running until its first suspension, like Dispatchers.Unconfined. Use it when you want collectors and launches to begin immediately, for example to observe a Flow before you trigger it.",
+                    "codeSnippet": "@Test\nfun standardDispatcherQueues() = runTest {\n    var value = 0\n    launch { value = 1 }             // queued, hasn't run yet\n    assertEquals(0, value)\n\n    runCurrent()                     // run everything that is due now\n    assertEquals(1, value)\n}\n\n@Test\nfun unconfinedStartsEagerly() = runTest(UnconfinedTestDispatcher()) {\n    var value = 0\n    launch { value = 1 }             // already ran\n    assertEquals(1, value)\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Drive time with runCurrent, advanceTimeBy and advanceUntilIdle",
+                    "content": "The test scheduler gives you three controls. runCurrent runs every task that is due at the current virtual time. advanceTimeBy(n) moves the clock forward but does not run tasks scheduled at exactly the new time, so follow it with runCurrent when a task is due exactly then. advanceUntilIdle keeps going until no tasks are left.\n\nThese make time-dependent logic easy to test: debounce, timeouts and retries can be checked at the exact millisecond that matters.",
+                    "codeSnippet": "@Test\nfun tasksRunAtTheirVirtualTime() = runTest {\n    val log = mutableListOf<String>()\n    launch { delay(1_000); log += \"first\" }\n    launch { delay(2_000); log += \"second\" }\n\n    advanceTimeBy(999)\n    assertTrue(log.isEmpty())               // nothing is due yet\n\n    advanceTimeBy(1)                        // clock is now exactly 1000\n    runCurrent()                            // tasks due at exactly 1000 only run now\n    assertEquals(listOf(\"first\"), log)\n\n    advanceUntilIdle()                      // run everything that is left\n    assertEquals(listOf(\"first\", \"second\"), log)\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Inject dispatchers and share one scheduler across the test",
+                    "content": "Code that hard-codes Dispatchers.IO or Dispatchers.Default can't be controlled from a test. Pass the dispatcher in (a constructor parameter with a production default), and in the test provide a TestDispatcher created from the runTest scheduler, so every coroutine advances on the same virtual clock.\n\nIf the code uses viewModelScope, set Dispatchers.Main to a test dispatcher for the test and reset it afterwards. Give that dispatcher the same scheduler, so time advances together in every place.",
+                    "codeSnippet": "class Repository(private val io: CoroutineDispatcher = Dispatchers.IO) {\n    suspend fun load(): String = withContext(io) { delay(500); \"data\" }\n}\n\n@Test\nfun loadsWithVirtualTime() = runTest {\n    val dispatcher = StandardTestDispatcher(testScheduler)   // same scheduler as runTest\n    val repo = Repository(io = dispatcher)\n\n    val result = repo.load()          // the 500 ms delay is virtual\n    assertEquals(\"data\", result)\n    assertEquals(500, currentTime)\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Collect a StateFlow in backgroundScope so the test can finish",
+                    "content": "A StateFlow never completes, so a collector launched in the test's own scope keeps runTest waiting forever (or until its timeout). Launch such collectors in backgroundScope instead: it is cancelled automatically when the test body ends, and runTest doesn't wait for it.\n\nUse an UnconfinedTestDispatcher with the test scheduler for the collector so it receives every value as soon as it is set, and note that StateFlow conflates: values set faster than the collector runs may be skipped.",
+                    "codeSnippet": "@Test\nfun stateReflectsLoad() = runTest {\n    val viewModel = ProfileViewModel(FakeUserRepository())\n    val states = mutableListOf<UiState>()\n\n    backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {\n        viewModel.state.toList(states)     // never completes, cancelled at the end of the test\n    }\n\n    viewModel.load()\n    runCurrent()\n\n    assertEquals(UiState.Content(\"Ana\"), states.last())\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Turbine tests Flow emissions as a sequence of events",
+                    "content": "Turbine is a small library that collects a Flow into a channel and lets you assert on it in order: awaitItem waits for the next value, awaitComplete and awaitError check how it ends, expectNoEvents asserts nothing else happened, and cancelAndIgnoreRemainingEvents stops the test cleanly when you don't care about the rest.\n\nIt fails the test if unconsumed events remain when the block ends, so unexpected extra emissions don't go unnoticed. Because it is a separate dependency, add it explicitly to your test source set.",
+                    "codeSnippet": "@Test\nfun emitsLoadingThenContent() = runTest {\n    viewModel.state.test {\n        assertEquals(UiState.Loading, awaitItem())     // initial value\n\n        viewModel.load()\n        assertEquals(UiState.Content(\"Ana\"), awaitItem())\n\n        expectNoEvents()\n        cancelAndIgnoreRemainingEvents()\n    }\n}\n\n@Test\nfun failingFlowEndsWithError() = runTest {\n    failingFlow().test {\n        assertIs<IOException>(awaitError())\n    }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "A SharedFlow event is lost if nobody is collecting when it is emitted",
+                    "content": "A MutableSharedFlow with the default replay = 0 delivers a value only to collectors that are already active. A test that emits first and starts collecting afterwards sees nothing, which is the same behavior that makes such events unreliable in production.\n\nStart the collector first (Turbine's test starts collecting immediately), then trigger the event. If the events are one-shot UI events, test the Channel-backed Flow the same way: with a Channel, an event sent before the collector starts is still delivered, which is one reason to prefer it.",
+                    "codeSnippet": "@Test\nfun eventIsReceivedWhenCollectedFirst() = runTest {\n    val events = MutableSharedFlow<UiEvent>()\n\n    events.test {                              // collector is running now\n        events.emit(UiEvent.Saved)\n        assertEquals(UiEvent.Saved, awaitItem())\n    }\n}\n\n@Test\nfun channelBuffersEventsSentEarly() = runTest {\n    val channel = Channel<UiEvent>(Channel.BUFFERED)\n    channel.send(UiEvent.Saved)                // sent before anyone collects\n\n    channel.receiveAsFlow().test {\n        assertEquals(UiEvent.Saved, awaitItem())\n        cancelAndIgnoreRemainingEvents()\n    }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Hard-coded dispatchers and real time make coroutine tests slow or flaky",
+                    "content": "Virtual time only works for delays that run on a test dispatcher. If the code under test switches to a real Dispatchers.IO with withContext, or waits on a real timer or thread, the delay happens in real time, the test becomes slow, and the result may depend on timing.\n\nFix it at the source: inject the dispatcher. For collaborators, prefer small fakes built on MutableStateFlow or MutableSharedFlow to mocks: they behave like the real thing, and a test can change their state and see how the code reacts.",
+                    "codeSnippet": "class FakeUserRepository : UserRepository {\n    private val users = MutableStateFlow<List<User>>(emptyList())\n\n    override fun observeUsers(): Flow<List<User>> = users\n\n    fun setUsers(list: List<User>) { users.value = list }   // the test drives the fake\n}\n\n// Slow: withContext(Dispatchers.IO) { delay(2_000) } waits 2 real seconds\n// Fast : withContext(injectedDispatcher) { delay(2_000) } skips the delay in runTest",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                }
+            ]
+        }
+    ]
+}

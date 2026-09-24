@@ -585,6 +585,386 @@
                     ]
                 }
             ]
+        },
+        {
+            "technologyName": "Kotlin",
+            "topicName": "Testing Coroutines & Flow",
+            "topicDescription": "Writing fast, deterministic tests for suspend functions, coroutines and Flow with kotlinx-coroutines-test.",
+            "questions": [
+                {
+                    "questionText": "What does runTest do with a call to delay(10_000) inside the test body?",
+                    "difficulty": "BEGINNER",
+                    "explanation": "runTest uses virtual time: when all coroutines are waiting it advances the clock to the next scheduled task, so the delay completes immediately in real time.",
+                    "answers": [
+                        {
+                            "answerText": "It waits ten real seconds",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "It ignores the delay and never resumes",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "It skips ahead in virtual time and returns immediately",
+                            "isCorrect": true
+                        },
+                        {
+                            "answerText": "It throws an exception",
+                            "isCorrect": false
+                        }
+                    ]
+                },
+                {
+                    "questionText": "In a runTest test with the default StandardTestDispatcher, when does a coroutine started with launch begin running?",
+                    "difficulty": "INTERMEDIATE",
+                    "explanation": "A StandardTestDispatcher queues launched coroutines; they run when the test body suspends or when you call runCurrent, advanceTimeBy or advanceUntilIdle.",
+                    "answers": [
+                        {
+                            "answerText": "Immediately, before launch returns",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "Only after the test has finished",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "When the test yields or you advance the scheduler, for example with runCurrent",
+                            "isCorrect": true
+                        },
+                        {
+                            "answerText": "Never; you must use GlobalScope",
+                            "isCorrect": false
+                        }
+                    ]
+                },
+                {
+                    "questionText": "Why should a test collect a StateFlow in backgroundScope?",
+                    "difficulty": "ADVANCED",
+                    "explanation": "A StateFlow never completes, so a collector in the test's own scope would keep runTest waiting. backgroundScope is cancelled automatically when the test body ends.",
+                    "answers": [
+                        {
+                            "answerText": "To make the StateFlow cold",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "To run the collector on a real thread",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "Because the collector never completes, and backgroundScope is cancelled when the test ends",
+                            "isCorrect": true
+                        },
+                        {
+                            "answerText": "To avoid the need for a dispatcher",
+                            "isCorrect": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "technologyName": "Kotlin",
+            "topicName": "Delegation",
+            "topicDescription": "Reusing behavior with the 'by' keyword for properties and interfaces.",
+            "questions": [
+                {
+                    "questionText": "What does 'by lazy' do by default?",
+                    "difficulty": "BEGINNER",
+                    "explanation": "The lazy initializer runs on first access, its result is cached, and by default (SYNCHRONIZED mode) initialization is thread-safe.",
+                    "answers": [
+                        {
+                            "answerText": "Runs the initializer every time the property is read",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "Runs the initializer when the object is constructed",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "Runs the initializer on first access and caches the result",
+                            "isCorrect": true
+                        },
+                        {
+                            "answerText": "Makes the property mutable",
+                            "isCorrect": false
+                        }
+                    ]
+                },
+                {
+                    "questionText": "Which delegate lets you reject a new value before it is assigned to a property?",
+                    "difficulty": "INTERMEDIATE",
+                    "explanation": "Delegates.vetoable calls your lambda before the assignment and applies the new value only if it returns true. observable is called after the value has changed.",
+                    "answers": [
+                        {
+                            "answerText": "Delegates.observable",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "Delegates.notNull",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "lazy",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "Delegates.vetoable",
+                            "isCorrect": true
+                        }
+                    ]
+                },
+                {
+                    "questionText": "What happens if a class delegates two interfaces to two objects and both interfaces declare a member with the same signature?",
+                    "difficulty": "ADVANCED",
+                    "explanation": "The compiler can't choose an implementation, so it reports an error until you override the member explicitly in the delegating class.",
+                    "answers": [
+                        {
+                            "answerText": "The first interface's implementation is used",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "The last interface's implementation is used",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "Both implementations are called",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "It does not compile until you override the conflicting member yourself",
+                            "isCorrect": true
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "technologyName": "Kotlin",
+            "topicName": "Design Patterns",
+            "topicDescription": "Classic and idiomatic design patterns applied through Kotlin's language features.",
+            "questions": [
+                {
+                    "questionText": "Which Kotlin features most often make the Builder pattern unnecessary for optional constructor parameters?",
+                    "difficulty": "BEGINNER",
+                    "explanation": "Named arguments together with default parameter values let callers set only the options they need, without a builder class.",
+                    "answers": [
+                        {
+                            "answerText": "Extension functions and companion objects",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "Sealed classes and when expressions",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "Named arguments and default parameter values",
+                            "isCorrect": true
+                        },
+                        {
+                            "answerText": "Coroutines and Flow",
+                            "isCorrect": false
+                        }
+                    ]
+                },
+                {
+                    "questionText": "Which built-in function of a data class implements the Prototype pattern?",
+                    "difficulty": "INTERMEDIATE",
+                    "explanation": "copy() creates a new instance with the same property values and lets you change only some of them.",
+                    "answers": [
+                        {
+                            "answerText": "toString()",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "hashCode()",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "componentN()",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "copy()",
+                            "isCorrect": true
+                        }
+                    ]
+                },
+                {
+                    "questionText": "Why is a sealed hierarchy with a when expression often used instead of the classic Visitor pattern?",
+                    "difficulty": "ADVANCED",
+                    "explanation": "With a sealed hierarchy the compiler checks that a when covers every subtype, so you get exhaustive dispatch without accept/visit methods.",
+                    "answers": [
+                        {
+                            "answerText": "Because when is faster than any method call",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "Because sealed classes can be extended from any module",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "Because the Visitor pattern is not allowed in Kotlin",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "Because the compiler verifies the when is exhaustive, so no accept/visit methods are needed",
+                            "isCorrect": true
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "technologyName": "Kotlin",
+            "topicName": "DSL",
+            "topicDescription": "Creating domain-specific languages using Kotlin's builder pattern.",
+            "questions": [
+                {
+                    "questionText": "Which standard-library function builds a String by running a lambda with a StringBuilder as its receiver?",
+                    "difficulty": "BEGINNER",
+                    "explanation": "buildString takes a lambda with a StringBuilder receiver, so you can call append and appendLine directly inside the block and it returns the resulting String.",
+                    "answers": [
+                        {
+                            "answerText": "stringOf",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "StringBuilder.apply",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "joinToString",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "buildString",
+                            "isCorrect": true
+                        }
+                    ]
+                },
+                {
+                    "questionText": "In a lambda with receiver of type T.() -> Unit, what does 'this' refer to inside the lambda?",
+                    "difficulty": "INTERMEDIATE",
+                    "explanation": "The receiver object of type T is the implicit 'this', so its members can be called without a prefix. This is the basis of Kotlin DSLs.",
+                    "answers": [
+                        {
+                            "answerText": "The enclosing function's caller",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "The lambda itself",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "The receiver object of type T",
+                            "isCorrect": true
+                        },
+                        {
+                            "answerText": "The parameter named it",
+                            "isCorrect": false
+                        }
+                    ]
+                },
+                {
+                    "questionText": "What is the purpose of a @DslMarker annotation?",
+                    "difficulty": "ADVANCED",
+                    "explanation": "A DslMarker restricts implicit access to outer receivers inside nested DSL blocks, so a call meant for the inner receiver can't silently resolve to an outer one.",
+                    "answers": [
+                        {
+                            "answerText": "To make the DSL faster at runtime",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "To generate the builder classes automatically",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "To allow the DSL to be used from Java",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "To stop nested blocks from implicitly calling members of an outer receiver",
+                            "isCorrect": true
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "technologyName": "Kotlin",
+            "topicName": "Fundamentals",
+            "topicDescription": "Core language features and idioms that make Kotlin code more concise and expressive.",
+            "questions": [
+                {
+                    "questionText": "What is the difference between == and === in Kotlin?",
+                    "difficulty": "BEGINNER",
+                    "explanation": "== is structural equality and calls equals(); === is referential equality and checks whether two references point to the same object.",
+                    "answers": [
+                        {
+                            "answerText": "== compares references and === compares values",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "They are the same for all types",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "=== is only for primitive types",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "== checks structural equality (equals) and === checks that both refer to the same object",
+                            "isCorrect": true
+                        }
+                    ]
+                },
+                {
+                    "questionText": "Which values can be declared with const val?",
+                    "difficulty": "INTERMEDIATE",
+                    "explanation": "const val must be a primitive or String known at compile time, declared at top level or in an object or companion object. A value computed at runtime can't be const.",
+                    "answers": [
+                        {
+                            "answerText": "Any value computed at runtime, such as the current time",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "Any object, as long as it is immutable",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "Only local variables inside a function",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "Primitive or String constants known at compile time, at top level or in an object",
+                            "isCorrect": true
+                        }
+                    ]
+                },
+                {
+                    "questionText": "What does the crossinline modifier on a lambda parameter of an inline function do?",
+                    "difficulty": "ADVANCED",
+                    "explanation": "crossinline forbids non-local returns from that lambda. It is required when the lambda is called from another execution context, such as a nested object or another lambda.",
+                    "answers": [
+                        {
+                            "answerText": "It prevents the lambda from being inlined",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "It makes the lambda suspend",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "It stores the lambda as a property",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "It forbids non-local returns from the lambda",
+                            "isCorrect": true
+                        }
+                    ]
+                }
+            ]
         }
     ]
 }
