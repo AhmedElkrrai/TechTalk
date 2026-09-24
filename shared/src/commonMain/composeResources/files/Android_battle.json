@@ -915,8 +915,8 @@
         },
         {
             "technologyName": "Android",
-            "topicName": "Architecture Patterns",
-            "topicDescription": "Structuring the presentation layer: MVVM, unidirectional data flow, MVI, state holders and error handling.",
+            "topicName": "Clean Architecture",
+            "topicDescription": "Layered architecture patterns for Android: domain, data, and presentation boundaries.",
             "questions": [
                 {
                     "questionText": "In unidirectional data flow, what travels from the ViewModel down to the UI?",

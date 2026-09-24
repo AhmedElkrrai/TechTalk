@@ -56,6 +56,62 @@
                     "codeSnippet": "// Simple screen: the ViewModel talks to the repository directly\nclass SettingsViewModel(private val settings: SettingsRepository) : ViewModel()\n\n// Real logic worth its own place: it combines repositories and is reused\nclass GetRecommendationsUseCase(\n    private val history: HistoryRepository,\n    private val catalog: CatalogRepository\n) {\n    suspend operator fun invoke(): List<Item> = rank(history.recent(), catalog.all())\n}",
                     "codeLang": "Kotlin",
                     "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "MVVM: the UI renders state and the ViewModel owns the logic",
+                    "content": "In MVVM the View (a Composable, Fragment or Activity) only displays state and forwards user actions. The ViewModel holds the screen's state, contains the presentation logic and talks to the data layer. The Model is the data layer: repositories and data sources.\n\nThe rule that keeps it working: the ViewModel never references the View. It exposes state, the View observes it and calls functions on the ViewModel in response to clicks. That is what makes the ViewModel testable without a device and safe across configuration changes.",
+                    "codeSnippet": "class NotesViewModel(private val repository: NoteRepository) : ViewModel() {\n    val notes: StateFlow<List<Note>> = repository.observeNotes()\n        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())\n\n    fun onDelete(id: Long) { viewModelScope.launch { repository.delete(id) } }\n}\n\n@Composable\nfun NotesScreen(viewModel: NotesViewModel) {\n    val notes by viewModel.notes.collectAsStateWithLifecycle()   // View observes state\n    NotesList(notes, onDelete = viewModel::onDelete)              // and forwards events\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "Unidirectional data flow: state goes down, events go up",
+                    "content": "In unidirectional data flow (UDF), state flows in one direction, from the ViewModel down to the UI, and user actions flow the other way, from the UI up to the ViewModel as events. The UI never changes state directly; it asks the ViewModel, which updates the state, and the new state flows back down.\n\nThat gives every piece of state a single owner and a single path, which makes bugs easier to trace and screens easier to test: give the composable a state and check what it shows, then send it an event and check what was reported.",
+                    "codeSnippet": "@Composable\nfun CounterScreen(viewModel: CounterViewModel) {\n    val state by viewModel.state.collectAsStateWithLifecycle()\n\n    CounterContent(\n        count = state.count,                 // state flows down\n        onIncrement = viewModel::increment   // events flow up\n    )\n}\n\n@Composable\nfun CounterContent(count: Int, onIncrement: () -> Unit) {\n    Button(onClick = onIncrement) { Text(\"Clicked $count times\") }   // stateless and easy to preview\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "MVI: intents in, a reducer produces the next state",
+                    "content": "MVI (Model-View-Intent) is UDF taken further. The screen has a single immutable state. Every user action is an intent (usually a sealed type), and a reducer is a pure function that takes the current state and an intent and returns the new state.\n\nBecause all changes go through one function, the state transitions are explicit and easy to unit test, and you can log or replay intents. The cost is more types and boilerplate than plain MVVM, so it pays off on screens with complex state.",
+                    "codeSnippet": "data class CounterState(val count: Int = 0, val loading: Boolean = false)\n\nsealed interface CounterIntent {\n    data object Increment : CounterIntent\n    data object Reset : CounterIntent\n}\n\nfun reduce(state: CounterState, intent: CounterIntent): CounterState = when (intent) {\n    CounterIntent.Increment -> state.copy(count = state.count + 1)\n    CounterIntent.Reset -> state.copy(count = 0)\n}\n\nclass CounterViewModel : ViewModel() {\n    private val _state = MutableStateFlow(CounterState())\n    val state = _state.asStateFlow()\n\n    fun onIntent(intent: CounterIntent) = _state.update { reduce(it, intent) }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Prefer one UI state per screen over many separate flows",
+                    "content": "When a screen exposes many independent StateFlows (title, list, loading, error), the UI can see them in inconsistent combinations, and each new field is one more thing to collect and wire up.\n\nCombine the sources into one UiState in the ViewModel with combine, and expose that as a single StateFlow. The UI renders a consistent snapshot, and a sealed type for the state removes impossible combinations such as loading and failed together. Tiny, unrelated values that change on their own can still stay separate.",
+                    "codeSnippet": "data class HomeState(\n    val user: User? = null,\n    val orders: List<Order> = emptyList(),\n    val isRefreshing: Boolean = false\n)\n\nclass HomeViewModel(users: UserRepository, orders: OrderRepository) : ViewModel() {\n    private val refreshing = MutableStateFlow(false)\n\n    val state: StateFlow<HomeState> = combine(\n        users.observeUser(), orders.observeOrders(), refreshing\n    ) { user, orderList, isRefreshing ->\n        HomeState(user, orderList, isRefreshing)          // one consistent snapshot\n    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeState())\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Use a plain state holder for UI logic that depends on the UI",
+                    "content": "Not all state belongs in a ViewModel. State that is tied to the UI and doesn't need to survive process changes or hit the data layer, such as whether a drawer is open, a scroll position, or a search box's text and focus, is best held in a plain class remembered by the composable (a state holder), like LazyListState or DrawerState.\n\nKeep business logic and data access in the ViewModel, and UI element logic in a state holder. A state holder can take a lambda or the ViewModel's state as input, and it makes the composable easier to test and preview.",
+                    "codeSnippet": "@Stable\nclass SearchBarState(initialQuery: String = \"\") {\n    var query by mutableStateOf(initialQuery)\n        private set\n    var expanded by mutableStateOf(false)\n        private set\n\n    fun onQueryChange(value: String) { query = value }\n    fun onExpandedChange(value: Boolean) { expanded = value }\n}\n\n@Composable\nfun rememberSearchBarState() = remember { SearchBarState() }   // lives as long as the composition",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Translate errors at each layer boundary",
+                    "content": "Each layer should speak its own language about failure. The data layer catches library-specific exceptions (HttpException, IOException, SQLiteException) and turns them into domain errors. The domain and presentation code work with those and never see Retrofit or SQLite types. Only the UI decides how an error looks, and it maps a domain error to a string resource.\n\nThat keeps libraries replaceable, keeps ViewModels testable with plain fakes, and keeps user-facing wording and localization in the UI layer.",
+                    "codeSnippet": "// Data layer: library exceptions -> domain errors\nsealed interface DomainError {\n    data object NoConnection : DomainError\n    data object NotFound : DomainError\n    data class Unknown(val cause: Throwable) : DomainError\n}\n\nfun Throwable.toDomainError(): DomainError = when {\n    this is IOException -> DomainError.NoConnection\n    this is HttpException && code() == 404 -> DomainError.NotFound\n    else -> DomainError.Unknown(this)\n}\n\n// UI layer: domain error -> message (localizable)\n@StringRes fun DomainError.message(): Int = when (this) {\n    DomainError.NoConnection -> R.string.error_no_connection\n    DomainError.NotFound -> R.string.error_not_found\n    is DomainError.Unknown -> R.string.error_generic\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "The ViewModel reports that navigation should happen; the UI navigates",
+                    "content": "A ViewModel must not hold a NavController: the NavController belongs to the UI and holding it in a ViewModel that outlives the UI leaks it and ties the ViewModel to the framework. Instead the ViewModel exposes what should happen next, and the composable performs the navigation.\n\nModel it as a piece of state (a destination the UI consumes and clears) or as a one-time event, and keep the ViewModel free of navigation types so it can be tested by asserting on its output.",
+                    "codeSnippet": "data class LoginState(val loading: Boolean = false, val navigateToHome: Boolean = false)\n\nclass LoginViewModel(private val auth: AuthRepository) : ViewModel() {\n    private val _state = MutableStateFlow(LoginState())\n    val state = _state.asStateFlow()\n\n    fun onLogin(user: String, password: String) = viewModelScope.launch {\n        auth.login(user, password)\n        _state.update { it.copy(navigateToHome = true) }\n    }\n\n    fun onNavigated() = _state.update { it.copy(navigateToHome = false) }\n}\n\n// UI\nLaunchedEffect(state.navigateToHome) {\n    if (state.navigateToHome) { navController.navigate(Home); viewModel.onNavigated() }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Split a \"god\" ViewModel before it becomes untestable",
+                    "content": "A ViewModel that grows to hundreds of lines, mixes unrelated states and depends on many repositories is hard to read, hard to test and slow to change. Typical signs: several unrelated groups of state, functions that never touch each other's fields, and constructor parameters that only some functions use.\n\nSplit by responsibility. Move business rules into use cases, move UI-only logic into state holders, and give independent parts of a screen their own ViewModel or a small collaborator class. The ViewModel then coordinates instead of doing everything.",
+                    "codeSnippet": "// Before: one class takes six dependencies and does everything\n// class CheckoutViewModel(cartRepo, payments, shipping, coupons, analytics, profile) : ViewModel()\n\n// After: rules live in use cases, the ViewModel only coordinates\nclass CheckoutViewModel(\n    private val calculateTotal: CalculateTotalUseCase,     // cart + coupons\n    private val placeOrder: PlaceOrderUseCase              // payments + shipping\n) : ViewModel() {\n\n    fun onPlaceOrder() = viewModelScope.launch {\n        val total = calculateTotal(cart.value)\n        _state.update { it.copy(result = placeOrder(cart.value, total)) }\n    }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
                 }
             ]
         }

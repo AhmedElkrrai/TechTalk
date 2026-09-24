@@ -13,7 +13,7 @@ object SeedManifest {
      * installs that already seeded their database pick the changes up (see
      * [DatabaseSeeder.seedOrSync]). Installs that never stored a version count as 1.
      */
-    const val contentVersion: Int = 5
+    const val contentVersion: Int = 6
 
     /** A bundled tip retitled (or question reworded) since the content shipped earlier.
      * Sync renames the existing row first so its user history survives instead of the
@@ -110,7 +110,6 @@ object SeedManifest {
     val tipPackFileNames: List<String> = listOf(
         // Android
         "Android_Activity_Lifecycle.json",
-        "Android_Architecture_Patterns.json",
         "Android_CI_CD.json",
         "Android_Clean_Architecture.json",
         "Android_DataStore___Storage.json",
