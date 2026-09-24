@@ -1,11 +1,11 @@
 {
     "version": 1,
     "author": "TechTalk",
-    "description": "Android — Retrofit & OkHttp",
+    "description": "Android — Retrofit",
     "entries": [
         {
             "technologyName": "Android",
-            "topicName": "Retrofit & OkHttp",
+            "topicName": "Retrofit",
             "topicDescription": "Calling HTTP APIs with Retrofit and OkHttp: interfaces, converters, interceptors, authentication, caching and testing.",
             "tips": [
                 {

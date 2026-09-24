@@ -1,11 +1,11 @@
 {
     "version": 1,
     "author": "TechTalk",
-    "description": "Android — DataStore & Storage",
+    "description": "Android — DataStore",
     "entries": [
         {
             "technologyName": "Android",
-            "topicName": "DataStore & Storage",
+            "topicName": "DataStore",
             "topicDescription": "Persisting preferences and files safely: DataStore, app-specific storage, scoped storage, and backups.",
             "tips": [
                 {

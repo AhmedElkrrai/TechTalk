@@ -1,11 +1,11 @@
 {
     "version": 1,
     "author": "TechTalk",
-    "description": "Android — DexGuard & RASP",
+    "description": "Android — DexGuard",
     "entries": [
         {
             "technologyName": "Android",
-            "topicName": "DexGuard & RASP",
+            "topicName": "DexGuard",
             "topicDescription": "Runtime application self-protection and obfuscation strategies.",
             "tips": [
                 {

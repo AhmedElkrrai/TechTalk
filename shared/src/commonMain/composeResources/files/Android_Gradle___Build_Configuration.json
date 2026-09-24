@@ -1,11 +1,11 @@
 {
     "version": 1,
     "author": "TechTalk",
-    "description": "Android — Gradle & Build Configuration",
+    "description": "Android — Gradle",
     "entries": [
         {
             "technologyName": "Android",
-            "topicName": "Gradle & Build Configuration",
+            "topicName": "Gradle",
             "topicDescription": "Build variants, product flavors, and custom Gradle tasks for Android projects.",
             "tips": [
                 {

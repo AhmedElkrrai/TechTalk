@@ -1,0 +1,133 @@
+{
+    "version": 1,
+    "author": "TechTalk",
+    "description": "Android — Networking",
+    "entries": [
+        {
+            "technologyName": "Android",
+            "topicName": "Networking",
+            "topicDescription": "Designing a robust networking layer: authentication, TLS, retries, error handling, serialization and headers, independent of the HTTP library.",
+            "tips": [
+                {
+                    "title": "Choose an authentication scheme by what it proves",
+                    "content": "An API key identifies your app, not the user, and a key shipped inside the APK can be extracted, so treat it as an identifier and never as a secret. A bearer token (usually OAuth 2.0 or a JWT) proves that a specific user signed in, and it is sent in the Authorization header. A session cookie does the same but is bound to a browser-style session. Mutual TLS proves which device or client is connecting, using a certificate.\n\nMost mobile APIs combine them: a key or attestation for the app, a token for the user, and TLS for the channel. Decide which of these your backend actually enforces, and don't rely on the client alone to protect anything sensitive.",
+                    "codeSnippet": "// App identity (not a secret): sent on every request\n.header(\"X-Api-Key\", BuildConfig.API_KEY)\n\n// User identity: short-lived bearer token\n.header(\"Authorization\", \"Bearer $accessToken\")\n\n// Client identity: certificate presented during the TLS handshake (mTLS), not a header",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "Keep access tokens short-lived and send the refresh token only to the auth server",
+                    "content": "An access token is sent with every request, so it is exposed most often and should expire quickly (minutes to an hour). A refresh token is used rarely, lives longer, and can mint new access tokens, so it is much more valuable to an attacker.\n\nSend the refresh token only to the token endpoint, never in ordinary API calls or logs. Prefer refresh-token rotation, where each refresh returns a new refresh token and invalidates the old one, so a stolen token is detected when it is used twice. Store both encrypted, and clear them on sign-out.",
+                    "codeSnippet": "data class Tokens(val accessToken: String, val refreshToken: String, val expiresAtMillis: Long)\n\ninterface AuthApi {\n    @POST(\"oauth/token\")\n    suspend fun refresh(@Body body: RefreshRequest): Tokens   // only place the refresh token is sent\n}\n\n// Regular API calls carry only the access token\nrequest.newBuilder().header(\"Authorization\", \"Bearer ${tokens.accessToken}\").build()",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Turn a failed refresh into one sign-out event",
+                    "content": "When the refresh token itself is expired or revoked, there is nothing left to retry: the user must sign in again. If every failing request handles that on its own, you get several login screens, or crashes from half-cleared state.\n\nRoute it through one place. The networking layer clears the tokens and emits a single \"session expired\" event; the app observes it and navigates to sign-in once. Distinguish the two failures clearly: 401 means the credentials are missing or invalid (try a refresh), 403 means you are signed in but not allowed (do not refresh, show a permission error).",
+                    "codeSnippet": "class SessionManager(private val tokens: TokenStore) {\n    // A Channel keeps the event until the app shell collects it (a SharedFlow would drop it)\n    private val _expired = Channel<Unit>(Channel.CONFLATED)\n    val sessionExpired: Flow<Unit> = _expired.receiveAsFlow()\n\n    fun onRefreshFailed() {\n        tokens.clear()\n        _expired.trySend(Unit)          // observed once by the app shell, which shows sign-in\n    }\n}\n\n// In the app shell\n// LaunchedEffect(Unit) { session.sessionExpired.collect { navController.navigate(SignIn) } }",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Set common headers in one place",
+                    "content": "Headers that every request needs belong in a single interceptor (or the client's default request configuration), not in each API function. Typical ones: Accept (what you can parse), Accept-Language (the user's locale), User-Agent or an app-version header (so the backend can support old versions), and a request or correlation ID that ties a client log line to a server log line.\n\nKeep secrets out of headers that get logged, generate the request ID per request, and make it easy to see which headers are added where.",
+                    "codeSnippet": "class CommonHeadersInterceptor(\n    private val appVersion: String,\n    private val locale: () -> String\n) : Interceptor {\n    override fun intercept(chain: Interceptor.Chain): Response {\n        val request = chain.request().newBuilder()\n            .header(\"Accept\", \"application/json\")\n            .header(\"Accept-Language\", locale())\n            .header(\"User-Agent\", \"MyApp/$appVersion (Android ${Build.VERSION.RELEASE})\")\n            .header(\"X-Request-Id\", UUID.randomUUID().toString())   // correlate with server logs\n            .build()\n        return chain.proceed(request)\n    }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "Don't set Accept-Encoding yourself",
+                    "content": "OkHttp adds Accept-Encoding: gzip to requests on its own and transparently decompresses the response, so the body you read is already plain. If you set that header manually, OkHttp assumes you are handling the encoding and stops decompressing, and you get compressed bytes that fail to parse.\n\nThe same idea applies to other headers OkHttp manages: Content-Length, Host, Connection. Leave them alone unless you have a specific reason.",
+                    "codeSnippet": "// Wrong: OkHttp no longer decompresses, so parsing sees gzip bytes\nchain.request().newBuilder().header(\"Accept-Encoding\", \"gzip\").build()\n\n// Right: don't set it; OkHttp adds it and decodes the response for you\nchain.proceed(chain.request())",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Make DTOs forgiving: defaults, nullable fields and unknown enum values",
+                    "content": "Servers change. A field can be added, become optional, or an enum can gain a value that older app versions have never seen. If the parser is strict, one new enum value breaks every installed app that receives it.\n\nGive optional fields defaults, ignore unknown keys, and give enums a fallback. With kotlinx.serialization, coerceInputValues replaces an unknown enum value with the property's default; a custom serializer can map unknown values to an explicit UNKNOWN entry. Then handle UNKNOWN deliberately in the UI.",
+                    "codeSnippet": "val json = Json {\n    ignoreUnknownKeys = true      // extra fields are ignored\n    coerceInputValues = true      // unknown enum / null for a non-null property -> the default\n}\n\n@Serializable\nenum class OrderStatus { PENDING, SHIPPED, DELIVERED, UNKNOWN }\n\n@Serializable\ndata class OrderDto(\n    val id: String,\n    val status: OrderStatus = OrderStatus.UNKNOWN,   // used when the server sends a new value\n    val note: String? = null                         // optional field\n)",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Send dates, money and IDs in unambiguous formats",
+                    "content": "Agree on precise formats and stick to them. Send instants as ISO 8601 in UTC (2026-09-24T10:15:30Z) or as epoch milliseconds, never as a locale-formatted string. Send money as an integer in minor units (cents) or as a string, never as a floating-point number, because 0.1 + 0.2 isn't 0.3 in binary floating point. Send large numeric IDs as strings, because some clients lose precision above 2^53.\n\nConvert at the boundary: the DTO holds the wire format, and the mapper turns it into a proper Instant or Money type.",
+                    "codeSnippet": "@Serializable\ndata class PaymentDto(\n    val id: String,                 // big IDs as strings\n    val amountCents: Long,          // 1999 = 19.99\n    val currency: String,           // \"EUR\"\n    val createdAt: String           // \"2026-09-24T10:15:30Z\"\n)\n\nfun PaymentDto.toDomain() = Payment(\n    id = id,\n    amount = Money(amountCents, currency),\n    createdAt = Instant.parse(createdAt)\n)",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "What TLS gives you, and what it doesn't",
+                    "content": "TLS gives an HTTPS connection three things: confidentiality (traffic is encrypted), integrity (tampering is detected) and server authentication (the server proves its identity with a certificate that chains to a trusted root and matches the hostname). Modern TLS also negotiates ephemeral keys, so recorded traffic can't be decrypted later even if a server key leaks.\n\nIt does not authenticate the user, and it does not protect data once it reaches the server or the app. It also trusts the device's set of certificate authorities, which is why pinning exists for higher-risk apps. Never turn off certificate or hostname checks to make an error go away.",
+                    "codeSnippet": "// A normal HTTPS client already does all of this: chain validation, hostname check, encryption\nval client = OkHttpClient()\n\n// Never: this removes server authentication and defeats TLS\n// .sslSocketFactory(trustAllFactory, trustAllManager)\n// .hostnameVerifier { _, _ -> true }",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "Mutual TLS proves the client's identity as well",
+                    "content": "In normal TLS only the server presents a certificate. In mutual TLS (mTLS) the server also requests a certificate from the client and refuses the connection if it is missing or not trusted. It is used for high-security APIs, corporate apps and device-bound access, because the identity is proven during the handshake, before any request is sent.\n\nOn Android the client's private key should live in the Android Keystore so it cannot be copied. Build a KeyManager from that keystore and give it to the SSL context of your HTTP client. Getting the client certificate onto the device (enrollment: generate a key on the device, have your CA sign it) is the hard part and needs a backend process.",
+                    "codeSnippet": "val keyStore = KeyStore.getInstance(\"AndroidKeyStore\").apply { load(null) }\n// The entry (private key + signed certificate chain) was created during device enrollment\n\nval keyManagerFactory = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm())\n    .apply { init(keyStore, null) }\n\nval trustManager = platformTrustManager()      // the default system trust manager\nval sslContext = SSLContext.getInstance(\"TLS\").apply {\n    init(keyManagerFactory.keyManagers, arrayOf(trustManager), null)\n}\n\nval client = OkHttpClient.Builder()\n    .sslSocketFactory(sslContext.socketFactory, trustManager)\n    .build()",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Configure pinning once, in the client factory",
+                    "content": "Certificate pinning should be applied in exactly one place: the function that builds your OkHttpClient. That keeps every request pinned by default, and makes it obvious which hosts are pinned and which build types skip it.\n\nDrive the pin list from configuration rather than scattering strings, and decide deliberately what debug builds do (some teams disable pinning to use an intercepting proxy in debug, others keep it and add a debug trust override). Whatever you choose, test the release configuration against a proxy before shipping. The Security topic covers pin choice, rotation and failure handling in depth.",
+                    "codeSnippet": "fun buildHttpClient(config: NetworkConfig): OkHttpClient {\n    val builder = OkHttpClient.Builder()\n        .addInterceptor(CommonHeadersInterceptor(config.appVersion, config.locale))\n\n    if (config.pins.isNotEmpty()) {\n        val pinner = CertificatePinner.Builder().apply {\n            config.pins.forEach { (host, pin) -> add(host, pin) }\n        }.build()\n        builder.certificatePinner(pinner)          // every request through this client is pinned\n    }\n    return builder.build()\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Encrypt sensitive payload fields in the app only when TLS isn't enough",
+                    "content": "TLS already encrypts everything in transit, and that is enough for most data. Encrypting fields again inside the payload only makes sense when the data must stay unreadable to something that legitimately terminates TLS: a CDN, an API gateway, request logs, or a third-party proxy.\n\nNever invent your own scheme. Use a vetted library, such as Tink's hybrid encryption, which encrypts with a fresh key per message and a public key from the recipient. Remember that keys shipped in the app can be extracted, so encrypting with an embedded secret adds little, and that encrypted fields can't be searched or validated by the server.",
+                    "codeSnippet": "// Encrypt a field for the backend using its public key (Tink hybrid encryption)\nval hybridEncrypt = keysetHandle.getPrimitive(HybridEncrypt::class.java)   // backend's public keyset (exact call depends on the Tink version)\n\nval encryptedCardNumber: ByteArray =\n    hybridEncrypt.encrypt(cardNumber.toByteArray(), /* contextInfo = */ \"payment-v1\".toByteArray())\n\nval body = PaymentRequest(cardToken = Base64.encodeToString(encryptedCardNumber, Base64.NO_WRAP))",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Retry with exponential backoff and jitter",
+                    "content": "Retrying immediately after a failure often makes an outage worse. Exponential backoff waits longer after each failed attempt (0.5 s, 1 s, 2 s...), up to a cap. Add jitter, a random amount of that delay, so that thousands of clients that failed at the same moment don't all retry at the same moment too.\n\nRetry only what can succeed later: network IOExceptions, 408, 429 and 5xx responses, not 4xx client errors like 400 or 404. Limit the number of attempts, and always rethrow CancellationException.",
+                    "codeSnippet": "suspend fun <T> retryWithBackoff(\n    maxAttempts: Int = 4,\n    baseDelayMs: Long = 500,\n    maxDelayMs: Long = 8_000,\n    block: suspend () -> T\n): T {\n    var attempt = 0\n    while (true) {\n        try {\n            return block()\n        } catch (e: CancellationException) {\n            throw e\n        } catch (e: IOException) {\n            attempt++\n            if (attempt >= maxAttempts) throw e\n        }\n        val ceiling = minOf(maxDelayMs, baseDelayMs shl (attempt - 1))   // 500, 1000, 2000 ...\n        delay(Random.nextLong(0, ceiling + 1))         // full jitter\n    }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Respect 429 and the Retry-After header",
+                    "content": "A 429 Too Many Requests response means you are being rate limited, and a 503 can mean the server is temporarily overloaded. Servers often include a Retry-After header telling you how long to wait, either as a number of seconds or as an HTTP date.\n\nWhen it is present, use it instead of your own backoff calculation, and don't retry earlier. If you ignore it, you keep hitting the limit and may get blocked for longer.",
+                    "codeSnippet": "fun retryAfterMillis(response: Response): Long? {\n    val value = response.header(\"Retry-After\") ?: return null\n    value.toLongOrNull()?.let { return it * 1_000 }                     // seconds\n    return runCatching {                                                // HTTP date\n        val date = ZonedDateTime.parse(value, DateTimeFormatter.RFC_1123_DATE_TIME)\n        maxOf(0, Duration.between(Instant.now(), date.toInstant()).toMillis())\n    }.getOrNull()\n}\n\n// if (response.code == 429) delay(retryAfterMillis(response) ?: backoffMs)",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Make POST retries safe with an idempotency key",
+                    "content": "A GET can be repeated safely, but a POST that creates an order or charges a card can't be blindly retried: if the first request reached the server and only the response was lost, a retry does the action twice.\n\nAn idempotency key solves it. The client generates a unique key for each logical operation and sends it in a header; the server remembers the key and returns the original result when it sees it again. Use the same key for every retry of the same operation and a new key for a new one. This works only if your backend supports it, and payment APIs commonly do.",
+                    "codeSnippet": "interface PaymentApi {\n    @POST(\"payments\")\n    suspend fun pay(\n        @Header(\"Idempotency-Key\") key: String,\n        @Body request: PaymentRequest\n    ): PaymentResponse\n}\n\n// One key per logical payment, reused for every retry\nval key = UUID.randomUUID().toString()\nval result = retryWithBackoff { api.pay(key, request) }",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Map HTTP status codes to actionable error categories",
+                    "content": "The UI doesn't need to know what 422 means; it needs to know what to do. Map status codes to a small set of categories once, in the networking layer: validation problems the user can fix (400, 422), authentication needed (401), not allowed (403), missing (404), conflict (409), rate limited (429), temporary server trouble (5xx), and no connection (IOException).\n\nEach category then has a clear response: show field errors, sign in again, show a permission message, back off and retry, or offer a retry button.",
+                    "codeSnippet": "sealed interface NetworkError {\n    data class Validation(val fields: Map<String, String>) : NetworkError\n    data object Unauthenticated : NetworkError            // 401: refresh or sign in\n    data object Forbidden : NetworkError                  // 403: signed in but not allowed\n    data object NotFound : NetworkError\n    data object Conflict : NetworkError\n    data class RateLimited(val retryAfterMs: Long?) : NetworkError\n    data object Server : NetworkError                     // 5xx: temporary\n    data object NoConnection : NetworkError\n    data class Unknown(val cause: Throwable) : NetworkError\n}\n\nfun statusToError(code: Int): NetworkError = when (code) {\n    400, 422 -> NetworkError.Validation(emptyMap())\n    401 -> NetworkError.Unauthenticated\n    403 -> NetworkError.Forbidden\n    404 -> NetworkError.NotFound\n    409 -> NetworkError.Conflict\n    429 -> NetworkError.RateLimited(null)\n    in 500..599 -> NetworkError.Server\n    else -> NetworkError.Unknown(IllegalStateException(\"HTTP $code\"))\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Parse the server's error body into a typed error",
+                    "content": "The status code says what kind of failure happened, but the body often says why: which field was invalid, which error code the backend uses. Many APIs return the standard problem-details format (application/problem+json, RFC 9457) with type, title, status and detail fields, or their own error object.\n\nDecode it into a DTO in the networking layer and attach it to your error type, with a safe fallback when the body is missing or is not JSON (an HTML page from a proxy, for example). Read the body once, because the stream can only be consumed a single time.",
+                    "codeSnippet": "@Serializable\ndata class ProblemDetails(\n    val type: String? = null,\n    val title: String? = null,\n    val status: Int? = null,\n    val detail: String? = null\n)\n\nfun HttpException.problemDetails(json: Json): ProblemDetails? = try {\n    response()?.errorBody()?.string()?.let { json.decodeFromString<ProblemDetails>(it) }\n} catch (e: SerializationException) {\n    null              // not JSON, or not the format we expect\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Don't pre-check connectivity — try the request and handle the failure",
+                    "content": "Checking that the device is online before sending a request isn't reliable: the state can change immediately afterwards, and \"connected\" doesn't mean the internet is reachable (captive portals, no route). The only reliable test is to attempt the request and handle an IOException.\n\nUse connectivity information for the user experience instead: show an offline banner, and retry pending work when the network returns. Register a network callback and check that the network is validated, meaning Android confirmed it has real internet access.",
+                    "codeSnippet": "val request = NetworkRequest.Builder()\n    .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)\n    .build()\n\nconnectivityManager.registerNetworkCallback(request, object : ConnectivityManager.NetworkCallback() {\n    override fun onCapabilitiesChanged(network: Network, caps: NetworkCapabilities) {\n        val online = caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)\n        if (online) syncPendingWork()      // network is back with working internet\n    }\n    override fun onLost(network: Network) { showOfflineBanner() }\n})",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                }
+            ]
+        }
+    ]
+}

@@ -13,7 +13,7 @@ object SeedManifest {
      * installs that already seeded their database pick the changes up (see
      * [DatabaseSeeder.seedOrSync]). Installs that never stored a version count as 1.
      */
-    const val contentVersion: Int = 6
+    const val contentVersion: Int = 7
 
     /** A bundled tip retitled (or question reworded) since the content shipped earlier.
      * Sync renames the existing row first so its user history survives instead of the
@@ -122,6 +122,7 @@ object SeedManifest {
         "Android_Ktor_Client.json",
         "Android_Modularization.json",
         "Android_Navigation.json",
+        "Android_Networking.json",
         "Android_Notifications.json",
         "Android_Paging_3.json",
         "Android_Performance___Profiling.json",

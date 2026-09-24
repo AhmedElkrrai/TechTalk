@@ -164,7 +164,7 @@
         },
         {
             "technologyName": "Android",
-            "topicName": "Dependency Injection",
+            "topicName": "Dependency",
             "topicDescription": "Managing object creation and dependencies with Hilt, Koin, and manual DI patterns.",
             "questions": [
                 {
@@ -217,7 +217,7 @@
         },
         {
             "technologyName": "Android",
-            "topicName": "DexGuard & RASP",
+            "topicName": "DexGuard",
             "topicDescription": "Runtime application self-protection and obfuscation strategies.",
             "questions": [
                 {
@@ -376,7 +376,7 @@
         },
         {
             "technologyName": "Android",
-            "topicName": "Gradle & Build Configuration",
+            "topicName": "Gradle",
             "topicDescription": "Build variants, product flavors, and custom Gradle tasks for Android projects.",
             "questions": [
                 {
@@ -763,7 +763,7 @@
         },
         {
             "technologyName": "Android",
-            "topicName": "DataStore & Storage",
+            "topicName": "DataStore",
             "topicDescription": "Persisting preferences and files safely: DataStore, app-specific storage, scoped storage, and backups.",
             "questions": [
                 {
@@ -839,7 +839,7 @@
         },
         {
             "technologyName": "Android",
-            "topicName": "Retrofit & OkHttp",
+            "topicName": "Retrofit",
             "topicDescription": "Calling HTTP APIs with Retrofit and OkHttp: interfaces, converters, interceptors, authentication, caching and testing.",
             "questions": [
                 {
@@ -1066,6 +1066,105 @@
                         },
                         {
                             "answerText": "Interface in the domain layer, implementation in the data layer",
+                            "isCorrect": true
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "technologyName": "Android",
+            "topicName": "Networking",
+            "topicDescription": "Designing a robust networking layer: authentication, TLS, retries, error handling, serialization and headers, independent of the HTTP library.",
+            "questions": [
+                {
+                    "questionText": "What is the difference between HTTP 401 and 403?",
+                    "difficulty": "BEGINNER",
+                    "explanation": "401 means the request lacks valid credentials (try refreshing the token or signing in). 403 means the user is authenticated but not allowed to do this, so refreshing a token won't help.",
+                    "answers": [
+                        {
+                            "answerText": "401 means the server is down and 403 means the resource moved",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "They are two names for the same error",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "401 means not allowed, 403 means credentials missing",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "401: credentials missing or invalid; 403: authenticated but not permitted",
+                            "isCorrect": true
+                        }
+                    ]
+                },
+                {
+                    "questionText": "Why add random jitter to exponential backoff?",
+                    "difficulty": "INTERMEDIATE",
+                    "explanation": "Without jitter, many clients that failed at the same moment retry at the same moments and overload the server again. Randomizing the delay spreads the retries out.",
+                    "answers": [
+                        {
+                            "answerText": "To make retries happen sooner",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "To make the delay predictable",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "To avoid using the network",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "To stop many clients from retrying at exactly the same time",
+                            "isCorrect": true
+                        }
+                    ]
+                },
+                {
+                    "questionText": "Which response header tells a client how long to wait before retrying after a 429 Too Many Requests?",
+                    "difficulty": "INTERMEDIATE",
+                    "explanation": "Retry-After holds either a number of seconds or an HTTP date. When it is present, use it instead of your own backoff delay.",
+                    "answers": [
+                        {
+                            "answerText": "Cache-Control",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "Content-Length",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "Accept-Encoding",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "Retry-After",
+                            "isCorrect": true
+                        }
+                    ]
+                },
+                {
+                    "questionText": "What does mutual TLS (mTLS) add compared with normal TLS?",
+                    "difficulty": "ADVANCED",
+                    "explanation": "In normal TLS only the server presents a certificate. With mTLS the server also requires a client certificate during the handshake and rejects clients that don't present a trusted one.",
+                    "answers": [
+                        {
+                            "answerText": "It encrypts the request body a second time",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "It removes the need for certificate authorities",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "It makes the connection use HTTP instead of HTTPS",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "The client also authenticates itself with a certificate",
                             "isCorrect": true
                         }
                     ]

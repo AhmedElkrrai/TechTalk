@@ -1,11 +1,11 @@
 {
     "version": 1,
     "author": "TechTalk",
-    "description": "Android — Performance & Profiling",
+    "description": "Android — Performance",
     "entries": [
         {
             "technologyName": "Android",
-            "topicName": "Performance & Profiling",
+            "topicName": "Performance",
             "topicDescription": "Diagnosing and improving app startup time, memory usage, and runtime performance.",
             "tips": [
                 {
