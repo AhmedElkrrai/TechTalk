@@ -14,6 +14,27 @@
                     "codeSnippet": "// generated via the Macrobenchmark library's BaselineProfileRule, then included in the release build\n@RunWith(AndroidJUnit4::class)\nclass BaselineProfileGenerator {\n    @get:Rule val rule = BaselineProfileRule()\n    @Test fun generate() = rule.collect(\"com.example.app\") { startActivityAndWait() }\n}",
                     "codeLang": "Kotlin",
                     "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Turn on StrictMode in debug builds to catch main-thread work",
+                    "content": "StrictMode is a developer tool that reports things that shouldn't happen on the main thread, such as disk reads and writes and network calls, and leaks like unclosed resources or leaked Activities. Turn it on only for debug builds, log the violations at first, and fix them as they show up, before they turn into dropped frames or ANRs in production.\n\nEnable it as early as possible, in Application.onCreate, so startup work is covered too.",
+                    "codeSnippet": "class App : Application() {\n    override fun onCreate() {\n        super.onCreate()\n        if (BuildConfig.DEBUG) {\n            StrictMode.setThreadPolicy(\n                StrictMode.ThreadPolicy.Builder().detectAll().penaltyLog().build()\n            )\n            StrictMode.setVmPolicy(\n                StrictMode.VmPolicy.Builder().detectLeakedClosableObjects().penaltyLog().build()\n            )\n        }\n    }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "Keep Application.onCreate light; defer initialization with App Startup",
+                    "content": "Everything you initialize in Application.onCreate (and in ContentProviders that libraries use to self-initialize) runs before the first screen can appear, so it directly slows cold start. Initialize only what the first screen needs, and defer or lazily create the rest.\n\nThe Jetpack App Startup library gives initialization a single, ordered entry point through Initializer classes with declared dependencies. You can also opt individual initializers out of automatic startup and trigger them on first use.",
+                    "codeSnippet": "class AnalyticsInitializer : Initializer<Analytics> {\n    override fun create(context: Context): Analytics = Analytics.init(context)\n\n    override fun dependencies(): List<Class<out Initializer<*>>> = emptyList()\n}\n\n// Later, only when analytics is first needed:\n// AppInitializer.getInstance(context).initializeComponent(AnalyticsInitializer::class.java)",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Measure startup with Macrobenchmark instead of guessing",
+                    "content": "Startup time is easy to misjudge by feel or by a single run on your own phone. The Macrobenchmark library launches your release-like app repeatedly in a separate process and reports real timings, such as StartupTimingMetric for time-to-initial-display, with statistics across iterations.\n\nUse CompilationMode to compare configurations, for example no pre-compilation against a Baseline Profile, so you can see what an optimization is actually worth.",
+                    "codeSnippet": "@RunWith(AndroidJUnit4::class)\nclass StartupBenchmark {\n    @get:Rule val benchmarkRule = MacrobenchmarkRule()\n\n    @Test\n    fun coldStart() = benchmarkRule.measureRepeated(\n        packageName = \"com.example.app\",\n        metrics = listOf(StartupTimingMetric()),\n        compilationMode = CompilationMode.None(),\n        iterations = 5,\n        startupMode = StartupMode.COLD\n    ) {\n        pressHome()\n        startActivityAndWait()\n    }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
                 }
             ]
         }

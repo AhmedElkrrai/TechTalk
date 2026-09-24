@@ -14,6 +14,34 @@
                     "codeSnippet": "@Dao\ninterface UserDao {\n    @Query(\"SELECT * FROM users WHERE name = :name\") // validated against the User entity at compile time\n    suspend fun findByName(name: String): List<User>\n}",
                     "codeLang": "Kotlin",
                     "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "Return Flow from DAO queries so the UI updates itself",
+                    "content": "A DAO function returning Flow<List<T>> keeps observing the tables the query reads: it emits the current result and then emits again whenever a relevant table changes. The UI simply collects it and never has to remember to refresh after an insert.\n\nUse a suspend function for one-shot reads and writes, and Flow for anything the screen displays. Room runs both off the main thread.",
+                    "codeSnippet": "@Dao\ninterface NoteDao {\n    @Query(\"SELECT * FROM note ORDER BY createdAt DESC\")\n    fun observeAll(): Flow<List<Note>>     // re-emits after any change to `note`\n\n    @Query(\"SELECT * FROM note WHERE id = :id\")\n    suspend fun getById(id: Long): Note?   // one-shot\n\n    @Insert(onConflict = OnConflictStrategy.REPLACE)\n    suspend fun upsert(note: Note)\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "Use auto-migrations with exported schemas to keep user data",
+                    "content": "When the schema changes, Room needs to know how to move existing data. If you raise the version without a migration, Room throws when it opens an existing database, and if you opt into destructive fallback instead, users lose all their data. Turn on exportSchema so Room writes each version's schema to JSON, then declare an AutoMigration; Room diffs the two schema files and generates the migration.\n\nRenames and deletions are ambiguous to the diff, so provide an AutoMigrationSpec with @RenameColumn, @RenameTable or @DeleteColumn. Test upgrades with MigrationTestHelper against the exported schemas.",
+                    "codeSnippet": "@Database(\n    entities = [User::class],\n    version = 2,\n    exportSchema = true,\n    autoMigrations = [AutoMigration(from = 1, to = 2, spec = Migration1To2::class)]\n)\nabstract class AppDatabase : RoomDatabase()\n\n@RenameColumn(tableName = \"User\", fromColumnName = \"name\", toColumnName = \"fullName\")\nclass Migration1To2 : AutoMigrationSpec",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Model one-to-many data with @Relation and read it inside a transaction",
+                    "content": "To load a parent with its children, define a plain class that embeds the parent and holds a list of the related child rows, and tell Room how they are linked with @Relation. Room runs a second query for the children.\n\nBecause that means two queries, mark the DAO function @Transaction so both read the same consistent snapshot, instead of a write landing between the two reads.",
+                    "codeSnippet": "data class UserWithPosts(\n    @Embedded val user: User,\n    @Relation(parentColumn = \"id\", entityColumn = \"userId\")\n    val posts: List<Post>\n)\n\n@Dao\ninterface UserDao {\n    @Transaction\n    @Query(\"SELECT * FROM User\")\n    fun observeUsersWithPosts(): Flow<List<UserWithPosts>>\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Index the columns you filter, join and reference",
+                    "content": "Without an index, a query that filters on a column has to scan the whole table. Add an index to columns used in WHERE, ORDER BY and JOIN clauses, and use a unique index where a value must not repeat.\n\nForeign key columns need an index too: when a parent row is deleted or updated, SQLite must find the matching child rows, and without an index on the child's column that is a full scan. Room warns about this at compile time. Indexes speed up reads but slow down writes slightly and use space, so index what you actually query.",
+                    "codeSnippet": "@Entity(\n    tableName = \"Post\",\n    foreignKeys = [ForeignKey(\n        entity = User::class,\n        parentColumns = [\"id\"],\n        childColumns = [\"userId\"],\n        onDelete = ForeignKey.CASCADE\n    )],\n    indices = [\n        Index(\"userId\"),                              // foreign key + frequent filter\n        Index(value = [\"slug\"], unique = true)        // must be unique\n    ]\n)\ndata class Post(@PrimaryKey val id: Long, val userId: Long, val slug: String)",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
                 }
             ]
         }

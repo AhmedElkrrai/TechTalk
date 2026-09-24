@@ -14,6 +14,34 @@
                     "codeSnippet": "val uploadRequest = OneTimeWorkRequestBuilder<UploadWorker>()\n    .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())\n    .build()\n\nWorkManager.getInstance(context).enqueue(uploadRequest) // survives process death and reboots",
                     "codeLang": "Kotlin",
                     "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "Add constraints and a backoff policy to make work well-behaved",
+                    "content": "Constraints tell WorkManager when work is allowed to run: a network type, charging, idle, or sufficient battery and storage. The work waits until they are satisfied, so you don't write code to check.\n\nWhen a Worker returns Result.retry(), WorkManager reschedules it using the backoff policy. Choose EXPONENTIAL for network calls so a struggling server isn't hammered, and note the minimum backoff is 10 seconds.",
+                    "codeSnippet": "val request = OneTimeWorkRequestBuilder<UploadWorker>()\n    .setConstraints(\n        Constraints.Builder()\n            .setRequiredNetworkType(NetworkType.UNMETERED)\n            .setRequiresCharging(true)\n            .build()\n    )\n    .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)\n    .build()\n\nWorkManager.getInstance(context).enqueue(request)",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Chain workers and pass data from one to the next",
+                    "content": "Work that has steps (download, process, upload) can be expressed as a chain: beginWith runs the first request, then() runs the next only after the previous one succeeds, and a failure stops the chain. Each worker returns output Data, which becomes the next worker's input.\n\nYou can also start a chain with several requests in parallel; when they all finish, their outputs are merged for the next step by an InputMerger.",
+                    "codeSnippet": "class DownloadWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, params) {\n    override suspend fun doWork(): Result {\n        val path = download(inputData.getString(\"url\") ?: return Result.failure())\n        return Result.success(workDataOf(\"path\" to path))   // becomes ProcessWorker's input\n    }\n}\n\nWorkManager.getInstance(context)\n    .beginWith(OneTimeWorkRequestBuilder<DownloadWorker>().build())\n    .then(OneTimeWorkRequestBuilder<ProcessWorker>().build())\n    .then(OneTimeWorkRequestBuilder<UploadWorker>().build())\n    .enqueue()",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Periodic work has a 15-minute minimum and is never exact",
+                    "content": "PeriodicWorkRequest repeats work at an interval, but the minimum interval is 15 minutes, and shorter values are raised to it. The system runs the work at some point within each period (constraints and Doze can delay it), so don't rely on it for exact timing; use an alarm for that.\n\nEnqueue periodic work as unique work with ExistingPeriodicWorkPolicy.KEEP so that calling your setup code again on every app start doesn't create duplicates or reset the schedule.",
+                    "codeSnippet": "val request = PeriodicWorkRequestBuilder<SyncWorker>(1, TimeUnit.HOURS)\n    .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())\n    .build()\n\nWorkManager.getInstance(context).enqueueUniquePeriodicWork(\n    \"sync\",\n    ExistingPeriodicWorkPolicy.KEEP,   // already scheduled: leave it alone\n    request\n)",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Run urgent work as expedited work",
+                    "content": "Expedited work is for short, important tasks that should start right away even when the app is in the background, such as finishing something the user just triggered. Mark the request with setExpedited and choose what happens when the app's expedited quota is used up: run as regular work or drop the request.\n\nOn devices older than Android 12, expedited work is run as a foreground service, so your CoroutineWorker must implement getForegroundInfo to supply the notification it will show.",
+                    "codeSnippet": "val request = OneTimeWorkRequestBuilder<SendMessageWorker>()\n    .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)\n    .build()\n\nclass SendMessageWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, params) {\n    override suspend fun doWork(): Result { send(); return Result.success() }\n\n    // Used on Android 11 and lower, where expedited work runs as a foreground service\n    override suspend fun getForegroundInfo() = ForegroundInfo(NOTIFICATION_ID, buildNotification())\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
                 }
             ]
         }

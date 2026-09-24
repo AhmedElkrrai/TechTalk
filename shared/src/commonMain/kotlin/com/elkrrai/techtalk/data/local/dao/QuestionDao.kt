@@ -59,4 +59,14 @@ interface QuestionDao {
 
     @Query("SELECT id FROM questions WHERE topicId = :topicId")
     suspend fun getQuestionIdsByTopic(topicId: Long): List<Long>
+
+    /** Content-sync lookup: questions have no stable key, so (topic, text) identifies one. */
+    @Query("SELECT * FROM questions WHERE topicId = :topicId AND questionText = :questionText LIMIT 1")
+    suspend fun getQuestionByTopicAndText(topicId: Long, questionText: String): QuestionEntity?
+
+    @Query("UPDATE questions SET questionText = :newText WHERE topicId = :topicId AND questionText = :oldText")
+    suspend fun renameQuestion(topicId: Long, oldText: String, newText: String)
+
+    @Query("DELETE FROM answers WHERE questionId = :questionId")
+    suspend fun deleteAnswersByQuestionId(questionId: Long)
 }

@@ -54,7 +54,7 @@ class TechTalkRepositoryImpl(
     // Lifecycle
 
     override suspend fun initialize() {
-        seeder.seedIfEmpty()
+        seeder.seedOrSync()
     }
 
     // Catalog

@@ -14,6 +14,27 @@
                     "codeSnippet": "// domain module build.gradle.kts — no Android plugin applied\nplugins { kotlin(\"jvm\") } // pure Kotlin, no android.* imports possible\n\nclass GetUserUseCase(private val repository: UserRepository) {\n    suspend operator fun invoke(id: String): User = repository.getUser(id)\n}",
                     "codeLang": "Kotlin",
                     "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "A use case does one thing and is called like a function",
+                    "content": "A use case (interactor) wraps a single business action, such as GetUserProfile or PlaceOrder, so that logic lives in one named, testable class instead of being spread across ViewModels. Give it an operator invoke so the call site reads like a function call.\n\nKeep use cases small and free of Android types. Not every screen needs one: a use case that only forwards a call to a repository adds indirection without value, so add one when there is real business logic to name or to share between screens.",
+                    "codeSnippet": "class PlaceOrderUseCase(\n    private val orders: OrderRepository,\n    private val clock: Clock\n) {\n    suspend operator fun invoke(cart: Cart): Result<Order> {\n        if (cart.items.isEmpty()) return Result.failure(EmptyCartException())\n        return runCatching { orders.place(cart, placedAt = clock.now()) }\n    }\n}\n\n// In the ViewModel:\n// val result = placeOrder(cart)",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "Map models at each layer boundary instead of sharing one class everywhere",
+                    "content": "If the same class is used as the network response, the database row and the UI state, a backend rename or a new column ripples through every layer. Give each layer its own model — a DTO for the network, an entity for the database, a domain model for business rules, and a UI model for the screen — and convert with small mapper functions at the boundary.\n\nIt costs a few lines of mapping code but keeps the domain layer stable and lets each layer change independently.",
+                    "codeSnippet": "// data layer\nfun UserDto.toDomain() = User(id = id, name = fullName, isPremium = tier == \"premium\")\nfun UserEntity.toDomain() = User(id = id, name = name, isPremium = premium)\n\n// presentation layer\nfun User.toUi() = UserUi(title = name, badge = if (isPremium) \"PRO\" else null)",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Make the repository the single source of truth for offline-first data",
+                    "content": "Instead of letting the UI decide between network and cache, expose one Flow from the repository that always reads from the local database. Refreshing fetches from the network and writes into the database, and the Flow re-emits on its own.\n\nThe UI then has one data path, works offline by default, and never has to merge two sources. Handle refresh errors separately (a snackbar or a stale-data indicator) without clearing what is already shown.",
+                    "codeSnippet": "class ArticleRepository(private val api: ArticleApi, private val dao: ArticleDao) {\n    // The UI only ever observes the database\n    fun observeArticles(): Flow<List<Article>> =\n        dao.observeAll().map { rows -> rows.map { it.toDomain() } }\n\n    // Network -> database; the Flow above re-emits automatically\n    suspend fun refresh() {\n        val fresh = api.fetchArticles().map { it.toEntity() }\n        dao.replaceAll(fresh)\n    }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
                 }
             ]
         }

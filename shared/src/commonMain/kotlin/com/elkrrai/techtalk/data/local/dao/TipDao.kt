@@ -71,4 +71,12 @@ interface TipDao {
 
     @Query("SELECT * FROM tips WHERE id = :id")
     suspend fun getById(id: Long): TipEntity?
+
+    /** Content-sync lookup: tips have no stable key, so (topic, title) identifies one. */
+    @Query("SELECT * FROM tips WHERE topicId = :topicId AND title = :title LIMIT 1")
+    suspend fun getByTopicIdAndTitle(topicId: Long, title: String): TipEntity?
+
+    /** Keeps the row (and so its seen/interested history) when a bundled tip is retitled. */
+    @Query("UPDATE tips SET title = :newTitle WHERE topicId = :topicId AND title = :oldTitle")
+    suspend fun renameTip(topicId: Long, oldTitle: String, newTitle: String)
 }

@@ -6,6 +6,7 @@ import com.elkrrai.techtalk.data.local.dao.TechnologyDao
 import com.elkrrai.techtalk.data.local.dao.TopicDao
 import com.elkrrai.techtalk.data.local.entity.AnswerEntity
 import com.elkrrai.techtalk.data.local.entity.QuestionEntity
+import com.elkrrai.techtalk.data.local.seed.SeedManifest
 import com.elkrrai.techtalk.domain.model.battle.BattlePack
 import com.elkrrai.techtalk.domain.model.battle.BattlePackAnswer
 import com.elkrrai.techtalk.domain.model.battle.BattlePackEntry
@@ -65,6 +66,66 @@ class BattlePackManager(
     }
 
     suspend fun importFromJson(jsonContent: String): Int = import(parse(jsonContent))
+
+    /**
+     * Idempotent update of an already-seeded database (unlike [import], which always
+     * inserts and would duplicate). A question is identified by (topic, text): an existing
+     * one keeps its id, gets its difficulty/explanation refreshed and its answers
+     * replaced; a missing one is inserted. Questions in [renames] are reworded first.
+     * Never deletes questions. Returns the number of questions inserted or updated.
+     */
+    suspend fun sync(pack: BattlePack, renames: List<SeedManifest.ContentRename>): Int {
+        var synced = 0
+        for (entry in pack.entries) {
+            val technology = technologyDao.getByName(entry.technologyName) ?: continue
+            val topic = topicDao.getByNameAndTechnology(entry.topicName, technology.id) ?: continue
+
+            renames
+                .filter { it.technology == entry.technologyName && it.topic == entry.topicName }
+                .forEach { rename ->
+                    if (questionDao.getQuestionByTopicAndText(topic.id, rename.newText) == null) {
+                        questionDao.renameQuestion(topic.id, rename.oldText, rename.newText)
+                    }
+                }
+
+            for (question in entry.questions) {
+                if (question.answers.none { it.isCorrect }) continue
+                val difficulty = runCatching { Difficulty.valueOf(question.difficulty) }
+                    .getOrDefault(Difficulty.BEGINNER)
+                val existing = questionDao.getQuestionByTopicAndText(topic.id, question.questionText)
+                val questionId = if (existing != null) {
+                    questionDao.upsertQuestion(
+                        existing.copy(difficulty = difficulty, explanation = question.explanation)
+                    )
+                    questionDao.deleteAnswersByQuestionId(existing.id)
+                    existing.id
+                } else {
+                    questionDao.upsertQuestion(
+                        QuestionEntity(
+                            topicId = topic.id,
+                            questionText = question.questionText,
+                            difficulty = difficulty,
+                            explanation = question.explanation
+                        )
+                    )
+                }
+                questionDao.upsertAllAnswers(
+                    question.answers.map {
+                        AnswerEntity(
+                            questionId = questionId,
+                            answerText = it.answerText,
+                            isCorrect = it.isCorrect
+                        )
+                    }
+                )
+                synced++
+            }
+        }
+        return synced
+    }
+
+    suspend fun syncFromJson(jsonContent: String, renames: List<SeedManifest.ContentRename>): Int =
+        sync(parse(jsonContent), renames)
 
     /** One file per technology named `"{Tech}_battle"`, containing one entry per topic
      * that has questions. Returns filename -> json content, ready for a

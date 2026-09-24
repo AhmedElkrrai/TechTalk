@@ -14,6 +14,34 @@
                     "codeSnippet": "val idempotentMethods = setOf(HttpMethod.Get, HttpMethod.Put, HttpMethod.Delete, HttpMethod.Head)\n\ninstall(HttpRequestRetry) {\n    retryIf { request, response ->\n        request.method in idempotentMethods && response.status.value in 500..599\n    }\n    exponentialDelay()\n}",
                     "codeLang": "Kotlin",
                     "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Create one HttpClient and reuse it",
+                    "content": "An HttpClient owns a connection pool and background resources. Creating a new one for every request throws that away, wastes memory, and leaks resources if you forget to close it. Create a single client for the app (a singleton from your DI container), configure it once, and call close() only when the app is done with it.\n\nSharing one client also means one place to install plugins such as logging, timeouts and authentication.",
+                    "codeSnippet": "val httpClient = HttpClient {\n    install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }\n    install(Logging) { level = LogLevel.INFO }\n}\n\n// Koin\n// single { httpClient }",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "Set timeouts explicitly with the HttpTimeout plugin",
+                    "content": "Without the HttpTimeout plugin, a stalled request can wait far longer than a user will. Install it and set the three timeouts deliberately: how long a whole request may take, how long to wait to establish a connection, and how long the connection may stay silent between packets.\n\nSet sensible defaults on the client and override them per request for the few calls that legitimately take longer, such as file uploads.",
+                    "codeSnippet": "val client = HttpClient {\n    install(HttpTimeout) {\n        requestTimeoutMillis = 15_000\n        connectTimeoutMillis = 5_000\n        socketTimeoutMillis = 10_000\n    }\n}\n\n// Per-request override for a slow endpoint\nclient.post(url) {\n    timeout { requestTimeoutMillis = 60_000 }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Refresh bearer tokens with the Auth plugin",
+                    "content": "The Auth plugin's bearer provider attaches the access token to requests and, when the server answers 401, calls your refreshTokens block once and retries the request with the new tokens. You supply loadTokens (how to read stored tokens) and refreshTokens (how to obtain new ones).\n\nSend the refresh call through a separate client without the Auth plugin, so a failed refresh can't trigger another refresh in a loop, and store the new tokens where loadTokens will read them.",
+                    "codeSnippet": "val client = HttpClient {\n    install(Auth) {\n        bearer {\n            loadTokens { BearerTokens(store.accessToken, store.refreshToken) }\n            refreshTokens {\n                val refreshed = authApi.refresh(oldTokens?.refreshToken) // separate client\n                store.save(refreshed)\n                BearerTokens(refreshed.accessToken, refreshed.refreshToken)\n            }\n        }\n    }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Ktor picks its engine per platform in Kotlin Multiplatform",
+                    "content": "Ktor separates the client API from the engine that does the networking. In a multiplatform project use the engine built for each platform: OkHttp on Android, Darwin (URLSession) on iOS. If you call HttpClient() without naming an engine, Ktor picks one that is on the classpath, so make sure each target's source set depends on exactly the engine you want.\n\nDeclare the client in common code and let each platform contribute its engine dependency.",
+                    "codeSnippet": "// build.gradle.kts\n// androidMain.dependencies { implementation(\"io.ktor:ktor-client-okhttp:$ktor\") }\n// iosMain.dependencies     { implementation(\"io.ktor:ktor-client-darwin:$ktor\") }\n\n// commonMain: no engine named — each platform's engine is found automatically\nval client = HttpClient {\n    install(ContentNegotiation) { json() }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
                 }
             ]
         }

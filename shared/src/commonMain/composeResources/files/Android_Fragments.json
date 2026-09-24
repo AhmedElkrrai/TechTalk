@@ -14,6 +14,27 @@
                     "codeSnippet": "// Fragment A sets a result:\nsetFragmentResult(\"requestKey\", bundleOf(\"selectedId\" to id))\n\n// Fragment B listens, decoupled from Fragment A entirely:\nparentFragmentManager.setFragmentResultListener(\"requestKey\", viewLifecycleOwner) { _, bundle ->\n    val id = bundle.getString(\"selectedId\")\n}",
                     "codeLang": "Kotlin",
                     "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Observe with viewLifecycleOwner inside a Fragment, not the Fragment itself",
+                    "content": "A Fragment can outlive its view: when it goes on the back stack its view is destroyed but the Fragment object stays. If you collect a Flow with the Fragment's own lifecycle, the collector keeps running while the view is gone and a new one is added each time the view is recreated, causing duplicate updates and touching a null binding.\n\nviewLifecycleOwner is tied to the view, so collectors start and stop with it. Use it for every observer that updates the UI.",
+                    "codeSnippet": "override fun onViewCreated(view: View, savedInstanceState: Bundle?) {\n    viewLifecycleOwner.lifecycleScope.launch {\n        viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {\n            viewModel.uiState.collect { render(it) }\n        }\n    }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "childFragmentManager, parentFragmentManager or the Activity's manager?",
+                    "content": "A Fragment has more than one FragmentManager and the choice matters. childFragmentManager manages fragments hosted inside this Fragment (nested fragments). parentFragmentManager is the manager this Fragment itself is attached to, which is where siblings can be reached. requireActivity().supportFragmentManager is the Activity-level manager.\n\nUse childFragmentManager for nested content and for results between a parent and its children, parentFragmentManager for results between siblings, and avoid reaching for the Activity's manager from inside a Fragment.",
+                    "codeSnippet": "// Show a dialog owned by this Fragment\nMyDialogFragment().show(childFragmentManager, \"confirm\")\n\n// Send a result to a sibling / parent screen\nparentFragmentManager.setFragmentResult(\"requestKey\", bundleOf(\"id\" to 42))\n\n// Receive a result from a nested child\nchildFragmentManager.setFragmentResultListener(\"childKey\", viewLifecycleOwner) { _, bundle -> }",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Use a FragmentFactory when a Fragment needs constructor arguments",
+                    "content": "The system recreates Fragments after configuration changes or process death by calling their no-argument constructor, so a Fragment with a constructor parameter would crash on restore unless you tell the FragmentManager how to build it. A FragmentFactory does that: it receives the class name and returns a fully constructed instance.\n\nSet the factory on the FragmentManager before super.onCreate, so it is in place when the system restores fragments. (With Hilt, @AndroidEntryPoint fragments get their dependencies injected without a custom factory.)",
+                    "codeSnippet": "class AppFragmentFactory(private val repository: Repository) : FragmentFactory() {\n    override fun instantiate(classLoader: ClassLoader, className: String): Fragment =\n        when (loadFragmentClass(classLoader, className)) {\n            ProfileFragment::class.java -> ProfileFragment(repository)\n            else -> super.instantiate(classLoader, className)\n        }\n}\n\nclass MainActivity : AppCompatActivity() {\n    override fun onCreate(savedInstanceState: Bundle?) {\n        supportFragmentManager.fragmentFactory = AppFragmentFactory(repository) // before super\n        super.onCreate(savedInstanceState)\n    }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
                 }
             ]
         }

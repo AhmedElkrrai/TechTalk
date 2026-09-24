@@ -14,6 +14,34 @@
                     "codeSnippet": "@Test\nfun `emits loading then success`() = runTest {\n    viewModel.uiState.test {\n        assertEquals(UiState.Loading, awaitItem())\n        assertEquals(UiState.Success(data), awaitItem())\n        cancelAndIgnoreRemainingEvents()\n    }\n}",
                     "codeLang": "Kotlin",
                     "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Put most tests on the JVM and keep instrumented tests few",
+                    "content": "Local unit tests (src/test) run on your computer's JVM in milliseconds and don't need a device. Instrumented tests (src/androidTest) run on an emulator or phone and are slower and flakier, so keep them for what really needs Android: real database behavior, UI flows, and platform integration.\n\nThe way to have many fast tests is to keep logic in plain Kotlin classes (use cases, ViewModels, mappers) that don't touch Android APIs directly, and to inject anything that does.",
+                    "codeSnippet": "// src/test — runs on the JVM, no emulator\nclass PriceCalculatorTest {\n    @Test\n    fun appliesTenPercentDiscount() {\n        val total = PriceCalculator().total(subtotal = 200.0, discountPercent = 10)\n        assertEquals(180.0, total, 0.001)\n    }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "Replace Dispatchers.Main in ViewModel tests",
+                    "content": "Code that uses viewModelScope launches on Dispatchers.Main, which doesn't exist in a plain JVM test and throws. Swap it for a test dispatcher before each test and reset it afterwards. A small JUnit rule keeps that out of every test class.\n\nThen wrap the test body in runTest, so delays are skipped and coroutines complete deterministically.",
+                    "codeSnippet": "class MainDispatcherRule(\n    private val dispatcher: TestDispatcher = UnconfinedTestDispatcher()\n) : TestWatcher() {\n    override fun starting(description: Description) = Dispatchers.setMain(dispatcher)\n    override fun finished(description: Description) = Dispatchers.resetMain()\n}\n\nclass ProfileViewModelTest {\n    @get:Rule val mainRule = MainDispatcherRule()\n\n    @Test\n    fun loadsProfile() = runTest {\n        val viewModel = ProfileViewModel(FakeUserRepository())\n        assertEquals(\"Ana\", viewModel.state.value.name)\n    }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Test Compose UI through semantics, not through view IDs",
+                    "content": "Compose has no views to find by ID. UI tests use the semantics tree: createComposeRule hosts your composable, onNode finders locate nodes by text, content description or a testTag, and actions and assertions run on them. The rule waits for the UI to be idle before each step, so you rarely need sleeps.\n\nPrefer finding by visible text or accessibility description, which also verifies accessibility, and use testTag for elements that have neither.",
+                    "codeSnippet": "class CounterTest {\n    @get:Rule val composeRule = createComposeRule()\n\n    @Test\n    fun incrementsOnClick() {\n        composeRule.setContent { Counter() }\n\n        composeRule.onNodeWithText(\"Clicked 0 times\").performClick()\n\n        composeRule.onNodeWithText(\"Clicked 1 times\").assertIsDisplayed()\n    }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Prefer fakes over mocks for your own repositories",
+                    "content": "A mock verifies that specific calls happened, which couples the test to how the code works internally: refactor without changing behavior and the test breaks. A fake is a small working implementation (an in-memory repository) that the test drives through its public behavior and then asserts on results.\n\nFakes are reusable across tests, read like real code, and work naturally with Flow. Keep mocks for boundaries you can't fake easily or where the interaction itself is the behavior.",
+                    "codeSnippet": "class FakeUserRepository : UserRepository {\n    private val users = MutableStateFlow<List<User>>(emptyList())\n\n    override fun observeUsers(): Flow<List<User>> = users\n\n    override suspend fun addUser(user: User) {\n        users.value = users.value + user\n    }\n}\n\n@Test\nfun showsAddedUser() = runTest {\n    val repo = FakeUserRepository()\n    repo.addUser(User(\"1\", \"Ana\"))\n    assertEquals(listOf(\"Ana\"), repo.observeUsers().first().map { it.name })\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
                 }
             ]
         }

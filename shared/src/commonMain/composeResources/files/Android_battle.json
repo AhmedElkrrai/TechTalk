@@ -684,6 +684,158 @@
                     ]
                 }
             ]
+        },
+        {
+            "technologyName": "Android",
+            "topicName": "Notifications",
+            "topicDescription": "Posting, channeling, and permissioning notifications on modern Android.",
+            "questions": [
+                {
+                    "questionText": "On Android 8.0 (API 26) and above, what must every notification be posted to?",
+                    "difficulty": "BEGINNER",
+                    "explanation": "Since API 26 each notification belongs to a NotificationChannel; a notification with no valid channel isn't shown. Channels let users control each category of notification separately.",
+                    "answers": [
+                        {
+                            "answerText": "A NotificationGroup",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "A NotificationChannel",
+                            "isCorrect": true
+                        },
+                        {
+                            "answerText": "A foreground Service",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "A PendingIntent",
+                            "isCorrect": false
+                        }
+                    ]
+                },
+                {
+                    "questionText": "Which runtime permission must an app targeting Android 13 request before it can post notifications?",
+                    "difficulty": "INTERMEDIATE",
+                    "explanation": "POST_NOTIFICATIONS became a runtime permission in Android 13 (API 33). Without it, the app's notifications are not shown.",
+                    "answers": [
+                        {
+                            "answerText": "ACCESS_NOTIFICATION_POLICY",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "BIND_NOTIFICATION_LISTENER_SERVICE",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "SEND_NOTIFICATIONS",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "POST_NOTIFICATIONS",
+                            "isCorrect": true
+                        }
+                    ]
+                },
+                {
+                    "questionText": "After a NotificationChannel has been created, which of its settings can your app still change in code?",
+                    "difficulty": "ADVANCED",
+                    "explanation": "Once a channel exists the user owns its importance, sound and vibration. The app can still update the channel's name and description; to change behavior it must use a new channel ID.",
+                    "answers": [
+                        {
+                            "answerText": "Its importance, by calling createNotificationChannel again with a new value",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "Only its name and description",
+                            "isCorrect": true
+                        },
+                        {
+                            "answerText": "Everything, as long as the app targets the latest API level",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "Nothing at all, including the name",
+                            "isCorrect": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "technologyName": "Android",
+            "topicName": "DataStore & Storage",
+            "topicDescription": "Persisting preferences and files safely: DataStore, app-specific storage, scoped storage, and backups.",
+            "questions": [
+                {
+                    "questionText": "What is a key advantage of DataStore over SharedPreferences?",
+                    "difficulty": "BEGINNER",
+                    "explanation": "DataStore exposes data as a Flow and performs reads and writes asynchronously and transactionally, so it can't block the main thread. It does not encrypt data.",
+                    "answers": [
+                        {
+                            "answerText": "It encrypts stored values automatically",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "It allows synchronous reads on the main thread",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "It is asynchronous and updates data transactionally",
+                            "isCorrect": true
+                        },
+                        {
+                            "answerText": "It shares data between different apps",
+                            "isCorrect": false
+                        }
+                    ]
+                },
+                {
+                    "questionText": "Where should you put a file that you can rebuild and that the system may delete when storage runs low?",
+                    "difficulty": "INTERMEDIATE",
+                    "explanation": "cacheDir is meant for rebuildable data; the system can clear it under storage pressure. filesDir holds durable private data, and getExternalFilesDir is app-specific space on shared storage.",
+                    "answers": [
+                        {
+                            "answerText": "filesDir",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "getExternalFilesDir()",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "cacheDir",
+                            "isCorrect": true
+                        },
+                        {
+                            "answerText": "noBackupFilesDir",
+                            "isCorrect": false
+                        }
+                    ]
+                },
+                {
+                    "questionText": "What happens if two DataStore instances are active for the same file in one process?",
+                    "difficulty": "ADVANCED",
+                    "explanation": "DataStore requires a single instance per file per process; creating a second one for the same file throws an IllegalStateException when both are active. Declare the delegate once at top level or provide a singleton.",
+                    "answers": [
+                        {
+                            "answerText": "The second instance is silently ignored",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "The two instances merge their data",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "An IllegalStateException is thrown",
+                            "isCorrect": true
+                        },
+                        {
+                            "answerText": "The file becomes read-only",
+                            "isCorrect": false
+                        }
+                    ]
+                }
+            ]
         }
     ]
 }

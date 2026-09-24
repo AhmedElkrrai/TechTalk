@@ -14,6 +14,27 @@
                     "codeSnippet": "@Serializable\ndata class UserDto(\n    @SerialName(\"user_name\") val userName: String,\n    val age: Int\n)\n// Json.encodeToString(userDto) uses a generated serializer — no reflection, obfuscation-safe",
                     "codeLang": "Kotlin",
                     "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Configure Json once, and tolerate server changes",
+                    "content": "By default kotlinx.serialization is strict: a field it doesn't know about, or a null for a non-nullable property, throws a SerializationException. That is a fragile default for a network client whose backend adds fields over time.\n\nCreate one Json instance with ignoreUnknownKeys = true so new server fields don't break old app versions, and consider coerceInputValues to replace nulls or unknown enum values with defaults. Reuse the instance instead of building a new one per call.",
+                    "codeSnippet": "val json = Json {\n    ignoreUnknownKeys = true   // new fields from the server are ignored\n    coerceInputValues = true   // null/unknown enum values fall back to the property default\n    explicitNulls = false      // omit null properties when encoding\n}\n\n@Serializable\ndata class Profile(val name: String, val plan: Plan = Plan.FREE)",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "Model polymorphic JSON with sealed classes",
+                    "content": "When a payload can be one of several shapes (for example different event types), declare them as subtypes of a sealed interface and mark each @Serializable. kotlinx.serialization adds a \"type\" discriminator field to tell them apart, and the sealed hierarchy gives you an exhaustive when when consuming the result.\n\nUse @SerialName to control the discriminator value so renaming a class doesn't change the wire format. Sealed hierarchies need no extra registration; open (non-sealed) polymorphism requires a SerializersModule.",
+                    "codeSnippet": "@Serializable\nsealed interface Event\n\n@Serializable @SerialName(\"login\")\ndata class Login(val userId: String) : Event\n\n@Serializable @SerialName(\"logout\")\nobject Logout : Event\n\nval text = Json.encodeToString<Event>(Login(\"u1\"))   // {\"type\":\"login\",\"userId\":\"u1\"}\nval event: Event = Json.decodeFromString(text)",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Write a custom serializer for formats the plugin doesn't know",
+                    "content": "When the wire format doesn't match the Kotlin type — a timestamp sent as epoch milliseconds, or a value wrapped in an object — implement KSerializer for the type. The descriptor states how the value looks in the serialized form, and serialize/deserialize convert to and from it.\n\nAttach it to a single property with @Serializable(with = ...) or to the whole type, so the rest of the model keeps using normal data classes.",
+                    "codeSnippet": "object EpochMillisSerializer : KSerializer<Instant> {\n    override val descriptor = PrimitiveSerialDescriptor(\"Instant\", PrimitiveKind.LONG)\n\n    override fun serialize(encoder: Encoder, value: Instant) =\n        encoder.encodeLong(value.toEpochMilliseconds())\n\n    override fun deserialize(decoder: Decoder): Instant =\n        Instant.fromEpochMilliseconds(decoder.decodeLong())\n}\n\n@Serializable\ndata class Post(\n    val id: String,\n    @Serializable(with = EpochMillisSerializer::class) val createdAt: Instant\n)",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
                 }
             ]
         }

@@ -14,6 +14,27 @@
                     "codeSnippet": "class UserPagingSource(private val api: UserApi) : PagingSource<Int, User>() {\n    override suspend fun load(params: LoadParams<Int>): LoadResult<Int, User> {\n        val page = params.key ?: 1\n        val response = api.getUsers(page = page, size = params.loadSize)\n        return LoadResult.Page(response.users, prevKey = if (page == 1) null else page - 1, nextKey = if (response.users.isEmpty()) null else page + 1)\n    }\n    override fun getRefreshKey(state: PagingState<Int, User>) = null\n}",
                     "codeLang": "Kotlin",
                     "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Call cachedIn in the ViewModel so paging survives configuration changes",
+                    "content": "A Pager's Flow<PagingData> starts loading from scratch every time it is collected. If the UI collects it directly, rotating the device throws away the pages that were already loaded and reloads them.\n\nApply cachedIn(viewModelScope) to the flow in the ViewModel. It caches the loaded pages and shares them between collectors, so they survive configuration changes. Call it as the last operator in the ViewModel's chain (after map or filter), and don't apply operators that transform it again afterwards in the UI layer, or you lose the caching benefit.",
+                    "codeSnippet": "class ArticlesViewModel(repository: ArticleRepository) : ViewModel() {\n    val articles: Flow<PagingData<Article>> =\n        Pager(PagingConfig(pageSize = 20)) { repository.articlesPagingSource() }\n            .flow\n            .map { pagingData -> pagingData.map { it.toUi() } }\n            .cachedIn(viewModelScope)   // last step\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Show loading and error states from LoadState, and offer retry",
+                    "content": "Paging reports what it is doing through LoadState for three phases: refresh (the first load or a full reload), append (loading more at the end) and prepend (loading before the start). Each is Loading, NotLoading or Error, so you can show a full-screen spinner for the initial load, a footer spinner for append, and an error view with a retry button.\n\nCalling retry() on the paging items re-runs the failed load; refresh() discards everything and starts over, which is what pull-to-refresh should call.",
+                    "codeSnippet": "val items = viewModel.articles.collectAsLazyPagingItems()\n\nwhen (val refresh = items.loadState.refresh) {\n    is LoadState.Loading -> FullScreenSpinner()\n    is LoadState.Error -> ErrorMessage(refresh.error, onRetry = { items.retry() })\n    else -> LazyColumn {\n        items(count = items.itemCount, key = items.itemKey { it.id }) { index ->\n            items[index]?.let { ArticleRow(it) }\n        }\n        if (items.loadState.append is LoadState.Loading) item { FooterSpinner() }\n    }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "RemoteMediator makes the database the source of truth for paged network data",
+                    "content": "For lists that should work offline, page from Room and let a RemoteMediator fill the database from the network. The UI's PagingSource reads only from the database. When the user nears the end of the loaded data, Paging calls the mediator's load with a LoadType (REFRESH, PREPEND or APPEND); the mediator fetches the next page, writes it to the database, and tells Paging whether the end has been reached.\n\nTrack which page to fetch next yourself, usually in a small remote-keys table, and wrap the clear-and-insert in one database transaction so the list never shows a half-written state.",
+                    "codeSnippet": "@OptIn(ExperimentalPagingApi::class)\nclass ArticleRemoteMediator(\n    private val api: ArticleApi,\n    private val db: AppDatabase\n) : RemoteMediator<Int, ArticleEntity>() {\n\n    override suspend fun load(\n        loadType: LoadType,\n        state: PagingState<Int, ArticleEntity>\n    ): MediatorResult {\n        val page = when (loadType) {\n            LoadType.REFRESH -> 1\n            LoadType.PREPEND -> return MediatorResult.Success(endOfPaginationReached = true)\n            LoadType.APPEND -> db.remoteKeysDao().nextPage() ?: return MediatorResult.Success(true)\n        }\n        return try {\n            val items = api.articles(page = page, size = state.config.pageSize)\n            db.withTransaction {\n                if (loadType == LoadType.REFRESH) db.articleDao().clearAll()\n                db.articleDao().insertAll(items.map { it.toEntity() })\n                db.remoteKeysDao().save(nextPage = page + 1)\n            }\n            MediatorResult.Success(endOfPaginationReached = items.isEmpty())\n        } catch (e: IOException) {\n            MediatorResult.Error(e)\n        }\n    }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
                 }
             ]
         }

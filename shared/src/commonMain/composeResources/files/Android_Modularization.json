@@ -14,6 +14,27 @@
                     "codeSnippet": "// settings.gradle.kts\ninclude(\":app\", \":core:network\", \":core:database\", \":feature:profile\", \":feature:checkout\")\n// a change in :feature:profile only triggers rebuilds of modules that depend on it",
                     "codeLang": "Kotlin",
                     "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Use implementation, not api, unless a dependency is part of your public API",
+                    "content": "With implementation, a module's dependencies stay hidden from the modules that depend on it. A change inside the library then only forces recompilation of that library, not of everything above it. api exposes the dependency transitively, so consumers see it on their compile classpath and are rebuilt when it changes.\n\nUse api only when the dependency's types appear in your module's public signatures (parameters, return types, supertypes). Defaulting to implementation keeps module boundaries honest and builds faster.",
+                    "codeSnippet": "// :core:network/build.gradle.kts\ndependencies {\n    api(project(\":core:model\"))            // ApiResponse<Model> is exposed in public functions\n    implementation(libs.okhttp)            // internal detail, hidden from consumers\n    implementation(libs.kotlinx.serialization.json)\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Feature modules should not depend on each other",
+                    "content": "If :feature:cart depends on :feature:profile and later the reverse is needed, you get a cycle, and every change in one feature rebuilds the other. Keep features independent: each depends only on lower-level modules (:core:ui, :core:data, :core:model), and the :app module wires the features together.\n\nFor navigation between features, expose route definitions (or a small navigation interface) from a shared module, or let :app pass navigation callbacks into each feature's entry point.",
+                    "codeSnippet": "// :feature:cart exposes an entry point that takes callbacks, not another feature\n@Composable\nfun CartScreen(onCheckout: () -> Unit, onOpenProduct: (ProductId) -> Unit) { /* ... */ }\n\n// :app wires features together\ncomposable(\"cart\") {\n    CartScreen(\n        onCheckout = { navController.navigate(\"checkout\") },\n        onOpenProduct = { id -> navController.navigate(\"product/${id.value}\") }\n    )\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Keep small, stable core modules that features depend on",
+                    "content": "Split shared code by responsibility, not by size: a :core:model module for plain data types, :core:data for repositories, :core:network and :core:database for the technical details, and :core:ui for shared design-system components. Feature modules then depend only on the parts they need.\n\nThe more a module is depended on, the more stable its API should be, because every change forces its dependents to rebuild. Keep the widely shared modules thin and move volatile code into feature modules.",
+                    "codeSnippet": "// settings.gradle.kts\ninclude(\n    \":app\",\n    \":core:model\", \":core:data\", \":core:network\", \":core:database\", \":core:ui\",\n    \":feature:home\", \":feature:search\", \":feature:profile\"\n)",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
                 }
             ]
         }

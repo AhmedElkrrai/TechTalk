@@ -14,6 +14,34 @@
                     "codeSnippet": "// Preferred — dependencies visible and swappable in tests\nclass UserRepository @Inject constructor(\n    private val api: UserApi,\n    private val dao: UserDao\n)\n\n// test: no DI framework needed at all\nval repo = UserRepository(fakeApi, fakeDao)",
                     "codeLang": "Kotlin",
                     "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "Use @Binds for interface implementations and @Provides for everything else",
+                    "content": "In Hilt, @Binds tells the container which implementation to use for an interface. It is an abstract function with no body, so it generates less code than a @Provides function. Use @Provides when you must call code to create the object: a third-party class you can't annotate, or one that needs a builder such as Retrofit or Room.\n\nBoth live in a @Module annotated with @InstallIn to choose the component (and so the scope) they are available in.",
+                    "codeSnippet": "@Module\n@InstallIn(SingletonComponent::class)\nabstract class DataModule {\n    @Binds\n    abstract fun bindUserRepository(impl: UserRepositoryImpl): UserRepository\n}\n\n@Module\n@InstallIn(SingletonComponent::class)\nobject NetworkModule {\n    @Provides\n    @Singleton\n    fun provideRetrofit(): Retrofit = Retrofit.Builder().baseUrl(BASE_URL).build()\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "Scopes decide how long an injected object lives",
+                    "content": "An unscoped binding creates a new instance every time it is injected. Adding a scope annotation makes Hilt reuse one instance for the lifetime of the matching component: @Singleton for the whole app, @ActivityRetainedScoped across configuration changes, @ViewModelScoped for one ViewModel, and @ActivityScoped for one Activity.\n\nScope only what genuinely needs to be shared or is expensive to build. A scope that is wider than necessary keeps objects (and anything they reference) alive longer than needed.",
+                    "codeSnippet": "@Singleton                       // one instance for the whole app\nclass AnalyticsTracker @Inject constructor()\n\n@ViewModelScoped                 // one instance per ViewModel\nclass SearchHistory @Inject constructor()\n\nclass DateFormatter @Inject constructor() // unscoped: new instance each injection",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Swap real dependencies for fakes in tests with @TestInstallIn",
+                    "content": "Constructor injection lets a plain unit test pass fakes directly. For instrumented or Hilt-based UI tests, Hilt can replace a production module with a test module: annotate the test module with @TestInstallIn, naming the module it replaces, and every injection point receives the fake.\n\nCombine it with @HiltAndroidTest and a HiltAndroidRule so the test gets its own component. Fakes keep such tests fast and deterministic instead of hitting the real network.",
+                    "codeSnippet": "@Module\n@TestInstallIn(\n    components = [SingletonComponent::class],\n    replaces = [DataModule::class]\n)\nabstract class FakeDataModule {\n    @Binds\n    abstract fun bindUserRepository(fake: FakeUserRepository): UserRepository\n}\n\n@HiltAndroidTest\nclass ProfileScreenTest {\n    @get:Rule val hiltRule = HiltAndroidRule(this)\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Compile-time DI (Hilt) versus runtime DI (Koin): where errors show up",
+                    "content": "Hilt (built on Dagger) validates the dependency graph at compile time, so a missing binding fails the build. Koin resolves dependencies at runtime, which keeps setup lightweight and works across Kotlin Multiplatform, but a missing definition only fails when that dependency is first requested.\n\nWith Koin, catch that class of error early by verifying your modules in a test, so a forgotten definition breaks CI rather than a user's screen.",
+                    "codeSnippet": "// Koin: verify the module graph in a unit test (koin-test)\nclass ModulesTest {\n    @Test\n    fun verifyModules() {\n        appModule.verify()   // fails if a definition's dependency isn't declared\n    }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
                 }
             ]
         }

@@ -14,6 +14,34 @@
                     "codeSnippet": "// Shell — kept, minimal surface\ninterface ThreatCallback {\n    fun onThreatDetected(type: Int)\n}\n\n// Internal impl — fully obfuscated, not directly referenced by name\ninternal class ThreatEngineImpl : ThreatCallback {\n    override fun onThreatDetected(type: Int) { /* real logic */ }\n}",
                     "codeLang": "Kotlin",
                     "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "R8 shrinks, obfuscates and optimizes — enable it for release builds",
+                    "content": "R8 does three jobs on a release build: it removes unused code and resources (shrinking), renames classes, methods and fields to short names (obfuscation), and rewrites code to make it smaller and faster (optimization). It only runs when you enable minification (isMinifyEnabled = true).\n\nUse the optimizing default rules file, and keep your own rules in proguard-rules.pro. Always test the minified build, because most R8 problems (a removed or renamed class used by reflection) only appear at runtime.",
+                    "codeSnippet": "android {\n    buildTypes {\n        release {\n            isMinifyEnabled = true\n            isShrinkResources = true\n            proguardFiles(\n                getDefaultProguardFile(\"proguard-android-optimize.txt\"),\n                \"proguard-rules.pro\"\n            )\n        }\n    }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "Keep the mapping file to read obfuscated crash reports",
+                    "content": "Obfuscation is what makes crash traces from release builds unreadable (\"a.b.c.d(Unknown Source)\"). R8 writes a mapping.txt for every build; with it you can translate a trace back to real names. Keep one per released version — a mapping from another build will produce wrong names.\n\nPlay Console and Crashlytics can deobfuscate automatically when they receive the mapping (for an AAB, Play uploads it with the bundle; Crashlytics has a Gradle plugin that uploads it).",
+                    "codeSnippet": "# app/build/outputs/mapping/release/mapping.txt\nretrace mapping.txt obfuscated_trace.txt",
+                    "codeLang": "Shell",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Write narrow keep rules, and only for code reached by reflection",
+                    "content": "R8 removes or renames anything it can't see being used. Code that is reached only through reflection, JNI, or names in a config file breaks in a minified build. Fix it with a keep rule — but keep the rule as narrow as possible, because a broad rule like -keep class com.example.** {*;} switches off shrinking and obfuscation for everything it matches.\n\nPrefer the @Keep annotation on a specific class, or a targeted -keepclassmembers rule, and rely on library-provided consumer rules where available.",
+                    "codeSnippet": "# Too broad: disables shrinking and obfuscation for the whole package\n# -keep class com.example.** { *; }\n\n# Narrow: only what reflection actually reads\n-keepclassmembers class com.example.model.ApiError {\n    <fields>;\n}\n\n// or on the class itself\n@Keep\ndata class LegacyPayload(val id: String)",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Verify Play Integrity verdicts on your server, with a fresh nonce",
+                    "content": "The Play Integrity API returns a signed verdict about the device and the app. It only protects you if the decision is made server-side: a client that checks its own verdict can be patched to skip the check.\n\nHave your server generate a unique nonce per request, bind it to the action being protected, pass it to the API, and then have your server decode and verify the returned token (including that the nonce matches) before trusting the request. Reject replayed or mismatched tokens.",
+                    "codeSnippet": "val integrityManager = IntegrityManagerFactory.create(context)\n\nintegrityManager.requestIntegrityToken(\n    IntegrityTokenRequest.builder()\n        .setNonce(nonceFromServer)   // unique, single-use, bound to this action\n        .build()\n).addOnSuccessListener { response ->\n    sendToServer(response.token())   // the server decodes and verifies it\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
                 }
             ]
         }

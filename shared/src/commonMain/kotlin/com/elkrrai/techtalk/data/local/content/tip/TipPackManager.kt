@@ -5,6 +5,7 @@ import com.elkrrai.techtalk.data.local.dao.TipDao
 import com.elkrrai.techtalk.data.local.dao.TopicDao
 import com.elkrrai.techtalk.data.local.entity.TipEntity
 import com.elkrrai.techtalk.data.local.entity.TopicEntity
+import com.elkrrai.techtalk.data.local.seed.SeedManifest
 import com.elkrrai.techtalk.domain.model.common.Difficulty
 import com.elkrrai.techtalk.domain.model.content.ImportResult
 import com.elkrrai.techtalk.domain.model.tip.TipPack
@@ -94,6 +95,87 @@ class TipPackManager(
     }
 
     suspend fun importFromJson(jsonContent: String): ImportResult = import(parse(jsonContent))
+
+    /**
+     * Idempotent update of an already-seeded database from a bundled pack (unlike
+     * [import], which always inserts and so would duplicate). A tip is identified by
+     * (topic, title): an existing one is updated in place — keeping its id, so seen /
+     * interested history survives — and a missing one is inserted. Tips in [renames]
+     * are retitled first so a reworded bundled tip updates instead of duplicating.
+     * Never deletes, so tips the user imported into the same topic are safe.
+     */
+    suspend fun sync(pack: TipPack, renames: List<SeedManifest.ContentRename>): ImportResult {
+        var topicsCreated = 0
+        var topicsMatched = 0
+        var tipsSynced = 0
+        val unknownTechnologies = mutableListOf<String>()
+        val errors = mutableListOf<String>()
+
+        for (entry in pack.entries) {
+            val technology = technologyDao.getByName(entry.technologyName)
+            if (technology == null) {
+                unknownTechnologies += entry.technologyName
+                errors += "Unknown technology: ${entry.technologyName}"
+                continue
+            }
+
+            val existingTopic = topicDao.getByNameAndTechnology(entry.topicName, technology.id)
+            val topicId = if (existingTopic != null) {
+                topicsMatched++
+                existingTopic.id
+            } else {
+                topicsCreated++
+                topicDao.upsert(
+                    TopicEntity(
+                        technologyId = technology.id,
+                        name = entry.topicName,
+                        description = entry.topicDescription
+                    )
+                )
+            }
+
+            renames
+                .filter { it.technology == entry.technologyName && it.topic == entry.topicName }
+                .forEach { rename ->
+                    // Only when the new title isn't already there, so a retry can't collide.
+                    if (tipDao.getByTopicIdAndTitle(topicId, rename.newText) == null) {
+                        tipDao.renameTip(topicId, rename.oldText, rename.newText)
+                    }
+                }
+
+            for (tip in entry.tips) {
+                val difficulty = runCatching { Difficulty.valueOf(tip.difficulty) }
+                    .getOrDefault(Difficulty.BEGINNER)
+                val existing = tipDao.getByTopicIdAndTitle(topicId, tip.title)
+                val entity = existing?.copy(
+                    content = tip.content,
+                    codeSnippet = tip.codeSnippet,
+                    codeLang = tip.codeLang,
+                    difficulty = difficulty
+                ) ?: TipEntity(
+                    topicId = topicId,
+                    title = tip.title,
+                    content = tip.content,
+                    codeSnippet = tip.codeSnippet,
+                    codeLang = tip.codeLang,
+                    difficulty = difficulty
+                )
+                tipDao.upsert(entity)
+                tipsSynced++
+            }
+        }
+
+        return ImportResult(
+            topicsCreated = topicsCreated,
+            topicsMatched = topicsMatched,
+            tipsImported = tipsSynced,
+            unknownTechnologies = unknownTechnologies,
+            errors = errors
+        )
+    }
+
+    suspend fun syncFromJson(jsonContent: String, renames: List<SeedManifest.ContentRename>): ImportResult =
+        sync(parse(jsonContent), renames)
 
     /** Resolves tip -> topic -> technology, groups by (technologyName, topicName). */
     suspend fun exportFromDatabase(

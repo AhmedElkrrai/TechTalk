@@ -14,6 +14,34 @@
                     "codeSnippet": "# Azure Pipelines YAML\n- task: Cache@2\n  inputs:\n    key: 'gradle | \"$(Agent.OS)\" | **/*.gradle.kts, **/gradle/libs.versions.toml'\n    path: '$(GRADLE_USER_HOME)/caches'\n  displayName: Cache Gradle dependencies",
                     "codeLang": "YAML",
                     "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Run lint and unit tests on every pull request, before anything heavier",
+                    "content": "The cheapest checks should run first so a broken change fails in minutes, not after a long build. lintDebug and testDebugUnitTest need no emulator, so they make an ideal first gate: run them on every pull request, and mark the pipeline as a required check so a red build blocks the merge.\n\nKeep the slower stages (release assembly, instrumented tests) behind them, so the expensive work only runs for changes that already pass the basics.",
+                    "codeSnippet": "# Azure Pipelines — fast checks first\n- script: ./gradlew lintDebug testDebugUnitTest --stacktrace\n  displayName: Lint and unit tests\n\n# Heavier work only after the gate passes\n- script: ./gradlew assembleRelease\n  displayName: Assemble release\n  condition: succeeded()",
+                    "codeLang": "YAML",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "Never commit signing keys or passwords — inject them from the pipeline",
+                    "content": "A release keystore and its passwords in the repository (even a private one) can be copied by anyone with read access and can't be rotated out of the git history. Keep them in the CI system's secure store: store the keystore as a secure file or a base64 secret, and expose the passwords as secret variables.\n\nRead the values from environment variables in the signing configuration, and fall back gracefully for local builds so developers can still assemble debug variants without the secrets.",
+                    "codeSnippet": "android {\n    signingConfigs {\n        create(\"release\") {\n            storeFile = System.getenv(\"KEYSTORE_PATH\")?.let(::file)\n            storePassword = System.getenv(\"KEYSTORE_PASSWORD\")\n            keyAlias = System.getenv(\"KEY_ALIAS\")\n            keyPassword = System.getenv(\"KEY_PASSWORD\")\n        }\n    }\n    buildTypes {\n        release { signingConfig = signingConfigs.getByName(\"release\") }\n    }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Publish the R8 mapping file with every release build",
+                    "content": "A minified release build renames classes and methods, so a production stack trace is unreadable without the mapping.txt that R8 generated for that exact build. Upload the mapping to your crash reporter or keep it as a pipeline artifact for every release — it can't be regenerated later from source if the build isn't bit-for-bit reproducible.\n\nAlso archive the signed AAB/APK itself, so you can always reproduce what you shipped.",
+                    "codeSnippet": "- task: PublishBuildArtifacts@1\n  displayName: Publish mapping and bundle\n  inputs:\n    PathtoPublish: app/build/outputs\n    ArtifactName: release-$(Build.BuildNumber)\n    # includes bundle/release/*.aab and mapping/release/mapping.txt",
+                    "codeLang": "YAML",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Run instrumented tests on Gradle Managed Devices for reproducible CI",
+                    "content": "Instrumented tests are flaky when they depend on whatever emulator happens to be configured on an agent. Gradle Managed Devices let the build itself define the device (model, API level, system image), download it, boot it, run the tests and shut it down, so every agent runs the same setup.\n\nUse an ATD (automated test device) system image for faster, headless runs. The agent still needs hardware virtualization available to run emulators at a usable speed.",
+                    "codeSnippet": "android {\n    testOptions {\n        managedDevices {\n            localDevices {\n                create(\"pixel6Api34\") {\n                    device = \"Pixel 6\"\n                    apiLevel = 34\n                    systemImageSource = \"aosp-atd\"\n                }\n            }\n        }\n    }\n}\n// ./gradlew pixel6Api34DebugAndroidTest",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
                 }
             ]
         }

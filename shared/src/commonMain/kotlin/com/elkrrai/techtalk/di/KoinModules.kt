@@ -3,6 +3,7 @@ package com.elkrrai.techtalk.di
 import com.elkrrai.techtalk.data.local.content.battle.BattlePackManager
 import com.elkrrai.techtalk.data.local.content.tip.TipPackManager
 import com.elkrrai.techtalk.data.local.dao.BattleHistoryDao
+import com.elkrrai.techtalk.data.local.dao.ContentMetaDao
 import com.elkrrai.techtalk.data.local.dao.QuestionDao
 import com.elkrrai.techtalk.data.local.dao.TechnologyDao
 import com.elkrrai.techtalk.data.local.dao.TipDao
@@ -58,7 +59,16 @@ fun databaseModule(): Module = module {
 
     single { TipPackManager(get(), get(), get()) }
     single { BattlePackManager(get(), get(), get()) }
-    single { DatabaseSeeder(technologyDao = get(), tipPackManager = get(), battlePackManager = get()) }
+    single<ContentMetaDao> { get<AppDatabase>().contentMetaDao() }
+
+    single {
+        DatabaseSeeder(
+            technologyDao = get(),
+            tipPackManager = get(),
+            battlePackManager = get(),
+            contentMetaDao = get()
+        )
+    }
 }
 
 fun repositoryModule(): Module = module {

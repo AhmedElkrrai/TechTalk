@@ -14,6 +14,34 @@
                     "codeSnippet": "android {\n    flavorDimensions += \"tier\"\n    productFlavors {\n        create(\"free\") { dimension = \"tier\"; applicationIdSuffix = \".free\" }\n        create(\"paid\") { dimension = \"tier\"; applicationIdSuffix = \".paid\" }\n    }\n} // produces freeDebug, freeRelease, paidDebug, paidRelease variants automatically",
                     "codeLang": "Kotlin",
                     "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Declare dependency versions once in a version catalog",
+                    "content": "A version catalog (gradle/libs.versions.toml) is one file that lists every library, its version and your plugins. Modules refer to entries through generated type-safe accessors, so a version is changed in exactly one place and IDE autocomplete finds the alias.\n\nBundles group libraries that are always added together, and the [versions] table lets several libraries share one version number.",
+                    "codeSnippet": "# gradle/libs.versions.toml\n[versions]\ncoroutines = \"1.9.0\"\n\n[libraries]\ncoroutines-core = { module = \"org.jetbrains.kotlinx:kotlinx-coroutines-core\", version.ref = \"coroutines\" }\ncoroutines-android = { module = \"org.jetbrains.kotlinx:kotlinx-coroutines-android\", version.ref = \"coroutines\" }\n\n[bundles]\ncoroutines = [\"coroutines-core\", \"coroutines-android\"]\n\n// build.gradle.kts\n// dependencies { implementation(libs.bundles.coroutines) }",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "Share build logic with convention plugins instead of copy-pasted blocks",
+                    "content": "In a multi-module project, every module ends up repeating the same compileSdk, Kotlin options and test setup. Configuring this from the root with allprojects or subprojects blocks hides where settings come from and makes builds harder to cache.\n\nA convention plugin, written once in an included build (commonly named build-logic), holds the shared configuration, and each module just applies it by ID. The settings live in real, testable Kotlin code and stay next to the plugin that owns them.",
+                    "codeSnippet": "// build-logic/convention/src/main/kotlin/AndroidLibraryConventionPlugin.kt\nclass AndroidLibraryConventionPlugin : Plugin<Project> {\n    override fun apply(target: Project) = with(target) {\n        pluginManager.apply(\"com.android.library\")\n        pluginManager.apply(\"org.jetbrains.kotlin.android\")\n        extensions.configure<LibraryExtension> { compileSdk = 35 }\n    }\n}\n\n// feature/build.gradle.kts\n// plugins { id(\"myapp.android.library\") }",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Turn on the build cache, configuration cache and parallel execution",
+                    "content": "Three switches in gradle.properties remove a lot of wasted time. The build cache reuses task outputs from earlier builds (even from other machines through a remote cache), the configuration cache skips the configuration phase when nothing that affects it changed, and parallel execution builds independent modules at the same time.\n\nTurn them on together, and if the configuration cache reports a problem, it is usually a task or plugin reading project state at execution time.",
+                    "codeSnippet": "# gradle.properties\norg.gradle.caching=true\norg.gradle.configuration-cache=true\norg.gradle.parallel=true\norg.gradle.jvmargs=-Xmx4g",
+                    "codeLang": "Properties",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Declare a custom task's inputs and outputs so Gradle can cache it",
+                    "content": "A task is only skipped or cached if Gradle knows what it reads and writes. Annotate inputs and outputs, mark the task @CacheableTask when it is deterministic, and use PathSensitivity so cached results are reusable across machines with different checkout paths.\n\nAvoid reading project or extension state inside the task action: pass values as declared properties, which is also what the configuration cache needs.",
+                    "codeSnippet": "@CacheableTask\nabstract class GenerateVersionFile : DefaultTask() {\n    @get:Input abstract val versionName: Property<String>\n\n    @get:OutputFile abstract val outputFile: RegularFileProperty\n\n    @TaskAction\n    fun generate() {\n        outputFile.get().asFile.writeText(\"version=${versionName.get()}\")\n    }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
                 }
             ]
         }
