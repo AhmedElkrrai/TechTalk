@@ -53,7 +53,7 @@
                 {
                     "title": "Conflicting delegated interface members must be resolved explicitly",
                     "content": "When a class delegates two interfaces to two different objects and both\ninterfaces declare a member with the same signature, the compiler can't\ndecide which delegate's implementation to use — this is a compile error,\nnot a silent pick-one resolution.\n\nYou must override the conflicting member explicitly in the delegating\nclass and decide manually which delegate to forward to (or combine both),\nmaking the ambiguity resolution visible in code rather than hidden behind\nan implicit rule.",
-                    "codeSnippet": "interface A { fun name(): String }\ninterface B { fun name(): String }\n\nclass Combined(a: A, b: B) : A by a, B by b {\n    override fun name(): String = a.name() // must resolve the conflict explicitly\n}",
+                    "codeSnippet": "interface A { fun name(): String }\ninterface B { fun name(): String }\n\nclass Combined(private val a: A, b: B) : A by a, B by b {\n    override fun name(): String = a.name() // must resolve the conflict explicitly\n}",
                     "codeLang": "Kotlin",
                     "difficulty": "ADVANCED"
                 },
@@ -144,7 +144,7 @@
                 {
                     "title": "Delegate a property directly to another property with var x by ::y",
                     "content": "Sometimes a property is meant to be a pure alias for another property —\nkeeping them manually in sync with a custom getter/setter that just\nforwards reads and writes is boilerplate for something conceptually\nsimple.\n\n`var alias by ::original` delegates directly to another property's own\nbacking storage via a property reference, so reads and writes to alias\ngenuinely read and write the original property, with no separate storage\nor manual forwarding logic needed.",
-                    "codeSnippet": "class LegacyConfig { var timeoutSeconds: Int = 30 }\n\nclass ModernConfig(legacy: LegacyConfig) {\n    var timeoutMs: Int by legacy::timeoutSeconds // delegated alias — reads/writes forward directly\n}",
+                    "codeSnippet": "class LegacyConfig { var timeoutSeconds: Int = 30 }\n\nclass ModernConfig(legacy: LegacyConfig) {\n    var timeout: Int by legacy::timeoutSeconds // delegated alias — reads/writes forward directly\n}",
                     "codeLang": "Kotlin",
                     "difficulty": "ADVANCED"
                 },

@@ -39,7 +39,7 @@
                 {
                     "title": "tailrec eliminates stack growth for tail-recursive functions",
                     "content": "A plain recursive function adds a new stack frame per call, risking\nStackOverflowError for deep recursion (e.g. processing a very long list\nrecursively).\n\nMarking a function tailrec tells the compiler to rewrite genuine tail\nrecursion (the recursive call is the very last operation, with no\nadditional computation after it returns) into an equivalent loop at compile\ntime — the compiler warns you if the function doesn't actually qualify as\ntail-recursive.",
-                    "codeSnippet": "tailrec fun factorial(n: Long, accumulator: Long = 1): Long =\n    if (n <= 1) accumulator else factorial(n - 1, n * accumulator)\n\nfactorial(100_000) // compiled to a loop — no stack overflow",
+                    "codeSnippet": "tailrec fun sumTo(n: Long, accumulator: Long = 0): Long =\n    if (n == 0L) accumulator else sumTo(n - 1, accumulator + n)\n\nsumTo(1_000_000) // compiled to a loop — no stack overflow",
                     "codeLang": "Kotlin",
                     "difficulty": "ADVANCED"
                 },
@@ -150,21 +150,21 @@
                 },
                 {
                     "title": "@DslMarker prevents accidental access to an outer DSL receiver",
-                    "content": "Nested DSL builders (a menu builder inside a screen builder, say) both\nexpose `this` implicitly inside their lambdas — without any restriction,\nan inner lambda can accidentally call a method on the outer receiver\ninstead of the intended inner one, since both are implicitly in scope.\n\n@DslMarker-annotated receiver types restrict implicit receiver resolution\nso only the innermost matching receiver is directly accessible, forcing\nyou to write `this@Outer.method()` explicitly if you genuinely need the\nouter receiver — this is how Kotlin's HTML and Compose-style DSLs avoid\nscope leakage bugs.",
+                    "content": "Nested DSL builders (a menu builder inside a screen builder, say) both\nexpose `this` implicitly inside their lambdas — without any restriction,\nan inner lambda can accidentally call a method on the outer receiver\ninstead of the intended inner one, since both are implicitly in scope.\n\n@DslMarker-annotated receiver types restrict implicit receiver resolution\nso only the innermost matching receiver is directly accessible, forcing\nyou to write `this@Outer.method()` explicitly if you genuinely need the\nouter receiver — this is how kotlinx.html and Ktor's routing DSL avoid\nscope leakage bugs.",
                     "codeSnippet": "@DslMarker annotation class ScreenDsl\n\n@ScreenDsl class ScreenBuilder { fun menu(block: MenuBuilder.() -> Unit) { } }\n@ScreenDsl class MenuBuilder { fun item(name: String) { } }\n// inside menu { }, calling a ScreenBuilder method requires this@ScreenBuilder explicitly",
                     "codeLang": "Kotlin",
                     "difficulty": "ADVANCED"
                 },
                 {
-                    "title": "A private constructor on a sealed class fully closes instantiation",
-                    "content": "Sealed classes already restrict subclassing to the same module (or file,\npre-1.5), but the base sealed class itself can still technically be\ninstantiated directly if it has an accessible constructor and isn't\nabstract.\n\nGiving the sealed class a private constructor removes even that\npossibility, ensuring the only way to obtain an instance is through one of\nits declared subclasses — useful when the base type is meant purely as a\ncommon supertype, never a direct instance.",
-                    "codeSnippet": "sealed class Result private constructor() {\n    data class Success(val data: String) : Result()\n    data class Failure(val error: Throwable) : Result()\n}\n// Result() is not callable from anywhere, even within the same file",
+                    "title": "Sealed class constructors are protected by default — make one private to allow only nested subclasses",
+                    "content": "A sealed class is implicitly abstract, so it can never be instantiated\ndirectly, and its constructors are protected by default: any permitted\nsubclass in the same package and module can call them.\n\nDeclaring the constructor private narrows that further — only subclasses\nnested inside the sealed class body can call it, so nobody can add a new\ntop-level subclass elsewhere in the package.",
+                    "codeSnippet": "sealed class Result private constructor() {\n    data class Success(val data: String) : Result()\n    data class Failure(val error: Throwable) : Result()\n}\n// a top-level \"class Other : Result()\" would not compile — the constructor is private",
                     "codeLang": "Kotlin",
                     "difficulty": "ADVANCED"
                 },
                 {
                     "title": "init blocks execute in declaration order, interleaved with property initializers",
-                    "content": "A class can have multiple init blocks and property initializers, and it's\na common misconception that all property initializers run before all init\nblocks — in reality, they execute strictly in the order they're written\nin the class body, top to bottom.\n\nThis matters when an init block reads a property declared above it (safe,\nalready initialized) versus one declared below it (would read the\nuninitialized default, not a compile error but a logic bug).",
+                    "content": "A class can have multiple init blocks and property initializers, and it's\na common misconception that all property initializers run before all init\nblocks — in reality, they execute strictly in the order they're written\nin the class body, top to bottom.\n\nThis matters when an init block reads a property declared above it (safe,\nalready initialized) versus one declared below it (a direct access is a compile error, but reading\nit indirectly — through a function called from the init block — sees the\nuninitialized default, a subtle logic bug).",
                     "codeSnippet": "class Example {\n    val first = 1\n    init { println(\"first is $first\") } // safe — first already initialized\n    val second = first + 1\n    init { println(\"second is $second\") } // runs after 'second' initializer above it\n}",
                     "codeLang": "Kotlin",
                     "difficulty": "ADVANCED"
@@ -172,7 +172,7 @@
                 {
                     "title": "Function composition via extension functions creates reusable pipelines",
                     "content": "Chaining several single-purpose transformation functions manually\n(c(b(a(x)))) reads inside-out and obscures the actual order of operations,\nespecially as more steps are added.\n\nA small `compose`/`andThen` extension on function types lets you build a\nnew function from several smaller ones, then apply the combined pipeline\nto a value — this reads left-to-right in the order operations actually\nhappen, and the composed function can be stored and reused.",
-                    "codeSnippet": "infix fun <A, B, C> ((A) -> B).andThen(next: (B) -> C): (A) -> C = { next(this(it)) }\n\nval pipeline = ::trim andThen ::lowercase andThen ::sanitize\nval result = pipeline(\"  Raw INPUT  \")",
+                    "codeSnippet": "infix fun <A, B, C> ((A) -> B).andThen(next: (B) -> C): (A) -> C = { next(this(it)) }\n\nval pipeline = (::trim).andThen(::lowercase).andThen(::sanitize)\nval result = pipeline(\"  Raw INPUT  \")",
                     "codeLang": "Kotlin",
                     "difficulty": "ADVANCED"
                 },
@@ -255,7 +255,7 @@
                 },
                 {
                     "title": "Lambdas with receiver are the foundation of Kotlin DSLs",
-                    "content": "A normal lambda type like `(Config) -> Unit` requires callers to reference\nthe parameter explicitly (`it.setName(...)`). A function type with a\nreceiver, `Config.() -> Unit`, makes the parameter the implicit `this`\ninside the lambda, so its members are called directly without a prefix.\n\nThis is exactly what powers builder-style DSLs like Compose's Modifier\nchains or Gradle's build.gradle.kts blocks — the lambda body reads like it\nis a method inside the receiver type.",
+                    "content": "A normal lambda type like `(Config) -> Unit` requires callers to reference\nthe parameter explicitly (`it.setName(...)`). A function type with a\nreceiver, `Config.() -> Unit`, makes the parameter the implicit `this`\ninside the lambda, so its members are called directly without a prefix.\n\nThis is exactly what powers builder-style DSLs like Compose's Column { }\ncontent lambdas or Gradle's build.gradle.kts blocks — the lambda body reads like it\nis a method inside the receiver type.",
                     "codeSnippet": "class HttpRequestBuilder { var url: String = \"\"; var method: String = \"GET\" }\n\nfun request(block: HttpRequestBuilder.() -> Unit): HttpRequestBuilder =\n    HttpRequestBuilder().apply(block)\n\nval req = request {\n    url = \"https://api.example.com\" // 'this' is implicit HttpRequestBuilder\n    method = \"POST\"\n}",
                     "codeLang": "Kotlin",
                     "difficulty": "INTERMEDIATE"
@@ -275,9 +275,9 @@
                     "difficulty": "INTERMEDIATE"
                 },
                 {
-                    "title": "when as an expression forces exhaustiveness, unlike when as a statement",
-                    "content": "Using `when` as a statement (not assigning its result) doesn't require\ncovering every branch — an unmatched case just falls through silently,\nwhich can hide bugs when a new enum or sealed subtype is added later.\n\nUsing `when` as an expression (assigning it to a variable or returning it)\nforces the compiler to verify every possible case is handled — for sealed\ntypes and enums, this means adding a new variant produces a compile error\nanywhere the when isn't updated, catching missed cases immediately.",
-                    "codeSnippet": "// As a statement — no exhaustiveness check, easy to miss a case\nwhen (status) { OrderStatus.Shipped -> notify() }\n\n// As an expression — compiler forces every OrderStatus case to be handled\nval message: String = when (status) {\n    OrderStatus.Pending -> \"Waiting\"\n    OrderStatus.Shipped -> \"On the way\"\n    OrderStatus.Delivered -> \"Arrived\"\n}",
+                    "title": "when over enums and sealed types must be exhaustive — and an expression must always cover every case",
+                    "content": "A `when` over an enum, a sealed type or a Boolean must be exhaustive since\nKotlin 1.7, whether it is used as a statement or as an expression — a missing\nbranch is a compile error. Over open subjects (Int, String, Any) a statement can\nleave values unmatched and silently do nothing, while an expression must always\nend in an `else`.\n\nThat compile-time check is why adding a new enum entry or sealed subtype\nproduces an error everywhere a `when` isn't updated, catching missed cases\nimmediately instead of at runtime.",
+                    "codeSnippet": "// Statement over an open subject — an unmatched value silently does nothing\nwhen (statusCode) { 200 -> handleOk() }\n\n// Over an enum, the compiler forces every OrderStatus case to be handled\nval message: String = when (status) {\n    OrderStatus.Pending -> \"Waiting\"\n    OrderStatus.Shipped -> \"On the way\"\n    OrderStatus.Delivered -> \"Arrived\"\n}",
                     "codeLang": "Kotlin",
                     "difficulty": "INTERMEDIATE"
                 },

@@ -17,7 +17,7 @@
                 },
                 {
                     "title": "sealed class — restricted hierarchies",
-                    "content": "A sealed class restricts which classes can extend it.\nAll subclasses must be defined in the same package.\n\nThis makes 'when' expressions exhaustive — the compiler ensures\nyou handle every possible subtype. No 'else' branch needed.\n\nSealed classes are perfect for modeling states, events, and results.\nThey're like enums on steroids — each subclass can hold different data.",
+                    "content": "A sealed class restricts which classes can extend it.\nAll direct subclasses must be defined in the same package and module.\n\nThis makes 'when' expressions exhaustive — the compiler ensures\nyou handle every possible subtype. No 'else' branch needed.\n\nSealed classes are perfect for modeling states, events, and results.\nThey're like enums on steroids — each subclass can hold different data.",
                     "codeSnippet": "sealed class Result<out T> {\n    data class Success<T>(val data: T) : Result<T>()\n    data class Error(val message: String) : Result<Nothing>()\n    data object Loading : Result<Nothing>()\n}\n\n// Exhaustive when — compiler enforces all cases\nfun handleResult(result: Result<User>) = when (result) {\n    is Result.Success -> showUser(result.data)\n    is Result.Error   -> showError(result.message)\n    is Result.Loading -> showSpinner()\n    // No 'else' needed — all cases covered ✅\n}",
                     "codeLang": "Kotlin",
                     "difficulty": "INTERMEDIATE"

@@ -107,7 +107,7 @@
                     ]
                 },
                 {
-                    "questionText": "What property wrapper makes a value observable in SwiftUI?",
+                    "questionText": "Which property wrapper declares view-owned value-type state that makes SwiftUI re-render the view when it changes?",
                     "difficulty": "INTERMEDIATE",
                     "explanation": "@State creates a source of truth for value types. When the state changes, SwiftUI automatically re-renders the views that read it.",
                     "answers": [

@@ -22,7 +22,7 @@
                             "isCorrect": false
                         },
                         {
-                            "answerText": "To convert a nullable type to a non-nullable type",
+                            "answerText": "To declare that a variable is allowed to hold null",
                             "isCorrect": false
                         },
                         {

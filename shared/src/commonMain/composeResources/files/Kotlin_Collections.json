@@ -94,7 +94,7 @@
                 },
                 {
                     "title": "forEach is for simple iteration without needing an index or early exit",
-                    "content": "forEach reads more concisely than a for-loop when you just need to perform\nan action per element and don't need the index or the ability to break\nearly — note that a `return` inside a forEach lambda returns from the\nlambda's enclosing function, not just that iteration, which can surprise\nnewcomers.\n\nFor cases needing the index, use forEachIndexed; for cases needing to\nbreak or continue mid-iteration, a regular for-loop is more appropriate\nsince forEach can't be interrupted early with break/continue.",
+                    "content": "forEach reads more concisely than a for-loop when you just need to perform\nan action per element and don't need the index or the ability to break\nearly — note that a `return` inside a forEach lambda returns from the\nlambda's enclosing function, not just that iteration, which can surprise\nnewcomers.\n\nFor cases needing the index, use forEachIndexed; for cases needing to\nbreak or continue mid-iteration, a regular for-loop is more appropriate\nsince forEach traditionally can't be interrupted early with break/continue (non-local break/continue in inline lambdas only became stable in Kotlin 2.2).",
                     "codeSnippet": "items.forEach { println(it) } // simple per-element action\n\nitems.forEachIndexed { index, item -> println(\"$index: $item\") }\n\n// Needs break/continue? Use a for-loop instead of forEach\nfor (item in items) { if (item.isInvalid) break }",
                     "codeLang": "Kotlin",
                     "difficulty": "BEGINNER"
@@ -137,7 +137,7 @@
                 {
                     "title": "fold accumulates state that reduce can't express",
                     "content": "reduce uses the collection's first element as the initial accumulator and\nfails on an empty collection. fold takes an explicit initial value, so it\nhandles empty collections gracefully and lets the accumulator be a\ndifferent type than the elements.\n\nUse fold whenever you're building up a different-typed result (a map, a\nstring, a custom object) from a list, rather than reducing to the same\nelement type.",
-                    "codeSnippet": "val summary: Map<String, Int> = orders.fold(mutableMapOf()) { acc, order ->\n    acc.merge(order.category, order.quantity, Int::plus)\n    acc\n}\n\nval total = emptyList<Int>().fold(0) { acc, n -> acc + n } // 0, no crash",
+                    "codeSnippet": "val summary: Map<String, Int> = orders.fold(mutableMapOf<String, Int>()) { acc, order ->\n    acc[order.category] = (acc[order.category] ?: 0) + order.quantity\n    acc\n}\n\nval total = emptyList<Int>().fold(0) { acc, n -> acc + n } // 0, no crash",
                     "codeLang": "Kotlin",
                     "difficulty": "INTERMEDIATE"
                 },

@@ -72,9 +72,9 @@
                     "difficulty": "ADVANCED"
                 },
                 {
-                    "title": "Generic constructors can introduce type parameters independent of the class",
-                    "content": "It's easy to assume all of a class's generic behavior comes from its\nclass-level type parameters — but a specific constructor (or a secondary\nconstructor) can declare its own type parameters, scoped only to that\nconstructor's own parameter types, separate from the class's own generic\nparameters.\n\nThis is a narrow, advanced feature mostly relevant to library-style\nfactory constructors that need to accept a differently-typed argument\nthan the class itself is parameterized over, without exposing that\nsecond type parameter on the class as a whole.",
-                    "codeSnippet": "class Wrapper<T>(val value: T) {\n    companion object {\n        fun <T> from(value: T): Wrapper<T> = Wrapper(value) // factory-level generic, independent\n    }\n}\n\nval w = Wrapper.from(\"hello\") // type inferred purely from the factory function's own parameter",
+                    "title": "Generic factory functions can introduce type parameters independent of the class",
+                    "content": "Unlike Java, Kotlin doesn't allow a constructor to declare its own type\nparameters — a class's generic behavior comes only from its class-level\ntype parameters.\n\nWhen you need to accept a differently-typed argument without exposing a\nsecond type parameter on the class as a whole, use a generic factory function\n(often in a companion object), which can declare type parameters of its own.\nIt's a narrow, advanced pattern, mostly useful for library-style construction\nhelpers.",
+                    "codeSnippet": "class Wrapper<T>(val value: T) {\n    companion object {\n        // the factory declares its own type parameter U, independent of the class's T\n        fun <U : Any> fromString(raw: String, parse: (String) -> U): Wrapper<U> = Wrapper(parse(raw))\n    }\n}\n\nval w = Wrapper.fromString(\"42\") { it.toInt() } // Wrapper<Int>",
                     "codeLang": "Kotlin",
                     "difficulty": "ADVANCED"
                 },
@@ -101,7 +101,7 @@
                 },
                 {
                     "title": "Star projections when you don't care about the exact type argument",
-                    "content": "Sometimes you need to accept a generic type but genuinely don't use its\ntype parameter — like a function that just checks a List's size regardless\nof what it holds. Writing List<Any> is wrong because List<String> isn't a\nList<Any> without covariance rules kicking in awkwardly at call sites.\n\nList<*> (star projection) says 'a List of some unknown type,' letting you\ncall methods that don't depend on T (like size) while the compiler still\nprevents you from unsafely calling methods that would require knowing T.",
+                    "content": "Sometimes you need to accept a generic type but genuinely don't use its\ntype parameter — like a function that just checks a List's size regardless\nof what it holds. Writing MutableList<Any> is wrong for that, because\nMutableList<String> isn't a MutableList<Any> (MutableList is invariant). A\nread-only List<Any> would accept a List<String>, since List is covariant, but\nthe star projection works for every generic type.\n\nList<*> (star projection) says 'a List of some unknown type,' letting you\ncall methods that don't depend on T (like size) while the compiler still\nprevents you from unsafely calling methods that would require knowing T.",
                     "codeSnippet": "fun printSize(list: List<*>) {\n    println(\"Size: ${list.size}\") // fine — doesn't need to know T\n    // list.add(...) // wouldn't compile even if it were MutableList<*>\n}\n\nprintSize(listOf(\"a\", \"b\"))\nprintSize(listOf(1, 2, 3))",
                     "codeLang": "Kotlin",
                     "difficulty": "INTERMEDIATE"
@@ -137,7 +137,7 @@
                 {
                     "title": "Generic functions and classes",
                     "content": "Generics let you write code that works with any type while keeping type safety.\nUse angle brackets <T> to declare type parameters.\n\nThe compiler ensures you only use operations valid for that type.\nWithout generics, you'd need to cast from Any — losing safety.\n\nCommon conventions: T for type, E for element, K/V for key/value,\nR for return type.",
-                    "codeSnippet": "// Generic function\nfun <T> List<T>.secondOrNull(): T? =\n    if (size >= 2) this[1] else null\n\nlistOf(1, 2, 3).secondOrNull()      // 2 (Int?)\nlistOf(\"a\").secondOrNull()           // null (String?)\n\n// Generic class\nclass Stack<T> {\n    private val items = mutableListOf<T>()\n    fun push(item: T) = items.add(item)\n    fun pop(): T = items.removeLast()\n    fun peek(): T = items.last()\n}",
+                    "codeSnippet": "// Generic function\nfun <T> List<T>.secondOrNull(): T? =\n    if (size >= 2) this[1] else null\n\nlistOf(1, 2, 3).secondOrNull()      // 2 (Int?)\nlistOf(\"a\").secondOrNull()           // null (String?)\n\n// Generic class\nclass Stack<T> {\n    private val items = mutableListOf<T>()\n    fun push(item: T) = items.add(item)\n    fun pop(): T = items.removeAt(items.lastIndex) // avoids removeLast(), which can crash on older Android runtimes\n    fun peek(): T = items.last()\n}",
                     "codeLang": "Kotlin",
                     "difficulty": "BEGINNER"
                 },

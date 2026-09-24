@@ -18,7 +18,7 @@
                 {
                     "title": "Intent extras must be Parcelable or Serializable, and Parcelable is strongly preferred",
                     "content": "Only primitive types and objects implementing Parcelable or Serializable\ncan be passed as Intent extras — Serializable relies on reflection and is\nsignificantly slower, with more allocation overhead, than Parcelable's\nexplicit read/write implementation.\n\nData classes can implement Parcelable with minimal boilerplate using the\n@Parcelize annotation, which generates the implementation at compile\ntime — pass only small amounts of data through Intent extras, since the\nsystem enforces a strict total size limit (roughly 1MB) across the whole\nBundle.",
-                    "codeSnippet": "@Parcelize\ndata class UserSummary(val id: String, val name: String) : Parcelable\n\nintent.putExtra(\"user\", UserSummary(\"u1\", \"Ahmed\"))\nval user = intent.getParcelableExtra<UserSummary>(\"user\") // fast, no reflection",
+                    "codeSnippet": "@Parcelize\ndata class UserSummary(val id: String, val name: String) : Parcelable\n\nintent.putExtra(\"user\", UserSummary(\"u1\", \"Ahmed\"))\nval user = IntentCompat.getParcelableExtra(intent, \"user\", UserSummary::class.java) // type-safe; the untyped overload is deprecated on API 33+",
                     "codeLang": "Kotlin",
                     "difficulty": "BEGINNER"
                 },
@@ -115,7 +115,7 @@
                 },
                 {
                     "title": "minSdkVersion, targetSdkVersion, and compileSdkVersion each control something different",
-                    "content": "minSdkVersion is the oldest Android version the app can even install on\n— the compiler rejects APIs newer than this unless guarded. targetSdkVersion\ntells the system which version's behavior your app was designed and\ntested against, which changes runtime behavior (permission models,\nbackground restrictions) even on newer devices, since the OS applies\ncompatibility behavior based on it.\n\ncompileSdkVersion is purely a build-time setting — which SDK's APIs and\nlint rules are available while compiling — and has zero effect on runtime\nbehavior or which devices can install the app; it's normal, and\nrecommended, for compileSdkVersion to be higher than targetSdkVersion.",
+                    "content": "minSdkVersion is the oldest Android version the app can even install on\n— Lint flags APIs newer than this unless guarded. targetSdkVersion\ntells the system which version's behavior your app was designed and\ntested against, which changes runtime behavior (permission models,\nbackground restrictions) even on newer devices, since the OS applies\ncompatibility behavior based on it.\n\ncompileSdkVersion is purely a build-time setting — which SDK's APIs and\nlint rules are available while compiling — and has zero effect on runtime\nbehavior or which devices can install the app; it's normal, and\nrecommended, for compileSdkVersion to be higher than targetSdkVersion.",
                     "codeSnippet": "android {\n    compileSdk = 35 // build-time API surface, no runtime effect\n    defaultConfig {\n        minSdk = 24     // oldest installable OS version\n        targetSdk = 34  // which version's runtime behavior the app opts into\n    }\n}",
                     "codeLang": "Kotlin",
                     "difficulty": "INTERMEDIATE"
@@ -136,7 +136,7 @@
                 },
                 {
                     "title": "Foreground services require an ongoing notification and, since Android 14, a declared type",
-                    "content": "A foreground service must show a persistent notification within a few\nseconds of starting, giving the user visible awareness that something is\nrunning in the background consuming resources on their behalf — without\nit, the system throws an exception and stops the service.\n\nAndroid 14 (API 34) additionally requires declaring a specific foreground\nservice type (dataSync, mediaPlayback, location, etc.) both in the\nmanifest and when starting the service, and restricts which types are\nallowed to be started depending on how the app was launched (from the\nbackground vs. by direct user action).",
+                    "content": "A foreground service must show a persistent notification within a few\nseconds of starting, giving the user visible awareness that something is\nrunning in the background consuming resources on their behalf — without\nit, the system throws an exception and stops the service.\n\nAndroid 14 (API 34) additionally requires declaring a specific foreground\nservice type (dataSync, mediaPlayback, location, etc.) both in the\nmanifest and when starting the service (along with the matching FOREGROUND_SERVICE_* permission, e.g. FOREGROUND_SERVICE_DATA_SYNC), and restricts which types are\nallowed to be started depending on how the app was launched (from the\nbackground vs. by direct user action).",
                     "codeSnippet": "<service android:name=\".SyncService\" android:foregroundServiceType=\"dataSync\" />\n\n// starting it:\nServiceCompat.startForeground(this, notificationId, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)",
                     "codeLang": "Kotlin",
                     "difficulty": "ADVANCED"
@@ -144,7 +144,7 @@
                 {
                     "title": "IntentService is deprecated — use WorkManager or a CoroutineWorker instead",
                     "content": "IntentService ran queued work items sequentially on a single background\nthread and stopped itself once the queue was empty — but it's deprecated\nsince it doesn't cooperate with modern background execution limits and\nhas no built-in retry, constraint, or persistence support.\n\nWorkManager (with a CoroutineWorker for coroutine-based implementations)\nis the recommended replacement: it respects Doze/background restrictions\nautomatically, supports constraints (network availability, charging\nstate), and persists queued work across process death and even device\nreboots.",
-                    "codeSnippet": "class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {\n    override suspend fun doWork(): Result {\n        return try { performSync(); Result.success() } catch (e: Exception) { Result.retry() }\n    }\n}\n\nWorkManager.getInstance(context).enqueue(OneTimeWorkRequestBuilder<SyncWorker>().build())",
+                    "codeSnippet": "class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {\n    override suspend fun doWork(): Result {\n        return try { performSync(); Result.success() } catch (e: CancellationException) { throw e } catch (e: Exception) { Result.retry() }\n    }\n}\n\nWorkManager.getInstance(context).enqueue(OneTimeWorkRequestBuilder<SyncWorker>().build())",
                     "codeLang": "Kotlin",
                     "difficulty": "INTERMEDIATE"
                 },

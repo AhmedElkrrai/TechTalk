@@ -10,7 +10,7 @@
             "tips": [
                 {
                     "title": "Store secrets with Keystore-backed encryption, not plain SharedPreferences",
-                    "content": "Plain SharedPreferences are readable on any rooted device and are backed up\nby default unless explicitly excluded, so tokens stored there can leak.\n\nUse EncryptedSharedPreferences or DataStore with a key wrapped by the Android\nKeystore (AES/GCM). The Keystore key material never leaves secure hardware\n(StrongBox or TEE when available), so even a rooted attacker can't extract\nthe raw key — only misuse the app while it's running.\n\nFor multi-account apps, prefix keys per account rather than using one shared\nfile, so tokens don't leak across account switches.",
+                    "content": "Plain SharedPreferences are readable on any rooted device and are backed up\nby default unless explicitly excluded, so tokens stored there can leak.\n\nUse a key wrapped by the Android Keystore (AES/GCM) — via Tink with DataStore,\nor EncryptedSharedPreferences (androidx.security:security-crypto, now deprecated\nbut still widely used). The Keystore key material never leaves secure hardware\n(StrongBox or TEE when available), so even a rooted attacker can't extract\nthe raw key — only misuse the app while it's running.\n\nFor multi-account apps, prefix keys per account rather than using one shared\nfile, so tokens don't leak across account switches.",
                     "codeSnippet": "val masterKey = MasterKey.Builder(context)\n    .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)\n    .build()\n\nval encryptedPrefs = EncryptedSharedPreferences.create(\n    context,\n    \"secure_prefs\",\n    masterKey,\n    EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,\n    EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM\n)",
                     "codeLang": "Kotlin",
                     "difficulty": "INTERMEDIATE"
@@ -45,15 +45,15 @@
                 },
                 {
                     "title": "Single-flight token refresh to avoid a refresh-token race",
-                    "content": "When multiple requests hit a 401 simultaneously, each naively triggering its\nown refresh call causes a race: the first refresh invalidates the old refresh\ntoken while others are still using it, logging the user out unexpectedly.\n\nGuard the refresh call with a mutex or a shared in-flight Deferred so\nconcurrent 401s await one refresh instead of firing several, and queue the\noriginal requests to retry once the new token is available.",
-                    "codeSnippet": "private val refreshMutex = Mutex()\nprivate var refreshDeferred: Deferred<String>? = null\n\nsuspend fun getValidToken(): String = refreshMutex.withLock {\n    refreshDeferred?.await() ?: run {\n        val deferred = externalScope.async { authApi.refreshToken() }\n        refreshDeferred = deferred\n        val token = deferred.await()\n        refreshDeferred = null\n        token\n    }\n}",
+                    "content": "When multiple requests hit a 401 simultaneously, each naively triggering its\nown refresh call causes a race: the first refresh invalidates the old refresh\ntoken while others are still using it, logging the user out unexpectedly.\n\nGuard the refresh call with a mutex, and after acquiring it re-check whether\nanother caller already replaced the stale token, so concurrent 401s share one\nrefresh instead of firing several, and retry the original requests once the\nnew token is available.",
+                    "codeSnippet": "private val refreshMutex = Mutex()\nprivate var cachedToken: String? = null\n\nsuspend fun getValidToken(staleToken: String?): String = refreshMutex.withLock {\n    // another caller may already have refreshed while we waited for the lock\n    cachedToken?.takeIf { it != staleToken }\n        ?: authApi.refreshToken().also { cachedToken = it }\n}",
                     "codeLang": "Kotlin",
                     "difficulty": "ADVANCED"
                 },
                 {
                     "title": "Encrypt local databases holding sensitive data with SQLCipher",
-                    "content": "Room's default SQLite storage is unencrypted on disk — on a rooted or\nphysically compromised device, cached tokens, PII, or transaction history\nin the local DB are readable directly from the file system.\n\nUse SQLCipher's Room integration (net.zetetic:android-database-sqlcipher)\nto transparently encrypt the database file with a key derived from the\nKeystore, so the on-disk .db file is unreadable without the running app's\nkey material.",
-                    "codeSnippet": "val passphrase = SQLiteDatabase.getBytes(keystoreDerivedKey.toCharArray())\nval factory = SupportFactory(passphrase)\n\nval db = Room.databaseBuilder(context, AppDatabase::class.java, \"secure.db\")\n    .openHelperFactory(factory)\n    .build()",
+                    "content": "Room's default SQLite storage is unencrypted on disk — on a rooted or\nphysically compromised device, cached tokens, PII, or transaction history\nin the local DB are readable directly from the file system.\n\nUse SQLCipher's Room integration (net.zetetic:sqlcipher-android with\nSupportOpenHelperFactory) to transparently encrypt the database file with a\nrandom passphrase that is itself stored encrypted by a Keystore-backed key\n(a Keystore key can't be exported, so it can't be used as the passphrase\ndirectly), so the on-disk .db file is unreadable without the running app's\nkey material.",
+                    "codeSnippet": "// passphrase: random bytes generated once, stored encrypted by a Keystore key\nval passphrase: ByteArray = loadOrCreatePassphrase()\nval factory = SupportOpenHelperFactory(passphrase)\n\nval db = Room.databaseBuilder(context, AppDatabase::class.java, \"secure.db\")\n    .openHelperFactory(factory)\n    .build()",
                     "codeLang": "Kotlin",
                     "difficulty": "ADVANCED"
                 },
@@ -74,7 +74,7 @@
                 {
                     "title": "Never log sensitive data, even at debug level",
                     "content": "Debug logs are easy to forget about and often ship in release builds via\nmisconfigured build variants, or get captured by crash reporting tools that\nscrape logcat. Tokens, PII, or full request/response bodies in Log.d calls\ncan leak through bug reports, ADB access, or third-party SDKs that read logs.\n\nStrip logging in release builds via R8/DexGuard rules that remove Log calls\nentirely, and for anything that must log request details in debug builds,\nredact sensitive fields before logging rather than trusting build-variant\ngating alone.",
-                    "codeSnippet": "// build.gradle: strip Log.* calls in release via R8\n-assumenosideeffects class android.util.Log {\n    public static int d(...);\n    public static int v(...);\n}\n\n// Redact before logging even in debug\nfun Request.redactedLog(): String =\n    toString().replace(Regex(\"Bearer\\\\s+[A-Za-z0-9\\\\-._~+/]+=*\"), \"Bearer [REDACTED]\")",
+                    "codeSnippet": "// proguard-rules.pro: strip Log.* calls in release via R8\n-assumenosideeffects class android.util.Log {\n    public static int d(...);\n    public static int v(...);\n}\n\n// Redact before logging even in debug\nfun Request.redactedLog(): String =\n    toString().replace(Regex(\"Bearer\\\\s+[A-Za-z0-9\\\\-._~+/]+=*\"), \"Bearer [REDACTED]\")",
                     "codeLang": "Kotlin",
                     "difficulty": "BEGINNER"
                 },
@@ -87,7 +87,7 @@
                 },
                 {
                     "title": "Declare pins declaratively via Network Security Config's <pin-set>",
-                    "content": "OkHttp's CertificatePinner requires pins to be compiled into your app's\nKotlin/Java code, which means every pin change requires a full code\nchange and app release cycle.\n\nNetwork Security Config's <pin-set> element declares pins in XML instead\n— functionally equivalent for enforcement purposes, and it has the added\nbenefit of applying at the OS level, so it protects any networking\nlibrary and even WebView traffic within your app, not just requests made\nthrough a specific HTTP client you've manually configured.",
+                    "content": "OkHttp's CertificatePinner requires pins to be compiled into your app's\nKotlin/Java code, which means every pin change requires a full code\nchange and app release cycle.\n\nNetwork Security Config's <pin-set> element declares pins in XML instead\n— functionally equivalent for enforcement purposes, and it has the added\nbenefit of applying at the platform level, so it protects any networking\nlibrary that uses the platform TLS stack (HttpsURLConnection, OkHttp, and\nmost clients built on them), not just requests made through a specific HTTP\nclient you've manually configured. Verify WebView separately — its pinning\nsupport through Network Security Config is limited.",
                     "codeSnippet": "<domain-config>\n    <domain includeSubdomains=\"true\">api.example.com</domain>\n    <pin-set expiration=\"2027-06-01\">\n        <pin digest=\"SHA-256\">AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</pin>\n        <pin digest=\"SHA-256\">BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB=</pin>\n    </pin-set>\n</domain-config>",
                     "codeLang": "XML",
                     "difficulty": "INTERMEDIATE"
@@ -128,10 +128,10 @@
                     "difficulty": "BEGINNER"
                 },
                 {
-                    "title": "report-uri gives you visibility into pin failures happening in the field",
-                    "content": "Without any reporting mechanism, a pin validation failure on a user's\ndevice is invisible to you — you have no way to distinguish a rare,\nlegitimate active MITM attack from a botched certificate rotation\naffecting your whole user base, both of which look identical from the\napp's perspective (requests just start failing).\n\nNetwork Security Config's report-uri attribute on a pin-set makes the\nplatform automatically POST a structured report to your specified\nendpoint whenever pin validation fails, giving you production visibility\ninto pinning failures without needing to build custom client-side\nreporting logic yourself.",
-                    "codeSnippet": "<pin-set expiration=\"2027-01-01\">\n    <pin digest=\"SHA-256\">AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</pin>\n</pin-set>\n<!-- report-uri is declared at the domain-config level in newer API levels -->\n<trustkit-config reportUri=\"https://reports.example.com/pin-failures\" />",
-                    "codeLang": "XML",
+                    "title": "Network Security Config has no pin-failure reporting — build your own",
+                    "content": "A pin validation failure on a user's device is invisible to you unless you\nreport it yourself — you can't tell a rare, real MITM attack from a botched\ncertificate rotation affecting your whole user base, because both look\nidentical from the app (requests just start failing).\n\nNetwork Security Config has no report-uri or built-in reporting for pin\nfailures (that is a feature of the third-party TrustKit library). With OkHttp,\ncatch SSLPeerUnverifiedException in an EventListener or interceptor and send a\nstructured event to your own analytics backend, tagged separately from\nordinary timeouts.",
+                    "codeSnippet": "val client = OkHttpClient.Builder()\n    .certificatePinner(pinner)\n    .eventListener(object : EventListener() {\n        override fun callFailed(call: Call, ioe: IOException) {\n            if (ioe is SSLPeerUnverifiedException) {\n                reportPinFailure(call.request().url.host, ioe) // your own analytics\n            }\n        }\n    })\n    .build()",
+                    "codeLang": "Kotlin",
                     "difficulty": "ADVANCED"
                 },
                 {
@@ -192,7 +192,7 @@
                 },
                 {
                     "title": "Always use SHA-256 for pin hashes — never MD5 or SHA-1",
-                    "content": "MD5 and SHA-1 are both cryptographically broken for collision resistance\n— a sufficiently motivated attacker could theoretically construct a\ndifferent key that produces the same hash value, defeating the whole\npoint of pinning against a specific known-good key.\n\nSHA-256 is the standard, currently-secure choice used by both OkHttp's\nCertificatePinner (the sha256/ prefix is mandatory, not optional) and\nNetwork Security Config's digest=\"SHA-256\" attribute — there's no valid\nreason to use a weaker hash for a security-critical pin value.",
+                    "content": "MD5 and SHA-1 are both cryptographically broken for collision resistance\n— a sufficiently motivated attacker could theoretically construct a\ndifferent key that produces the same hash value, defeating the whole\npoint of pinning against a specific known-good key.\n\nSHA-256 is the standard, currently-secure choice used by both OkHttp's\nCertificatePinner (the sha256/ prefix selects the hash; sha1/ pins still parse but are deprecated) and\nNetwork Security Config's digest=\"SHA-256\" attribute — there's no valid\nreason to use a weaker hash for a security-critical pin value.",
                     "codeSnippet": "// Correct — SHA-256, the only supported/secure option in modern tooling:\n\"sha256/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\"\n\n<pin digest=\"SHA-256\">AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</pin>",
                     "codeLang": "Kotlin",
                     "difficulty": "BEGINNER"
@@ -205,10 +205,10 @@
                     "difficulty": "INTERMEDIATE"
                 },
                 {
-                    "title": "Network Security Config pinning also covers WebView traffic; OkHttp's CertificatePinner does not",
-                    "content": "An app using an embedded WebView (for an in-app browser, a hybrid\nfeature, an OAuth login page) makes its own independent network\nconnections that never pass through your app's configured OkHttpClient\nat all — OkHttp-level pinning simply has no effect on that traffic,\nleaving it fully exposed to interception even in an app that otherwise\npins correctly.\n\nNetwork Security Config's pinning enforcement operates at the platform's\nTLS layer, which WebView traffic does go through — making it the correct\nchoice (or a necessary addition alongside OkHttp pinning) for any app\nthat embeds WebView-based content touching sensitive endpoints.",
-                    "codeSnippet": "<!-- Network Security Config protects WebView requests too, unlike OkHttp-only pinning -->\n<domain-config>\n    <domain includeSubdomains=\"true\">login.example.com</domain> <!-- e.g. an OAuth page loaded in a WebView -->\n    <pin-set expiration=\"2027-01-01\">\n        <pin digest=\"SHA-256\">AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</pin>\n    </pin-set>\n</domain-config>",
-                    "codeLang": "XML",
+                    "title": "OkHttp's CertificatePinner never covers WebView traffic — WebView needs separate handling",
+                    "content": "An app using an embedded WebView (an in-app browser, a hybrid feature, an\nOAuth login page) makes its own network connections that never pass through\nyour configured OkHttpClient — OkHttp-level pinning has no effect on that\ntraffic.\n\nNetwork Security Config's trust-anchor and cleartext rules do apply to\nWebView, but don't assume its pin-set is enforced there: test it against an\ninterception proxy. For sensitive pages, consider a Custom Tab, or route\nrequests through your pinned OkHttpClient with\nWebViewClient.shouldInterceptRequest.",
+                    "codeSnippet": "// Sketch: serve WebView GET requests through your pinned OkHttpClient\noverride fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {\n    if (request.method != \"GET\") return null // let WebView handle everything else itself\n    val response = pinnedClient.newCall(Request.Builder().url(request.url.toString()).build()).execute()\n    return WebResourceResponse(\n        response.header(\"Content-Type\")?.substringBefore(\";\"),\n        response.header(\"Content-Encoding\"),\n        response.body?.byteStream()\n    )\n}",
+                    "codeLang": "Kotlin",
                     "difficulty": "ADVANCED"
                 },
                 {
@@ -304,7 +304,7 @@
                 },
                 {
                     "title": "Never reuse an IV with the same AES/GCM Keystore key — store it alongside the ciphertext",
-                    "content": "AES/GCM's security guarantee breaks catastrophically if the same\n(key, IV) pair is ever used to encrypt two different plaintexts — an\nattacker who observes two ciphertexts sharing an IV can potentially\nrecover both plaintexts, defeating the encryption entirely.\n\nThe Keystore Cipher generates a fresh random IV automatically each time\nyou call init() for encryption, but it's your responsibility to store\nthat IV (it's not secret, just needs to be unique per encryption)\nalongside the ciphertext so decryption can retrieve it — losing track of\nwhich IV was used for which ciphertext makes that data unrecoverable.",
+                    "content": "AES/GCM's security guarantee breaks catastrophically if the same\n(key, IV) pair is ever used to encrypt two different plaintexts — an\nattacker who observes two ciphertexts sharing an IV can learn the XOR of the\nplaintexts and even forge authentication tags, defeating the encryption entirely.\n\nThe Keystore Cipher generates a fresh random IV automatically each time\nyou call init() for encryption, but it's your responsibility to store\nthat IV (it's not secret, just needs to be unique per encryption)\nalongside the ciphertext so decryption can retrieve it — losing track of\nwhich IV was used for which ciphertext makes that data unrecoverable.",
                     "codeSnippet": "val cipher = Cipher.getInstance(\"AES/GCM/NoPadding\")\ncipher.init(Cipher.ENCRYPT_MODE, secretKey) // fresh random IV generated internally\nval iv = cipher.iv // must be persisted alongside the ciphertext, per encryption\nval ciphertext = cipher.doFinal(plaintext)\n\nval stored = iv + ciphertext // IV prepended — needed again for decryption",
                     "codeLang": "Kotlin",
                     "difficulty": "INTERMEDIATE"
@@ -333,14 +333,14 @@
                 {
                     "title": "StrongBox offers stronger isolation than a TEE, but isn't available on every device",
                     "content": "A Trusted Execution Environment (TEE) runs in an isolated mode on the\nmain processor, offering strong isolation from a compromised OS but\nstill sharing the same physical chip — StrongBox is a separate, dedicated\nsecurity chip entirely, offering protection even against certain physical\nhardware attacks a TEE alone can't fully resist.\n\nStrongBox is only present on a subset of higher-end devices, so\nsetIsStrongBoxBacked(true) can throw StrongBoxUnavailableException on\ndevices without it — code requesting StrongBox for its highest-\nsensitivity keys needs an explicit fallback path to a regular\nTEE-backed key rather than assuming availability.",
-                    "codeSnippet": "val spec = KeyGenParameterSpec.Builder(\"high_value_key\", KeyProperties.PURPOSE_SIGN)\n    .setDigests(KeyProperties.DIGEST_SHA256)\n    .setIsStrongBoxBacked(true)\n    .build()\n\ntry {\n    keyPairGenerator.initialize(spec)\n} catch (e: StrongBoxUnavailableException) {\n    keyPairGenerator.initialize(spec.toBuilder().setIsStrongBoxBacked(false).build()) // fallback to TEE\n}",
+                    "codeSnippet": "fun generateSigningKey(strongBox: Boolean): KeyPair {\n    val spec = KeyGenParameterSpec.Builder(\"high_value_key\", KeyProperties.PURPOSE_SIGN)\n        .setDigests(KeyProperties.DIGEST_SHA256)\n        .setIsStrongBoxBacked(strongBox)\n        .build()\n    val generator = KeyPairGenerator.getInstance(KeyProperties.KEY_ALGORITHM_EC, \"AndroidKeyStore\")\n    generator.initialize(spec)\n    return generator.generateKeyPair() // StrongBoxUnavailableException is thrown here\n}\n\nval keyPair = try {\n    generateSigningKey(strongBox = true)\n} catch (e: StrongBoxUnavailableException) {\n    generateSigningKey(strongBox = false) // fall back to a TEE-backed key\n}",
                     "codeLang": "Kotlin",
                     "difficulty": "ADVANCED"
                 },
                 {
                     "title": "Keystore keys do not survive app reinstall, uninstall, or most backup/restore flows",
                     "content": "Keystore keys are tied to the specific app installation and the specific\ndevice's secure hardware state — uninstalling and reinstalling the app\ngenerates a fresh Keystore entry namespace, meaning any data encrypted\nwith the old key (like a locally cached auth token) becomes permanently\nunrecoverable, not just temporarily inaccessible.\n\nAndroid's auto-backup and Google's Backup/Restore services explicitly\nexclude Keystore-backed key material by design (it can't be safely\nexported), so an app relying on Keystore encryption for locally-cached\ndata must treat that data as ephemeral and re-derivable, not as a\npermanent store — critical data belongs on a server, with the Keystore\nkey only protecting a local cache or session token.",
-                    "codeSnippet": "// After reinstall: the alias exists again, but points to a DIFFERENT key\nval keyStore = KeyStore.getInstance(\"AndroidKeyStore\").apply { load(null) }\nval key = keyStore.getKey(\"cached_session_key\", null) // old ciphertext is now permanently undecryptable",
+                    "codeSnippet": "// After reinstall: the old key is gone — the alias doesn't exist until you generate a new key\nval keyStore = KeyStore.getInstance(\"AndroidKeyStore\").apply { load(null) }\nval key = keyStore.getKey(\"cached_session_key\", null) // null: old ciphertext is now permanently undecryptable",
                     "codeLang": "Kotlin",
                     "difficulty": "INTERMEDIATE"
                 },

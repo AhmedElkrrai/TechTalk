@@ -10,7 +10,7 @@
             "tips": [
                 {
                     "title": "StateFlow vs LiveData",
-                    "content": "Both StateFlow and LiveData hold observable state, but StateFlow\nis Kotlin-first and works well with coroutines.\n\nStateFlow always has a value (no null initial state).\nIt's lifecycle-unaware — use collectAsStateWithLifecycle() in Compose\nor repeatOnLifecycle() in Views to collect safely.\n\nLiveData is lifecycle-aware out of the box but is Java-based\nand doesn't integrate as naturally with coroutines and Flow.",
+                    "content": "Both StateFlow and LiveData hold observable state, but StateFlow\nis Kotlin-first and works well with coroutines.\n\nStateFlow always has a value (no null initial state).\nIt's lifecycle-unaware — use collectAsStateWithLifecycle() in Compose\nor repeatOnLifecycle() in Views to collect safely.\n\nLiveData is lifecycle-aware out of the box but predates coroutines\nand doesn't integrate as naturally with coroutines and Flow.",
                     "codeSnippet": "// StateFlow — recommended for new projects\nprivate val _state = MutableStateFlow(UiState())\nval state: StateFlow<UiState> = _state.asStateFlow()\n\n// Collecting safely in Compose\n@Composable\nfun MyScreen(viewModel: MyViewModel) {\n    val state by viewModel.state\n        .collectAsStateWithLifecycle()\n    Text(state.title)\n}",
                     "codeLang": "Kotlin",
                     "difficulty": "INTERMEDIATE"

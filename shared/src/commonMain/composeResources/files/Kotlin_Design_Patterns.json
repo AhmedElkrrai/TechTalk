@@ -94,13 +94,13 @@
                 },
                 {
                     "title": "Observer pattern via StateFlow/SharedFlow, not manual listeners",
-                    "content": "Manual Observer implementations (listener lists, callback interfaces) need\nhand-written thread-safety and cleanup to avoid leaking references to\ndestroyed Activities or Fragments.\n\nStateFlow and SharedFlow give you the Observer pattern with built-in\nlifecycle-safe collection (via collectAsStateWithLifecycle or\nrepeatOnLifecycle), automatic replay of the latest value for new\nsubscribers, and no manual unsubscribe bookkeeping.",
+                    "content": "Manual Observer implementations (listener lists, callback interfaces) need\nhand-written thread-safety and cleanup to avoid leaking references to\ndestroyed Activities or Fragments.\n\nStateFlow and SharedFlow give you the Observer pattern with built-in\nlifecycle-safe collection (via collectAsStateWithLifecycle or\nrepeatOnLifecycle), automatic replay of the latest value for new\nsubscribers (StateFlow), and no manual unsubscribe bookkeeping.",
                     "codeSnippet": "class OrderViewModel : ViewModel() {\n    private val _orderState = MutableStateFlow<OrderState>(OrderState.Idle)\n    val orderState: StateFlow<OrderState> = _orderState.asStateFlow()\n\n    fun placeOrder() {\n        _orderState.value = OrderState.Processing\n        // ... update value as order progresses\n    }\n}",
                     "codeLang": "Kotlin",
                     "difficulty": "INTERMEDIATE"
                 },
                 {
-                    "title": "Decorator pattern via Kotlin extension functions on interfaces",
+                    "title": "Decorator pattern via class delegation (by) instead of wrapper boilerplate",
                     "content": "Decorator wraps an object to add behavior without modifying its class or\naffecting other instances. Instead of a full wrapper-class hierarchy,\nKotlin often achieves the same effect by composing small interface\nimplementations that delegate to a wrapped instance via `by`.\n\nClass delegation (`by`) lets a decorator implement an interface by\nforwarding to a wrapped instance automatically, so you only override the\nmethods you actually want to change behavior for.",
                     "codeSnippet": "interface Logger { fun log(message: String) }\n\nclass ConsoleLogger : Logger {\n    override fun log(message: String) = println(message)\n}\n\nclass TimestampLoggerDecorator(private val wrapped: Logger) : Logger by wrapped {\n    override fun log(message: String) = wrapped.log(\"[${System.currentTimeMillis()}] $message\")\n}",
                     "codeLang": "Kotlin",
@@ -171,7 +171,7 @@
                 },
                 {
                     "title": "Custom Iterator implementation via operator fun iterator()",
-                    "content": "The for-in loop syntax isn't limited to built-in collections — any type\ncan be made iterable by implementing operator fun iterator() that returns\nan Iterator, letting your own domain types participate in for-loops and\ndestructuring the same way a List does.\n\nThis is the Iterator pattern applied through Kotlin's operator conventions\ninstead of a Java-style Iterable<T> interface implementation, and works\neven on types you don't control via an extension function.",
+                    "content": "The for-in loop syntax isn't limited to built-in collections — any type\ncan be made iterable by implementing operator fun iterator() that returns\nan Iterator, letting your own domain types participate in for-loops the same way a\nList does.\n\nThis is the Iterator pattern applied through Kotlin's operator conventions\ninstead of a Java-style Iterable<T> interface implementation, and works\neven on types you don't control via an extension function.",
                     "codeSnippet": "class DateRange(private val start: LocalDate, private val end: LocalDate) {\n    operator fun iterator(): Iterator<LocalDate> = object : Iterator<LocalDate> {\n        var current = start\n        override fun hasNext() = !current.isAfter(end)\n        override fun next() = current.also { current = current.plusDays(1) }\n    }\n}\n\nfor (date in DateRange(start, end)) { println(date) }",
                     "codeLang": "Kotlin",
                     "difficulty": "ADVANCED"

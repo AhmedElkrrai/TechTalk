@@ -129,7 +129,7 @@
                 },
                 {
                     "title": "Process death loses everything not persisted, even ViewModel state",
-                    "content": "It's a common misconception that ViewModel alone is enough to survive\nanything short of the user explicitly closing the app — but when the OS\nkills your process to reclaim memory while backgrounded, the entire\nprocess (including every ViewModel instance) is gone, and a fresh process\nstarts from scratch on return.\n\nSavedStateHandle is specifically designed to survive this case — its data\nis serialized to a small Bundle written to disk, separate from the\nViewModel instance itself, and restored into a new ViewModel when the\nprocess restarts.",
+                    "content": "It's a common misconception that ViewModel alone is enough to survive\nanything short of the user explicitly closing the app — but when the OS\nkills your process to reclaim memory while backgrounded, the entire\nprocess (including every ViewModel instance) is gone, and a fresh process\nstarts from scratch on return.\n\nSavedStateHandle is specifically designed to survive this case — its data\nis stored in the saved-instance-state Bundle the system holds outside your\nprocess (it survives process death, but not a reboot or the user swiping the\napp away), separate from the ViewModel instance itself, and restored into a new ViewModel when the\nprocess restarts.",
                     "codeSnippet": "class SearchViewModel(private val savedStateHandle: SavedStateHandle) : ViewModel() {\n    var query: String\n        get() = savedStateHandle[\"query\"] ?: \"\"\n        set(value) { savedStateHandle[\"query\"] = value } // survives process death, unlike a plain var\n}",
                     "codeLang": "Kotlin",
                     "difficulty": "ADVANCED"
@@ -164,7 +164,7 @@
                 },
                 {
                     "title": "Launch modes change how many lifecycle callback sequences you actually see",
-                    "content": "The default launchMode (\"standard\") always creates a brand new Activity\ninstance on every launch, running the full onCreate-through-onResume\nsequence each time — even if an identical Activity is already on the\nstack.\n\nsingleTop, singleTask, and singleInstance launch modes can instead reuse\nan existing instance, replacing the full onCreate sequence with just\nonNewIntent, onRestart, onStart, onResume for that reused instance — the\nsame code can execute a very different lifecycle sequence depending on\nthe launch mode declared in the manifest.",
+                    "content": "The default launchMode (\"standard\") always creates a brand new Activity\ninstance on every launch, running the full onCreate-through-onResume\nsequence each time — even if an identical Activity is already on the\nstack.\n\nsingleTop, singleTask, and singleInstance launch modes can instead reuse\nan existing instance, replacing the full onCreate sequence with just\nonNewIntent (plus onRestart and onStart if the instance had been stopped, and then onResume) for that reused instance — the\nsame code can execute a very different lifecycle sequence depending on\nthe launch mode declared in the manifest.",
                     "codeSnippet": "<!-- AndroidManifest.xml -->\n<activity android:name=\".MainActivity\" android:launchMode=\"singleTop\" />\n<!-- relaunching while already on top skips onCreate — goes to onNewIntent instead -->",
                     "codeLang": "XML",
                     "difficulty": "ADVANCED"

@@ -38,7 +38,7 @@
                 },
                 {
                     "title": "CoroutineExceptionHandler only fires on uncaught exceptions in root coroutines",
-                    "content": "A CoroutineExceptionHandler installed on a child coroutine's context is\nignored — exceptions propagate up to the nearest root coroutine (one\nlaunched directly on a scope, not a child of another coroutine) before the\nhandler is consulted.\n\nIt also doesn't work with async — exceptions from async are stored in the\nresulting Deferred and only surface when you call .await(), bypassing the\nhandler entirely. Install the handler on the top-level scope, not on\nindividual launch calls.",
+                    "content": "A CoroutineExceptionHandler installed on a child coroutine's context is\nignored — exceptions propagate up to the nearest root coroutine (one\nlaunched directly on a scope, not a child of another coroutine) before the\nhandler is consulted.\n\nIt also doesn't work with async — exceptions from async are stored in the\nresulting Deferred and only surface when you call .await(), bypassing the\nhandler entirely. Install the handler on the top-level scope or on a root launch, not on\nchild coroutines.",
                     "codeSnippet": "val handler = CoroutineExceptionHandler { _, e -> log(\"Uncaught: $e\") }\nval scope = CoroutineScope(SupervisorJob() + handler)\n\nscope.launch { throw RuntimeException(\"boom\") } // handler fires — root coroutine\n// scope.launch { launch { throw ... } } // also fires — handler applies down the tree",
                     "codeLang": "Kotlin",
                     "difficulty": "ADVANCED"
@@ -52,14 +52,14 @@
                 },
                 {
                     "title": "Mutex is the coroutine-safe replacement for synchronized blocks",
-                    "content": "Java's synchronized keyword blocks the underlying thread, which is\ndangerous inside a suspend function — it can hold a thread hostage across\na suspension point, or deadlock a limited dispatcher thread pool entirely.\n\nkotlinx.coroutines.sync.Mutex provides withLock {} as a suspend-aware\nequivalent — it suspends the coroutine instead of blocking the thread\nwhile waiting for the lock, making it safe to use around suspend calls.",
+                    "content": "Java's synchronized keyword blocks the underlying thread, and Kotlin doesn't\neven allow a suspension point inside a synchronized block — so you can't wait on\nsuspend work while holding the lock, and blocking on a contended lock can\nstarve a limited dispatcher thread pool.\n\nkotlinx.coroutines.sync.Mutex provides withLock {} as a suspend-aware\nequivalent — it suspends the coroutine instead of blocking the thread\nwhile waiting for the lock, making it safe to use around suspend calls.",
                     "codeSnippet": "val mutex = Mutex()\nvar counter = 0\n\nsuspend fun increment() = mutex.withLock {\n    counter++ // safe even with suspend calls elsewhere in the critical section\n}",
                     "codeLang": "Kotlin",
                     "difficulty": "ADVANCED"
                 },
                 {
-                    "title": "Cancelling a parent Job cancels every child, but not the other way around",
-                    "content": "Structured concurrency's parent-child Job hierarchy means calling\ncancel() on a parent scope propagates down to every coroutine launched\nwithin it — but a child coroutine failing (for non-CancellationException\nreasons) propagates its exception up and cancels its siblings too, unless\nthe parent uses a SupervisorJob.\n\nUnderstanding this hierarchy is essential for reasoning about lifecycle-\nbound scopes like viewModelScope — cancelling the ViewModel's scope\nreliably cancels every coroutine it launched, directly or nested.",
+                    "title": "Cancelling a parent Job cancels every child, while a failing child cancels its parent and siblings",
+                    "content": "Structured concurrency's parent-child Job hierarchy means calling\ncancel() on a parent scope propagates down to every coroutine launched\nwithin it — but a child coroutine failing (for non-CancellationException\nreasons) propagates its exception up, cancelling its parent and therefore its siblings too, unless\nthe parent uses a SupervisorJob. A child that is merely cancelled (a CancellationException) does not cancel its parent.\n\nUnderstanding this hierarchy is essential for reasoning about lifecycle-\nbound scopes like viewModelScope — cancelling the ViewModel's scope\nreliably cancels every coroutine it launched, directly or nested.",
                     "codeSnippet": "val parentJob = Job()\nval scope = CoroutineScope(parentJob)\n\nscope.launch { launch { delay(5000) } } // nested child\nparentJob.cancel() // cancels the outer launch AND its nested child",
                     "codeLang": "Kotlin",
                     "difficulty": "ADVANCED"
@@ -80,7 +80,7 @@
                 },
                 {
                     "title": "launch starts fire-and-forget work; async returns an awaitable result",
-                    "content": "launch returns a Job and is for coroutines you don't need a result from —\nsending an analytics event, for example. If it throws, the exception\npropagates immediately to the parent scope.\n\nasync returns a Deferred<T>, meant for computing a value concurrently. Its\nexception stays hidden until you call .await() on it, so a forgotten\nawait() can silently swallow an error until something else surfaces it.",
+                    "content": "launch returns a Job and is for coroutines you don't need a result from —\nsending an analytics event, for example. If it throws, the exception\npropagates immediately to the parent scope.\n\nasync returns a Deferred<T>, meant for computing a value concurrently. Its\nexception is rethrown when you call .await(). Inside a regular scope a failing\nasync child still cancels its parent right away; only for a root async (or under\na SupervisorJob) does the error stay hidden until .await(), where a forgotten\nawait() can silently swallow it.",
                     "codeSnippet": "scope.launch { sendAnalyticsEvent() } // no result needed\n\nval deferred = scope.async { fetchUserProfile() }\nval profile = deferred.await() // result + exception surface here",
                     "codeLang": "Kotlin",
                     "difficulty": "BEGINNER"
@@ -95,7 +95,7 @@
                 {
                     "title": "SupervisorJob isolates failures in sibling coroutines",
                     "content": "A regular Job cancels all siblings when one child fails. SupervisorJob\nchanges that — a failure in one child does not cancel the others.\n\nThis is commonly used at the root of a ViewModel's CoroutineScope so\none failed background task doesn't tear down unrelated ongoing work.\n\nNote that supervisorScope only isolates failures one level down — if you\nnest a regular coroutineScope inside, normal cancellation propagation resumes\nwithin that nested scope.",
-                    "codeSnippet": "class MyViewModel : ViewModel() {\n    private val supervisor = SupervisorJob()\n    private val scope = CoroutineScope(Dispatchers.Main.immediate + supervisor)\n\n    fun loadEverything() {\n        scope.launch { loadProfile() }   // failure here...\n        scope.launch { loadStats() }     // ...won't cancel this\n    }\n}",
+                    "codeSnippet": "class MyViewModel : ViewModel() {\n    private val supervisor = SupervisorJob()\n    private val scope = CoroutineScope(Dispatchers.Main.immediate + supervisor)\n\n    fun loadEverything() {\n        scope.launch { loadProfile() }   // failure here...\n        scope.launch { loadStats() }     // ...won't cancel this\n    }\n\n    override fun onCleared() { scope.cancel() } // a hand-made scope must be cancelled\n}",
                     "codeLang": "Kotlin",
                     "difficulty": "INTERMEDIATE"
                 },
