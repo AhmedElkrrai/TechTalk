@@ -1,0 +1,84 @@
+{
+    "version": 1,
+    "author": "TechTalk",
+    "description": "Android — Retrofit & OkHttp",
+    "entries": [
+        {
+            "technologyName": "Android",
+            "topicName": "Retrofit & OkHttp",
+            "topicDescription": "Calling HTTP APIs with Retrofit and OkHttp: interfaces, converters, interceptors, authentication, caching and testing.",
+            "tips": [
+                {
+                    "title": "Describe an HTTP API as an annotated interface",
+                    "content": "Retrofit turns an interface into a working HTTP client. Each function is annotated with the HTTP method and a relative path, and its parameters are annotated with where they go: @Path fills a placeholder in the URL, @Query adds a query parameter, @Body sends an object as the request body, and @Header sets a header.\n\nThe base URL passed to the builder must end with a slash, and the paths on the annotations are resolved against it. Without the trailing slash Retrofit throws an IllegalArgumentException when you build it.",
+                    "codeSnippet": "interface UserApi {\n    @GET(\"users/{id}\")\n    suspend fun getUser(@Path(\"id\") id: String): User\n\n    @GET(\"users\")\n    suspend fun search(@Query(\"q\") query: String): List<User>\n\n    @POST(\"users\")\n    suspend fun create(@Body request: CreateUserRequest): User\n}\n\nval api = Retrofit.Builder()\n    .baseUrl(\"https://api.example.com/\")      // must end with \"/\"\n    .client(okHttpClient)\n    .addConverterFactory(converterFactory)\n    .build()\n    .create(UserApi::class.java)",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "Retrofit suspend functions are main-safe and cancellable",
+                    "content": "A Retrofit interface function marked suspend runs the HTTP call on OkHttp's own threads and resumes your coroutine with the result, so it is safe to call from the main thread without withContext. If the coroutine is cancelled while the request is in flight, Retrofit cancels the underlying call.\n\nA non-2xx response makes the call throw an HttpException. If you want to inspect the status code and headers without an exception, declare the return type as Response<T> instead, or use Unit as the return type when there is no body.",
+                    "codeSnippet": "val job = viewModelScope.launch {\n    val user = api.getUser(\"42\")          // suspends; the call is cancelled if this job is\n    _state.value = UiState.Content(user)\n}\njob.cancel()                               // cancels the in-flight HTTP request too\n\n@GET(\"users/{id}\")\nsuspend fun getUserResponse(@Path(\"id\") id: String): Response<User>   // no exception on 404\n\n@DELETE(\"users/{id}\")\nsuspend fun delete(@Path(\"id\") id: String)                            // empty body",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "Choose a converter and configure it to tolerate new fields",
+                    "content": "A converter factory turns response bodies into your Kotlin types and request objects into bodies. For Kotlin projects the usual choices are the kotlinx.serialization converter (created from a Json instance with asConverterFactory) or Moshi.\n\nConfigure the JSON instance rather than accepting defaults: ignoreUnknownKeys = true means a field the backend adds tomorrow doesn't break today's app. Retrofit asks converter factories in the order you added them, so register more specific ones before general ones.",
+                    "codeSnippet": "val json = Json {\n    ignoreUnknownKeys = true      // new server fields are ignored\n    coerceInputValues = true      // null/unknown enum values fall back to defaults\n}\n\nval retrofit = Retrofit.Builder()\n    .baseUrl(\"https://api.example.com/\")\n    .client(okHttpClient)\n    .addConverterFactory(json.asConverterFactory(\"application/json\".toMediaType()))\n    .build()\n\n@Serializable\ndata class User(val id: String, val name: String, val plan: String = \"free\")",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Application interceptors and network interceptors see different things",
+                    "content": "An application interceptor (addInterceptor) runs once per call, sees your original request and the final response, and can short-circuit without touching the network. It doesn't see redirects or retries, and it runs even when the answer comes from the cache.\n\nA network interceptor (addNetworkInterceptor) runs for every request that actually goes to the network, including each redirect and retry, and it sees the request as it will be sent (with headers OkHttp added). It is not called for responses served from the cache.\n\nAdd headers and logging in an application interceptor; use a network interceptor when you need the wire-level request or must rewrite response headers before caching.",
+                    "codeSnippet": "val client = OkHttpClient.Builder()\n    .addInterceptor { chain ->                          // once per call\n        val request = chain.request().newBuilder()\n            .header(\"X-App-Version\", BuildConfig.VERSION_NAME)\n            .build()\n        chain.proceed(request)\n    }\n    .addNetworkInterceptor { chain ->                   // every network round trip\n        val response = chain.proceed(chain.request())\n        response.newBuilder()\n            .header(\"Cache-Control\", \"max-age=60\")      // rewritten before it is cached\n            .build()\n    }\n    .build()",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Add the token in an interceptor and refresh it in an Authenticator",
+                    "content": "An interceptor attaches the access token to every request. When the server answers 401, OkHttp calls an Authenticator, which can obtain a new token and return a new request to retry, or return null to give up.\n\nGuard against two problems: refresh loops (stop after one retry by counting prior responses) and concurrent refreshes (synchronize, and check whether another call has already replaced the token before refreshing again). An Authenticator runs on an OkHttp worker thread, so a blocking call there is acceptable.",
+                    "codeSnippet": "class TokenAuthenticator(\n    private val tokens: TokenStore,\n    private val refresh: () -> String?      // blocking refresh call, null on failure\n) : Authenticator {\n\n    override fun authenticate(route: Route?, response: Response): Request? {\n        if (responseCount(response) > 1) return null           // already retried once: give up\n\n        synchronized(this) {\n            val current = tokens.accessToken\n            val sent = response.request.header(\"Authorization\")\n            val newToken = if (sent != \"Bearer $current\") current   // someone else refreshed\n                           else refresh() ?: return null\n            tokens.accessToken = newToken\n            return response.request.newBuilder()\n                .header(\"Authorization\", \"Bearer $newToken\")\n                .build()\n        }\n    }\n\n    private fun responseCount(response: Response): Int {\n        var count = 1\n        var prior = response.priorResponse\n        while (prior != null) { count++; prior = prior.priorResponse }\n        return count\n    }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Tell HttpException from IOException, and map both at the data layer",
+                    "content": "Two kinds of failure reach your code from a Retrofit suspend call. An HttpException means the server answered with a non-2xx status: you have a code and maybe an error body. An IOException means no usable response arrived (no connection, DNS failure, timeout). A parsing problem in the converter is a third kind, and it is not an IOException.\n\nCatch these in the repository and return a sealed result, so ViewModels and the UI never see Retrofit types. Rethrow CancellationException, or cancellation breaks. Note that errorBody() can only be read once.",
+                    "codeSnippet": "sealed interface ApiResult<out T> {\n    data class Success<T>(val value: T) : ApiResult<T>\n    data class HttpError(val code: Int, val body: String?) : ApiResult<Nothing>\n    data class NetworkError(val cause: IOException) : ApiResult<Nothing>\n}\n\nsuspend fun <T> safeApiCall(call: suspend () -> T): ApiResult<T> = try {\n    ApiResult.Success(call())\n} catch (e: CancellationException) {\n    throw e                                   // never swallow cancellation\n} catch (e: HttpException) {\n    ApiResult.HttpError(e.code(), e.response()?.errorBody()?.string())\n} catch (e: IOException) {\n    ApiResult.NetworkError(e)\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Know OkHttp's timeouts and share one client",
+                    "content": "OkHttp has four timeouts. connectTimeout limits establishing the TCP connection, readTimeout limits how long a single read waits for data, writeTimeout limits a single write, and callTimeout limits the whole call from start to finish. The connect, read and write timeouts default to 10 seconds; callTimeout defaults to none.\n\nBecause readTimeout applies to each read, a slow but steady download never trips it. Set callTimeout when you need an overall limit. Create one OkHttpClient for the app: it owns the connection pool and threads, so many clients waste them. Use newBuilder() to derive a variant that shares the same pool.",
+                    "codeSnippet": "val client = OkHttpClient.Builder()\n    .connectTimeout(10, TimeUnit.SECONDS)\n    .readTimeout(20, TimeUnit.SECONDS)\n    .writeTimeout(20, TimeUnit.SECONDS)\n    .callTimeout(60, TimeUnit.SECONDS)        // whole call, including redirects\n    .build()\n\n// Derived client with a longer timeout, sharing connections and threads\nval uploadClient = client.newBuilder()\n    .callTimeout(5, TimeUnit.MINUTES)\n    .build()",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Use OkHttp's HTTP cache and Cache-Control for offline reads",
+                    "content": "Give the client a Cache (a directory and a maximum size) and OkHttp stores cacheable responses and reuses them according to the standard HTTP caching headers. Only GET responses are cached, and what is stored and for how long is driven by the server's Cache-Control header, so a server that sends no-store gives you no cache.\n\nTo read stale data when the device is offline, send a request with CacheControl.FORCE_CACHE (only-if-cached): OkHttp answers from the cache or fails with a 504 when nothing is stored, and you can fall back to an offline message. Remember that for data you must keep and query, a database is the better source of truth.",
+                    "codeSnippet": "val cache = Cache(File(context.cacheDir, \"http\"), 10L * 1024 * 1024)   // 10 MB\n\nval client = OkHttpClient.Builder()\n    .cache(cache)\n    .build()\n\n// Offline read: serve from cache only\n@GET(\"articles\")\n@Headers(\"Cache-Control: only-if-cached, max-stale=86400\")\nsuspend fun cachedArticles(): List<Article>",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Log requests with HttpLoggingInterceptor, but never BODY in release",
+                    "content": "HttpLoggingInterceptor prints requests and responses to Logcat. Its level controls how much: NONE, BASIC (request line and status), HEADERS, or BODY (everything, including the payloads).\n\nBODY logs tokens, personal data and passwords, and buffers whole bodies in memory, so use it only in debug builds. Redact sensitive headers, and set the level from the build type rather than leaving it on. Add it as an application interceptor so it logs the request you actually wrote.",
+                    "codeSnippet": "val logging = HttpLoggingInterceptor().apply {\n    level = if (BuildConfig.DEBUG) HttpLoggingInterceptor.Level.BODY\n            else HttpLoggingInterceptor.Level.NONE\n    redactHeader(\"Authorization\")\n    redactHeader(\"Cookie\")\n}\n\nval client = OkHttpClient.Builder()\n    .addInterceptor(logging)\n    .build()",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Test your API layer with MockWebServer",
+                    "content": "MockWebServer runs a small real HTTP server on localhost. Point Retrofit at its URL, queue the responses you want, call your code, and then inspect the request it received. That tests the whole stack (interface annotations, converter, error handling) without a network or a mocking framework.\n\nUse it to cover the unhappy paths as well: enqueue a 500 or a malformed body and assert how your repository reacts. Shut the server down after each test. The API differs slightly in newer OkHttp versions, so check the artifact you use.",
+                    "codeSnippet": "class UserApiTest {\n    private val server = MockWebServer()\n\n    @Before fun setUp() { server.start() }\n    @After fun tearDown() { server.shutdown() }\n\n    @Test\n    fun getsUser() = runTest {\n        server.enqueue(MockResponse().setResponseCode(200).setBody(\"\"\"{\"id\":\"1\",\"name\":\"Ana\"}\"\"\"))\n        val api = buildApi(server.url(\"/\"))\n\n        assertEquals(\"Ana\", api.getUser(\"1\").name)\n        assertEquals(\"/users/1\", server.takeRequest().path)     // what was actually sent\n    }\n\n    @Test\n    fun serverErrorThrows() = runTest {\n        server.enqueue(MockResponse().setResponseCode(500))\n        assertFailsWith<HttpException> { buildApi(server.url(\"/\")).getUser(\"1\") }\n    }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                }
+            ]
+        }
+    ]
+}

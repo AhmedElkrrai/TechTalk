@@ -28,6 +28,62 @@
                     "codeSnippet": "class ProfileViewModel : ViewModel() {\n    private val _uiState = MutableStateFlow(ProfileState())\n    val uiState: StateFlow<ProfileState> = _uiState.asStateFlow()\n    \n    fun loadProfile(userId: String) {\n        viewModelScope.launch {\n            val profile = repository.getProfile(userId)\n            _uiState.update { it.copy(profile = profile) }\n        }\n    }\n}",
                     "codeLang": "Kotlin",
                     "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "onCleared marks the end of a ViewModel's life — not a rotation",
+                    "content": "A ViewModel lives as long as its owner (an Activity, a Fragment or a navigation back stack entry) is in the back stack, and it survives configuration changes such as rotation. It is cleared only when the owner is permanently gone: the Activity finishes, the Fragment is removed or the destination is popped.\n\nThen onCleared() is called, right after viewModelScope has been cancelled. Use it to release things the ViewModel created itself (a listener, a manually created scope, a resource) and keep it short.",
+                    "codeSnippet": "class ChatViewModel(private val socket: ChatSocket) : ViewModel() {\n    private val manualScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)\n\n    init { socket.connect() }\n\n    override fun onCleared() {\n        socket.disconnect()        // release what this ViewModel opened\n        manualScope.cancel()       // a scope you created yourself must be cancelled\n    }                              // viewModelScope is cancelled for you before this runs\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "Never keep an Activity, View or Context in a ViewModel",
+                    "content": "A ViewModel outlives the Activity or Fragment that displays it: after a rotation the old Activity is destroyed but the same ViewModel lives on. If the ViewModel holds a reference to that Activity, a View or an Activity Context, the destroyed Activity can't be garbage collected, which leaks memory and the whole view tree.\n\nKeep UI objects out of the ViewModel and expose state for the UI to render. If you truly need the application Context, extend AndroidViewModel, or better, inject a dependency that wraps it, such as a repository or a resource provider.",
+                    "codeSnippet": "// Leaks the Activity across configuration changes\nclass BadViewModel(private val activity: Activity) : ViewModel()\n\n// Application context lives as long as the process, so this is safe\nclass SettingsViewModel(application: Application) : AndroidViewModel(application) {\n    private val appContext = getApplication<Application>()\n}\n\n// Best: depend on an abstraction instead of a Context\nclass ProfileViewModel(private val strings: StringProvider) : ViewModel()",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "Expose read-only state with a private backing property",
+                    "content": "Keep the MutableStateFlow private and expose it as a read-only StateFlow. The UI can then observe the state but only the ViewModel can change it, so every change goes through the ViewModel's functions and can be reasoned about in one place.\n\nChange the state with update { }, which applies the function atomically. That avoids the lost-update problem of reading value and writing it back separately when several coroutines change state.",
+                    "codeSnippet": "class CounterViewModel : ViewModel() {\n    private val _state = MutableStateFlow(CounterState())\n    val state: StateFlow<CounterState> = _state.asStateFlow()   // read-only for the UI\n\n    fun increment() {\n        _state.update { it.copy(count = it.count + 1) }         // atomic read-modify-write\n    }\n}\n\ndata class CounterState(val count: Int = 0)",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
+                },
+                {
+                    "title": "Create ViewModels that need constructor arguments with a factory",
+                    "content": "The default ViewModel factory can only call a no-argument constructor. To pass dependencies, supply a factory. With plain AndroidX, viewModelFactory { initializer { } } builds one, and inside the initializer createSavedStateHandle() gives you a SavedStateHandle. Dependency-injection libraries wrap this for you.\n\nHilt uses @HiltViewModel with an @Inject constructor and hiltViewModel() in Compose; Koin has koinViewModel(). Whichever you use, the ViewModel's own constructor stays plain Kotlin, which keeps it easy to create in tests.",
+                    "codeSnippet": "// AndroidX only\nval vm: DetailViewModel = viewModel(\n    factory = viewModelFactory {\n        initializer { DetailViewModel(repository, createSavedStateHandle()) }\n    }\n)\n\n// Hilt\n@HiltViewModel\nclass ListViewModel @Inject constructor(private val repository: ItemRepository) : ViewModel()\n// val vm: ListViewModel = hiltViewModel()\n\n// Koin\n// val vm: ListViewModel = koinViewModel()",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Share one ViewModel between screens by choosing its owner",
+                    "content": "A ViewModel is scoped to the owner you ask it from. Ask from a destination and each screen gets its own. To share state across several screens of a flow, such as a multi-step checkout, use the owner that covers them all: the parent navigation graph's back stack entry, or the Activity.\n\nScoping to the navigation graph is usually better than to the Activity, because the ViewModel is cleared when the user leaves the flow instead of living for the whole session.",
+                    "codeSnippet": "// Compose Navigation: share a ViewModel within the \"checkout\" graph\ncomposable<PaymentRoute> { backStackEntry ->\n    val parentEntry = remember(backStackEntry) {\n        navController.getBackStackEntry<CheckoutGraph>()\n    }\n    val shared: CheckoutViewModel = viewModel(parentEntry)   // same instance on every checkout screen\n    PaymentScreen(shared)\n}\n\n// Fragments\n// private val shared: CheckoutViewModel by navGraphViewModels(R.id.checkout)\n// private val shared: SessionViewModel by activityViewModels()",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Model one-time UI events as state the UI consumes",
+                    "content": "Things like \"show this message\" or \"navigate now\" must happen once. Firing them through a callback or a stream that drops values can lose them if the UI isn't collecting at that moment. A more robust approach recommended for Compose is to keep the event in the UI state until the UI reports that it handled it.\n\nThe ViewModel sets a field such as userMessage; the screen shows it and calls a function that clears it. Because state survives rotation, the event isn't lost, and because it is cleared after handling, it isn't shown twice.",
+                    "codeSnippet": "data class EditState(val text: String = \"\", val userMessage: String? = null)\n\nclass EditViewModel(private val repository: NoteRepository) : ViewModel() {\n    private val _state = MutableStateFlow(EditState())\n    val state = _state.asStateFlow()\n\n    fun onSave() = viewModelScope.launch {\n        repository.save(_state.value.text)\n        _state.update { it.copy(userMessage = \"Saved\") }\n    }\n\n    fun onMessageShown() = _state.update { it.copy(userMessage = null) }\n}\n\n// UI: LaunchedEffect(state.userMessage) { state.userMessage?.let { snackbar.show(it); viewModel.onMessageShown() } }",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Work that must finish belongs outside viewModelScope",
+                    "content": "viewModelScope is cancelled as soon as the ViewModel is cleared, for example when the user leaves the screen. A save, an upload or a payment confirmation launched there can be cancelled halfway, leaving data in an inconsistent state.\n\nFor work that must complete, hand it to something with a longer life: WorkManager for work that must survive process death, or an application-level scope (injected, with a SupervisorJob) for short work that only needs to outlive the screen.",
+                    "codeSnippet": "class ComposeViewModel(\n    private val repository: DraftRepository,\n    private val appScope: CoroutineScope,           // injected, lives as long as the app\n    private val workManager: WorkManager\n) : ViewModel() {\n\n    // Cancelled if the user leaves right away\n    fun loadDraft() = viewModelScope.launch { _draft.value = repository.load() }\n\n    // Continues after the screen is gone\n    fun saveDraft(text: String) { appScope.launch { repository.save(text) } }\n\n    // Survives process death\n    fun upload(id: String) {\n        workManager.enqueue(OneTimeWorkRequestBuilder<UploadWorker>().setInputData(workDataOf(\"id\" to id)).build())\n    }\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Start loading with stateIn and onStart instead of in init",
+                    "content": "Calling a load function in a ViewModel's init block starts work as soon as the ViewModel is created, whether or not anything is observing it, and that work isn't restarted if it stops. Building the state from a Flow with stateIn(started = SharingStarted.WhileSubscribed(5_000)) ties the work to the observers instead: it starts when the UI starts collecting, keeps running through a configuration change, and stops five seconds after the last collector leaves.\n\nIt also makes the initial state explicit (onStart or the initial value) and is easier to test, because nothing happens until you collect.",
+                    "codeSnippet": "class OrdersViewModel(repository: OrderRepository) : ViewModel() {\n\n    val state: StateFlow<OrdersUi> = repository.observeOrders()\n        .map<List<Order>, OrdersUi> { OrdersUi.Content(it) }\n        .onStart { emit(OrdersUi.Loading) }\n        .catch { emit(OrdersUi.Error(it.message)) }\n        .stateIn(\n            scope = viewModelScope,\n            started = SharingStarted.WhileSubscribed(5_000),   // runs only while observed\n            initialValue = OrdersUi.Loading\n        )\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "ADVANCED"
                 }
             ]
         }

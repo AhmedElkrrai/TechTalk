@@ -836,6 +836,241 @@
                     ]
                 }
             ]
+        },
+        {
+            "technologyName": "Android",
+            "topicName": "Retrofit & OkHttp",
+            "topicDescription": "Calling HTTP APIs with Retrofit and OkHttp: interfaces, converters, interceptors, authentication, caching and testing.",
+            "questions": [
+                {
+                    "questionText": "What must the base URL passed to Retrofit.Builder end with?",
+                    "difficulty": "BEGINNER",
+                    "explanation": "Retrofit resolves the relative paths on your annotations against the base URL, and it requires the base URL to end with a slash; otherwise building the Retrofit instance throws an IllegalArgumentException.",
+                    "answers": [
+                        {
+                            "answerText": "A file extension such as .json",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "A question mark",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "Nothing; any URL is accepted",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "A trailing slash",
+                            "isCorrect": true
+                        }
+                    ]
+                },
+                {
+                    "questionText": "With Retrofit suspend functions, what does an HttpException mean?",
+                    "difficulty": "INTERMEDIATE",
+                    "explanation": "HttpException means the server responded with a non-2xx status code. A failure to get any response, such as no connection or a timeout, surfaces as an IOException.",
+                    "answers": [
+                        {
+                            "answerText": "The device has no network connection",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "The request timed out",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "The JSON could not be parsed",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "The server replied with a non-2xx status code",
+                            "isCorrect": true
+                        }
+                    ]
+                },
+                {
+                    "questionText": "Which OkHttp interface is called when a server answers 401 so you can supply new credentials and retry the request?",
+                    "difficulty": "ADVANCED",
+                    "explanation": "An Authenticator is invoked on an authentication challenge such as 401. It can return a new request with fresh credentials, or null to give up.",
+                    "answers": [
+                        {
+                            "answerText": "HttpLoggingInterceptor",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "CookieJar",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "Dispatcher",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "Authenticator",
+                            "isCorrect": true
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "technologyName": "Android",
+            "topicName": "Architecture Patterns",
+            "topicDescription": "Structuring the presentation layer: MVVM, unidirectional data flow, MVI, state holders and error handling.",
+            "questions": [
+                {
+                    "questionText": "In unidirectional data flow, what travels from the ViewModel down to the UI?",
+                    "difficulty": "BEGINNER",
+                    "explanation": "State flows down from the ViewModel to the UI, and events flow up from the UI to the ViewModel. The UI never changes state directly.",
+                    "answers": [
+                        {
+                            "answerText": "Events",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "Intents",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "Navigation controllers",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "State",
+                            "isCorrect": true
+                        }
+                    ]
+                },
+                {
+                    "questionText": "In MVI, which component computes the new state from the current state and a user intent?",
+                    "difficulty": "INTERMEDIATE",
+                    "explanation": "A reducer is a pure function that takes the current state and an intent and returns the next state, which makes every state transition explicit and easy to test.",
+                    "answers": [
+                        {
+                            "answerText": "The View",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "The Repository",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "The Intent itself",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "The reducer",
+                            "isCorrect": true
+                        }
+                    ]
+                },
+                {
+                    "questionText": "Why should a ViewModel not hold a NavController?",
+                    "difficulty": "INTERMEDIATE",
+                    "explanation": "A NavController belongs to the UI. A ViewModel outlives the UI, so holding one leaks it and couples the ViewModel to the framework. Expose what should happen and let the composable navigate.",
+                    "answers": [
+                        {
+                            "answerText": "Because NavController is not thread-safe",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "Because ViewModels cannot call any function of the Navigation library",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "Because NavController can only be created in the data layer",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "Because the ViewModel outlives the UI, so it would leak the NavController and depend on UI framework types",
+                            "isCorrect": true
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "technologyName": "Android",
+            "topicName": "ViewModel",
+            "topicDescription": "Architecture component for managing UI-related data across configuration changes.",
+            "questions": [
+                {
+                    "questionText": "Which owner should scope a ViewModel that must be shared by all screens of a multi-step flow in Compose Navigation?",
+                    "difficulty": "INTERMEDIATE",
+                    "explanation": "Scoping to the parent navigation graph's back stack entry shares one instance across the flow and clears it when the user leaves the flow, instead of keeping it for the whole Activity.",
+                    "answers": [
+                        {
+                            "answerText": "Each screen's own back stack entry",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "The Application class",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "A top-level singleton object",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "The parent navigation graph's back stack entry",
+                            "isCorrect": true
+                        }
+                    ]
+                },
+                {
+                    "questionText": "Why is stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), initial) commonly used for UI state?",
+                    "difficulty": "ADVANCED",
+                    "explanation": "WhileSubscribed(5_000) keeps the upstream running through short gaps such as a configuration change and stops it five seconds after the last collector leaves, so work isn't done while nothing is observing.",
+                    "answers": [
+                        {
+                            "answerText": "It makes the state survive process death",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "It runs the upstream on a background thread only",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "It prevents the StateFlow from ever emitting duplicates",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "It stops the upstream 5 seconds after the last collector leaves, surviving configuration changes without wasted work",
+                            "isCorrect": true
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "technologyName": "Android",
+            "topicName": "Clean Architecture",
+            "topicDescription": "Layered architecture patterns for Android: domain, data, and presentation boundaries.",
+            "questions": [
+                {
+                    "questionText": "In Clean Architecture, where should a repository interface live and where should its implementation live?",
+                    "difficulty": "INTERMEDIATE",
+                    "explanation": "The domain layer declares the interface and the data layer implements it, so the dependency points inward. DI binds the implementation to the interface.",
+                    "answers": [
+                        {
+                            "answerText": "Interface in the data layer, implementation in the UI layer",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "Both in the presentation layer",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "Interface in the UI layer, implementation in the domain layer",
+                            "isCorrect": false
+                        },
+                        {
+                            "answerText": "Interface in the domain layer, implementation in the data layer",
+                            "isCorrect": true
+                        }
+                    ]
+                }
+            ]
         }
     ]
 }

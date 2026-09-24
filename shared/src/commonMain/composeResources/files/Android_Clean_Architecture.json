@@ -35,6 +35,27 @@
                     "codeSnippet": "class ArticleRepository(private val api: ArticleApi, private val dao: ArticleDao) {\n    // The UI only ever observes the database\n    fun observeArticles(): Flow<List<Article>> =\n        dao.observeAll().map { rows -> rows.map { it.toDomain() } }\n\n    // Network -> database; the Flow above re-emits automatically\n    suspend fun refresh() {\n        val fresh = api.fetchArticles().map { it.toEntity() }\n        dao.replaceAll(fresh)\n    }\n}",
                     "codeLang": "Kotlin",
                     "difficulty": "ADVANCED"
+                },
+                {
+                    "title": "Data sources fetch, repositories decide",
+                    "content": "A data source talks to one origin and returns raw data: a Retrofit interface, a Room DAO, a DataStore wrapper. A repository is the layer above: it coordinates one or more data sources, decides where data comes from (cache first, network refresh, fallback), handles errors and maps data models to domain models.\n\nKeeping that split means data sources stay simple and replaceable, and policy (when to refresh, what to cache) lives in one place instead of leaking into ViewModels.",
+                    "codeSnippet": "class UserRemoteDataSource(private val api: UserApi) {\n    suspend fun fetch(id: String): UserDto = api.getUser(id)          // one source, raw data\n}\n\nclass UserLocalDataSource(private val dao: UserDao) {\n    fun observe(id: String): Flow<UserEntity?> = dao.observe(id)\n    suspend fun save(user: UserEntity) = dao.upsert(user)\n}\n\nclass UserRepositoryImpl(\n    private val remote: UserRemoteDataSource,\n    private val local: UserLocalDataSource\n) : UserRepository {\n    override fun observeUser(id: String): Flow<User?> = local.observe(id).map { it?.toDomain() }\n    override suspend fun refresh(id: String) = local.save(remote.fetch(id).toEntity())   // policy\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "Dependency inversion: the domain declares the interface, the data layer implements it",
+                    "content": "Business rules must not depend on how data is fetched. The domain layer declares a repository interface in its own terms, and the data layer provides the implementation. The source-code dependency points inward: data depends on domain, never the other way around.\n\nDependency injection connects them: the container binds the interface to the implementation, and ViewModels and use cases only ever ask for the interface. Swapping the implementation for a fake in tests, or for a different backend, needs no change in the domain.",
+                    "codeSnippet": "// domain module: knows nothing about Retrofit or Room\ninterface UserRepository {\n    fun observeUser(id: String): Flow<User?>\n}\n\n// data module: implements the domain's interface\nclass UserRepositoryImpl(/* data sources */) : UserRepository { /* ... */ }\n\n// Hilt\n@Module @InstallIn(SingletonComponent::class)\nabstract class DataModule {\n    @Binds abstract fun bindUserRepository(impl: UserRepositoryImpl): UserRepository\n}\n\n// Koin\n// single<UserRepository> { UserRepositoryImpl(get(), get()) }",
+                    "codeLang": "Kotlin",
+                    "difficulty": "INTERMEDIATE"
+                },
+                {
+                    "title": "The domain layer is optional — add it when it earns its place",
+                    "content": "Google's architecture guidance treats the domain layer as optional. For a simple app whose ViewModels just read from a repository and show the result, use cases that only forward a call add indirection without value.\n\nIntroduce a domain layer when you have business logic that is complex, reused by several ViewModels, or worth testing in isolation, or when you want to combine several repositories in one place. Start with UI and data layers and add the domain layer when the duplication or complexity shows up.",
+                    "codeSnippet": "// Simple screen: the ViewModel talks to the repository directly\nclass SettingsViewModel(private val settings: SettingsRepository) : ViewModel()\n\n// Real logic worth its own place: it combines repositories and is reused\nclass GetRecommendationsUseCase(\n    private val history: HistoryRepository,\n    private val catalog: CatalogRepository\n) {\n    suspend operator fun invoke(): List<Item> = rank(history.recent(), catalog.all())\n}",
+                    "codeLang": "Kotlin",
+                    "difficulty": "BEGINNER"
                 }
             ]
         }
